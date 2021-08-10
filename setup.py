@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from setuptools import (  # type: ignore
-    setup,
-    find_packages,
-)
+import os.path
+
+from setuptools import find_packages, setup  # type: ignore
 
 extras_require = {
     "test": [  # `test` GitHub Action jobs uses this
@@ -47,32 +46,36 @@ extras_require["dev"] = (
     + extras_require["dev"]
 )
 
-with open("./README.md") as readme:
+readme_path, readme_content_type = "./README.rst", "text/x-rst"
+if os.path.exists("./README.md"):
+    readme_path, readme_content_type = "./README.md", "text/markdown"
+
+with open(readme_path) as readme:
     long_description = readme.read()
 
 
 setup(
-    name="<PYPI_NAME>",
+    name="ape-hardhat",
     use_scm_version=True,
     setup_requires=["setuptools_scm"],
-    description="""<PYPI_NAME>: <SHORT_DESCRIPTION>""",
+    description="""ape-hardhat: Ape network provider for Hardhat""",
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type=readme_content_type,
     author="ApeWorX Ltd.",
     author_email="admin@apeworx.io",
-    url="https://github.com/ApeWorX/<REPO_NAME>",
+    url="https://github.com/ApeWorX/ape-hardhat",
     include_package_data=True,
     install_requires=[
         "importlib-metadata ; python_version<'3.8'",
     ],  # NOTE: Add 3rd party libraries here
     python_requires=">=3.6,<4",
     extras_require=extras_require,
-    py_modules=["<MODULE_NAME>"],
+    py_modules=["ape_hardhat"],
     license="Apache-2.0",
     zip_safe=False,
     keywords="ethereum",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    package_data={"<MODULE_NAME>": ["py.typed"]},
+    package_data={"ape_hardhat": ["py.typed"]},
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
