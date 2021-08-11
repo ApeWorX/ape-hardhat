@@ -1,12 +1,18 @@
-try:
-    from importlib.metadata import PackageNotFoundError as _PackageNotFoundError  # type: ignore
-    from importlib.metadata import version as _version  # type: ignore
-except ModuleNotFoundError:
-    from importlib_metadata import PackageNotFoundError as _PackageNotFoundError  # type: ignore
-    from importlib_metadata import version as _version  # type: ignore
+"""
+Ape network provider plugin for Hardhat (Ethereum development framework and network
+implementation written in Node.js).
+"""
 
-try:
-    __version__ = _version(__name__)
-except _PackageNotFoundError:
-    # package is not installed
-    __version__ = "<unknown>"
+from ape import plugins
+
+from .providers import HardhatNetworkConfig, HardhatProvider
+
+
+@plugins.register(plugins.Config)
+def config_class():
+    return HardhatNetworkConfig
+
+
+@plugins.register(plugins.ProviderPlugin)
+def providers():
+    yield "ethereum", "development", HardhatProvider

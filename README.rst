@@ -6,7 +6,7 @@ Hardhat network provider plugin for Ape. Hardhat is a development framework writ
 Dependencies
 ************
 
-* `python3 <https://www.python.org/downloads>`_ version 3.6 or greater, python3-dev
+* `python3 <https://www.python.org/downloads>`_ version 3.7 or greater, python3-dev
 * Node.js, NPM, and Hardhat. See Hardhat's `Installation <https://hardhat.org/getting-started/#installation>`_ documentation for steps.
 
 Installation
@@ -37,13 +37,22 @@ Quick Usage
 
 To use the plugin, first install Hardhat locally into your Ape project directory:
 
-
 .. code-block:: bash
 
     cd your-ape-project
     npm install --save-dev hardhat
 
-After that, you can use the ``--network`` command line flag, or add a ``network`` key in your ``ape-config.yaml`` file to tell Ape to use the Hardhat provider.
+After that, you can use the ``--network ethereum:development:hardhat`` command line flag to use the hardhat network (if it's not already configured as the default).
+
+This network provider takes additional Hardhat-specific configuration options. To use them, add these configs in your project's ``ape-config.yaml``:
+
+.. code-block:: yaml
+
+    hardhat:
+      port: 8555
+      ethereum:
+        development:
+          uri: http://localhost:8555
 
 Development
 ***********

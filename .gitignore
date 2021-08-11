@@ -8,6 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+.build/
 build/
 develop-eggs/
 dist/
@@ -116,3 +117,11 @@ dmypy.json
 
 # setuptools-scm
 version.py
+
+# Ape stuff
+tests/hardhat.config.js
+
+# NPM
+package.json
+package-lock.json
+node_modules/
