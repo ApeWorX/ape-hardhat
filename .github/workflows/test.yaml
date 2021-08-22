@@ -61,6 +61,14 @@ jobs:
         - name: Install Dependencies
           run: pip install .[test]
 
+        - name: Setup Node
+          uses: actions/setup-node@v2
+          with:
+              node-version: '14'
+
+        - name: Install Node Dependencies
+          run: npm install --save-dev hardhat
+
         - name: Run Tests
           run: pytest -m "not fuzzing"
 
