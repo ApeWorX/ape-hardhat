@@ -69,7 +69,7 @@ setup(
         "eth-ape>=0.1.0a20",
         "importlib-metadata ; python_version<'3.8'",
     ],  # NOTE: Add 3rd party libraries here
-    python_requires=">=3.6,<4",
+    python_requires=">=3.7,<4",
     extras_require=extras_require,
     py_modules=["ape_hardhat"],
     license="Apache-2.0",
@@ -85,7 +85,6 @@ setup(
         "Operating System :: MacOS",
         "Operating System :: POSIX",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
