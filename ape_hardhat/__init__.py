@@ -111,24 +111,27 @@ class HardhatProvider(EthereumProvider):
             self._process.kill()
         self._process = None
 
-    def set_block_gas_limit(self, gas_limit: int):
-        return self._web3.provider.make_request("evm_setBlockGasLimit", [hex(gas_limit)])
+    def _make_request(self, rpc: str, args: list) -> dict:
+        return self._web3.provider.make_request(rpc, args)  # type: ignore
 
-    def sleep(self, seconds: int):
-        return self._web3.provider.make_request("evm_increaseTime", [seconds])
+    def set_block_gas_limit(self, gas_limit: int) -> dict:
+        return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)])
 
-    def mine(self, timestamp: Optional[int] = None):
-        return self._web3.provider.make_request("evm_mine", [timestamp] if timestamp else [])
+    def sleep(self, seconds: int) -> dict:
+        return self._make_request("evm_increaseTime", [seconds])
 
-    def snapshot(self):
-        return self._web3.provider.make_request("evm_snapshot", [])
+    def mine(self, timestamp: Optional[int] = None) -> dict:
+        return self._make_request("evm_mine", [timestamp] if timestamp else [])
 
-    def revert(self, snapshot_id: str):
+    def snapshot(self) -> dict:
+        return self._make_request("evm_snapshot", [])
+
+    def revert(self, snapshot_id: str) -> dict:
         assert snapshot_id.startswith("0x")
-        return self._web3.provider.make_request("evm_revert", [snapshot_id])
+        return self._make_request("evm_revert", [snapshot_id])
 
-    def unlock_account(self, address: str):
-        return self._web3.provider.make_request("hardhat_impersonateAccount", [address])
+    def unlock_account(self, address: str) -> dict:
+        return self._make_request("hardhat_impersonateAccount", [address])
 
 
 @plugins.register(plugins.Config)

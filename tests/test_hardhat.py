@@ -73,7 +73,7 @@ def test_sleep(hh_provider):
 
 def test_mine(hh_provider):
     block1 = hh_provider._web3.eth.get_block("latest")
-    assert hh_provider.mine()
+    assert hh_provider.mine()["result"].startswith("0x")
     block2 = hh_provider._web3.eth.get_block("latest")
     assert block1.hash != block2.hash and block2.number > block1.number
 
