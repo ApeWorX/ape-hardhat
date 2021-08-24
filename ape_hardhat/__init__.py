@@ -68,7 +68,7 @@ class HardhatProvider(EthereumProvider):
         if self.config.fork_block_number:
             cmd.extend(["--fork-block-number", str(self.config.fork_block_number)])
 
-        # TODO Maybe add a config to send stdout to logger?
+        # TODO Add a config to send stdout to logger?
         # Or redirect stdout to a file in plugin data dir?
         self._process = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
@@ -83,6 +83,7 @@ class HardhatProvider(EthereumProvider):
         for retry_time in retries:
             time.sleep(retry_time)
             try:
+                # make a network call for chain_id and verify the result
                 assert self.chain_id == HARDHAT_CHAIN_ID
                 connected = True
                 break
@@ -109,6 +110,25 @@ class HardhatProvider(EthereumProvider):
             # process is still running, kill it
             self._process.kill()
         self._process = None
+
+    def set_block_gas_limit(self, gas_limit: int):
+        return self._web3.provider.make_request("evm_setBlockGasLimit", [hex(gas_limit)])
+
+    def sleep(self, seconds: int):
+        return self._web3.provider.make_request("evm_increaseTime", [seconds])
+
+    def mine(self, timestamp: Optional[int] = None):
+        return self._web3.provider.make_request("evm_mine", [timestamp] if timestamp else [])
+
+    def snapshot(self):
+        return self._web3.provider.make_request("evm_snapshot", [])
+
+    def revert(self, snapshot_id: str):
+        assert snapshot_id.startswith("0x")
+        return self._web3.provider.make_request("evm_revert", [snapshot_id])
+
+    def unlock_account(self, address: str):
+        return self._web3.provider.make_request("hardhat_impersonateAccount", [address])
 
 
 @plugins.register(plugins.Config)

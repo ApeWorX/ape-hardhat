@@ -59,3 +59,40 @@ def test_custom_port(network_api, network_config):
     h = HardhatProvider("hardhat", network_api, network_config, {}, Path("."), "")
     assert TEST_CUSTOM_URI in h.uri
     assert h.config.port == TEST_CUSTOM_PORT
+
+
+def test_set_block_gas_limit(hh_provider):
+    gas_limit = hh_provider._web3.eth.get_block("latest").gasLimit
+    assert hh_provider.set_block_gas_limit(gas_limit)["result"] is True
+
+
+def test_sleep(hh_provider):
+    seconds = 5
+    assert hh_provider.sleep(seconds)["result"] == str(seconds - 1)
+
+
+def test_mine(hh_provider):
+    block1 = hh_provider._web3.eth.get_block("latest")
+    assert hh_provider.mine()
+    block2 = hh_provider._web3.eth.get_block("latest")
+    assert block1.hash != block2.hash and block2.number > block1.number
+
+
+def test_revert_failure(hh_provider):
+    assert hh_provider.revert("0x9999")["result"] is False
+
+
+def test_snapshot_and_revert(hh_provider):
+    snap = hh_provider.snapshot()
+    assert snap["result"].startswith("0x")
+    block1 = hh_provider._web3.eth.get_block("latest")
+    hh_provider.mine()
+    block2 = hh_provider._web3.eth.get_block("latest")
+    assert block1.hash != block2.hash and block2.number > block1.number
+    hh_provider.revert(snap["result"])
+    block3 = hh_provider._web3.eth.get_block("latest")
+    assert block1.hash == block3.hash and block1.number == block3.number
+
+
+def test_unlock_account(hh_provider):
+    assert hh_provider.unlock_account(TEST_WALLET_ADDRESS)["result"] is True
