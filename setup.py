@@ -66,7 +66,7 @@ setup(
     url="https://github.com/ApeWorX/ape-hardhat",
     include_package_data=True,
     install_requires=[
-        "eth-ape>=0.1.0a20",
+        "eth-ape>=0.1.0a22",
         "importlib-metadata ; python_version<'3.8'",
     ],  # NOTE: Add 3rd party libraries here
     python_requires=">=3.7,<4",
