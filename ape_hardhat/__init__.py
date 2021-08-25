@@ -14,7 +14,7 @@ except _PackageNotFoundError:
 import atexit
 import time
 from subprocess import PIPE, Popen, call
-from typing import Optional
+from typing import Any, Optional
 
 from ape import plugins
 from ape_http.providers import EthereumProvider, NetworkConfig
@@ -111,26 +111,25 @@ class HardhatProvider(EthereumProvider):
             self._process.kill()
         self._process = None
 
-    def _make_request(self, rpc: str, args: list) -> dict:
-        return self._web3.provider.make_request(rpc, args)  # type: ignore
+    def _make_request(self, rpc: str, args: list) -> Any:
+        return self._web3.manager.request_blocking(rpc, args)  # type: ignore
 
-    def set_block_gas_limit(self, gas_limit: int) -> dict:
+    def set_block_gas_limit(self, gas_limit: int) -> bool:
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)])
 
-    def sleep(self, seconds: int) -> dict:
-        return self._make_request("evm_increaseTime", [seconds])
+    def sleep(self, seconds: int) -> int:
+        return int(self._make_request("evm_increaseTime", [seconds]))
 
-    def mine(self, timestamp: Optional[int] = None) -> dict:
+    def mine(self, timestamp: Optional[int] = None) -> str:
         return self._make_request("evm_mine", [timestamp] if timestamp else [])
 
-    def snapshot(self) -> dict:
+    def snapshot(self) -> int:
         return self._make_request("evm_snapshot", [])
 
-    def revert(self, snapshot_id: str) -> dict:
-        assert snapshot_id.startswith("0x")
+    def revert(self, snapshot_id: int) -> bool:
         return self._make_request("evm_revert", [snapshot_id])
 
-    def unlock_account(self, address: str) -> dict:
+    def unlock_account(self, address: str) -> bool:
         return self._make_request("hardhat_impersonateAccount", [address])
 
 
