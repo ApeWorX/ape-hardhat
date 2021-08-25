@@ -16,9 +16,10 @@ def test_instantiation(network_api, network_config):
     assert h.name == "hardhat"
 
 
-def test_connect(hh_provider):
-    hh_provider.connect()
-    assert hh_provider.chain_id == 31337
+def test_connect(network_api, network_config):
+    h = HardhatProvider("hardhat", network_api, network_config, {}, Path("."), "")
+    h.connect()
+    assert h.chain_id == 31337
 
 
 def test_disconnect(hh_provider):
