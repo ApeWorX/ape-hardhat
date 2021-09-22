@@ -1,15 +1,7 @@
-try:
-    from importlib.metadata import PackageNotFoundError as _PackageNotFoundError  # type: ignore
-    from importlib.metadata import version as _version  # type: ignore
-except ModuleNotFoundError:
-    from importlib_metadata import PackageNotFoundError as _PackageNotFoundError  # type: ignore
-    from importlib_metadata import version as _version  # type: ignore
-
-try:
-    __version__ = _version(__name__)
-except _PackageNotFoundError:
-    # package is not installed
-    __version__ = "<unknown>"
+"""
+Ape network provider plugin for Hardhat (Ethereum development framework and network
+implementation written in Node.js).
+"""
 
 import atexit
 import ctypes
@@ -183,7 +175,7 @@ class HardhatProvider(EthereumProvider):
         else:
             raise RuntimeError("Can't build URI before `connect` is called.")
 
-    @property
+    @property  # type: ignore
     def _web3(self):
         """
         This property overrides the ``EthereumProvider._web3`` class variable to return our
