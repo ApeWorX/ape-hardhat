@@ -117,3 +117,6 @@ dmypy.json
 
 # setuptools-scm
 version.py
+
+# Ape stuff
+tests/hardhat.config.js
