@@ -23,24 +23,24 @@ def test_connect(network_api, network_config):
     assert h.chain_id == 31337
 
 
-def test_disconnect(hh_provider):
-    p = hh_provider.process
+def test_disconnect(hardhat_provider):
+    p = hardhat_provider.process
     assert p
-    hh_provider.disconnect()
+    hardhat_provider.disconnect()
     for i in range(15):
-        if hh_provider.process is None and p.poll() is not None:
+        if hardhat_provider.process is None and p.poll() is not None:
             return True  # this means the process exited
         time.sleep(0.1)
     raise RuntimeError("hardhat process didn't exit in time")
 
 
-def test_gas_price(hh_provider):
-    gas_price = hh_provider.gas_price
+def test_gas_price(hardhat_provider):
+    gas_price = hardhat_provider.gas_price
     assert gas_price > 1
 
 
-def test_uri(hh_provider):
-    assert f"http://localhost:{hh_provider.port}" in hh_provider.uri
+def test_uri(hardhat_provider):
+    assert f"http://localhost:{hardhat_provider.port}" in hardhat_provider.uri
 
 
 @pytest.mark.parametrize(
@@ -51,8 +51,8 @@ def test_uri(hh_provider):
         (HardhatProvider.get_code, [TEST_WALLET_ADDRESS], HexBytes("")),
     ],
 )
-def test_rpc_methods(hh_provider, method, args, expected):
-    assert method(hh_provider, *args) == expected
+def test_rpc_methods(hardhat_provider, method, args, expected):
+    assert method(hardhat_provider, *args) == expected
 
 
 def test_custom_port(network_api, network_config):
@@ -97,41 +97,47 @@ def test_two_hardhat_instances(network_api):
     assert hash1 != hash2
 
 
-def test_set_block_gas_limit(hh_provider):
-    gas_limit = hh_provider._web3.eth.get_block("latest").gasLimit
-    assert hh_provider.set_block_gas_limit(gas_limit) is True
+def test_set_block_gas_limit(hardhat_provider):
+    gas_limit = hardhat_provider._web3.eth.get_block("latest").gasLimit
+    assert hardhat_provider.set_block_gas_limit(gas_limit) is True
 
 
-def test_sleep(hh_provider):
+def test_sleep(hardhat_provider):
     seconds = 5
-    t1 = hh_provider.sleep(seconds)
-    t2 = hh_provider.sleep(seconds)
+    t1 = hardhat_provider.sleep(seconds)
+    t2 = hardhat_provider.sleep(seconds)
     assert t2 - t1 == seconds
 
 
-def test_mine(hh_provider):
-    block1 = hh_provider._web3.eth.get_block("latest")
-    assert hh_provider.mine() == "0x0"
-    block2 = hh_provider._web3.eth.get_block("latest")
-    assert hh_provider.mine() == "0x0"
+def test_mine(hardhat_provider):
+    block1 = hardhat_provider._web3.eth.get_block("latest")
+    assert hardhat_provider.mine() == "0x0"
+    block2 = hardhat_provider._web3.eth.get_block("latest")
+    assert hardhat_provider.mine() == "0x0"
     assert block1.hash != block2.hash and block2.number > block1.number
 
 
-def test_revert_failure(hh_provider):
-    assert hh_provider.revert(0xFFFF) is False
+def test_revert_failure(hardhat_provider):
+    assert hardhat_provider.revert(0xFFFF) is False
 
 
-def test_snapshot_and_revert(hh_provider):
-    snap = hh_provider.snapshot()
+def test_snapshot_and_revert(hardhat_provider):
+    snap = hardhat_provider.snapshot()
     assert snap == 1
-    block1 = hh_provider._web3.eth.get_block("latest")
-    hh_provider.mine()
-    block2 = hh_provider._web3.eth.get_block("latest")
+    block1 = hardhat_provider._web3.eth.get_block("latest")
+    hardhat_provider.mine()
+    block2 = hardhat_provider._web3.eth.get_block("latest")
     assert block1.hash != block2.hash and block2.number > block1.number
-    hh_provider.revert(snap)
-    block3 = hh_provider._web3.eth.get_block("latest")
+    hardhat_provider.revert(snap)
+    block3 = hardhat_provider._web3.eth.get_block("latest")
     assert block1.hash == block3.hash and block1.number == block3.number
 
 
-def test_unlock_account(hh_provider):
-    assert hh_provider.unlock_account(TEST_WALLET_ADDRESS) is True
+def test_unlock_account(hardhat_provider):
+    assert hardhat_provider.unlock_account(TEST_WALLET_ADDRESS) is True
+
+
+def test_double_connect(hardhat_provider):
+    # connect has already been called once as part of the fixture, so connecting again should fail
+    with pytest.raises(RuntimeError):
+        hardhat_provider.connect()

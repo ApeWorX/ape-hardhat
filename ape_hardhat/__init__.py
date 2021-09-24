@@ -31,7 +31,7 @@ HARDHAT_START_PROCESS_ATTEMPTS = 3  # number of attempts to start subprocess bef
 def _signal_handler(signum, frame):
     """Runs on SIGTERM and SIGINT to force ``atexit`` handlers to run."""
     atexit._run_exitfuncs()
-    sys.exit(0)
+    sys.exit(143 if signum == signal.SIGTERM else 130)
 
 
 def _set_death_signal():
@@ -73,11 +73,9 @@ class HardhatProvider(EthereumProvider):
 
         hardhat_config_file = self.network.config_manager.PROJECT_FOLDER / "hardhat.config.js"
 
-        # Write the hardhat config file in the Ape project dir if it doesn't exist yet
         if not hardhat_config_file.is_file():
             hardhat_config_file.write_text(HARDHAT_CONFIG)
 
-        # Check if npx and hardhat are installed
         if call(["npx", "--version"], stderr=PIPE, stdout=PIPE, stdin=PIPE) != 0:
             raise HardhatSubprocessError(
                 "Missing npx binary. See ape-hardhat README for install steps."
@@ -116,13 +114,9 @@ class HardhatProvider(EthereumProvider):
         for retry_time in self.config.network_retries:
             time.sleep(retry_time)
             super().connect()
-            try:
-                # make a network call for chain_id and verify the result
-                assert self.chain_id == HARDHAT_CHAIN_ID
-                connected = True
+            connected = self._verify_connection()
+            if connected:
                 break
-            except Exception as exc:
-                print("Retrying hardhat connection:", exc)
         if not connected:
             if process.poll() is None:
                 raise HardhatSubprocessError(
@@ -140,8 +134,22 @@ class HardhatProvider(EthereumProvider):
             )
         self.process = process
 
+    def _verify_connection(self):
+        """Make a network call for chain_id and verify the result."""
+        try:
+            chain_id = self.chain_id
+            if chain_id != HARDHAT_CHAIN_ID:
+                raise AssertionError(f"Unexpected chain ID: {chain_id}")
+            return True
+        except Exception as exc:
+            print("Hardhat connection failed:", exc)
+        return False
+
     def connect(self):
         """Start the hardhat process and verify it's up and accepting connections."""
+
+        if self.process:
+            raise RuntimeError("Cannot connect twice. Call disconnect before connecting again.")
 
         if self.config.port:
             # if a port is configured, only make one start up attempt
@@ -193,9 +201,9 @@ class HardhatProvider(EthereumProvider):
     def disconnect(self):
         super().disconnect()
         if self.process:
-            # process object exists, try killing it
             self.process.kill()
         self.process = None
+        self.port = None
 
     def _make_request(self, rpc: str, args: list) -> Any:
         return self._web3.manager.request_blocking(rpc, args)  # type: ignore

@@ -45,7 +45,7 @@ def network_config(project):
 
 
 @pytest.fixture
-def hh_provider(network_api, network_config):
+def hardhat_provider(network_api, network_config):
     hh = HardhatProvider("hardhat", network_api, network_config, {}, Path("."), "")
     hh.connect()
     return hh
