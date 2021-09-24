@@ -41,14 +41,15 @@ jobs:
           run: pip install .[lint]
 
         - name: Run MyPy
-          run: mypy -p .
+          run: mypy .
 
     functional:
-        runs-on: ubuntu-latest
+        runs-on: ${{ matrix.os }}
 
         strategy:
             matrix:
                 python-version: [3.7, 3.8, 3.9]
+                os: [ubuntu-latest, macos-latest]   # eventually add `windows-latest`
 
         steps:
         - uses: actions/checkout@v2
