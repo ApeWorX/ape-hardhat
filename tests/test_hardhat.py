@@ -1,7 +1,7 @@
 import time
 from pathlib import Path
 
-import pytest
+import pytest  # type: ignore
 from conftest import get_network_config
 from hexbytes import HexBytes
 
