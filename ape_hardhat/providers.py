@@ -48,12 +48,6 @@ class HardhatSubprocessError(RuntimeError):
 
 
 class HardhatNetworkConfig(NetworkConfig):
-    # --fork <URL, JSON-RPC server to fork from>
-    fork_url: Optional[str] = None
-
-    # --fork-block-number <INT, block number to fork from>
-    fork_block_number: Optional[int] = None
-
     # --port <INT, default from Hardhat is 8545, but our default is to assign a random port number>
     port: Optional[int] = None
 
@@ -96,10 +90,6 @@ class HardhatProvider(EthereumProvider):
         """Start the hardhat process and wait for it to respond over the network."""
         # handle configs
         cmd = ["npx", "hardhat", "node"]
-        if self.config.fork_url:
-            cmd.extend(["--fork", self.config.fork_url])
-        if self.config.fork_block_number:
-            cmd.extend(["--fork-block-number", str(self.config.fork_block_number)])
 
         # pick a random port if one isn't configured
         self.port = self.config.port

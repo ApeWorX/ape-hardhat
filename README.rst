@@ -50,8 +50,6 @@ This network provider takes additional Hardhat-specific configuration options. T
 
     hardhat:
       port: 8555
-      fork_url: https://eth-mainnet.alchemyapi.io/v2/api-key-goes-here
-      fork_block_number: 11095000
       ethereum:
         development:
           uri: http://localhost:8555
