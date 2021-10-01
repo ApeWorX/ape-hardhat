@@ -12,6 +12,7 @@ import time
 from subprocess import PIPE, Popen, call
 from typing import Any, List, Optional
 
+from ape.exceptions import ProviderError
 from ape_http.providers import DEFAULT_SETTINGS, EthereumProvider, NetworkConfig
 
 EPHEMERAL_PORTS_START = 49152
@@ -49,7 +50,7 @@ def _set_death_signal():
         return libc.prctl(1, signal.SIGTERM)
 
 
-class HardhatSubprocessError(RuntimeError):
+class HardhatSubprocessError(ProviderError):
     pass
 
 
