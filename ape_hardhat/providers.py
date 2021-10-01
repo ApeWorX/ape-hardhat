@@ -12,7 +12,6 @@ import time
 from subprocess import PIPE, Popen, call
 from typing import Any, List, Optional
 
-from ape import plugins
 from ape_http.providers import DEFAULT_SETTINGS, EthereumProvider, NetworkConfig
 
 EPHEMERAL_PORTS_START = 49152
@@ -21,6 +20,13 @@ HARDHAT_CHAIN_ID = 31337
 HARDHAT_CONFIG = """
 // See https://hardhat.org/config/ for config options.
 module.exports = {
+  networks: {
+    hardhat: {
+      hardfork: "london",
+      // base fee of 0 allows use of 0 gas price when testing
+      initialBaseFeePerGas: 0,
+    },
+  },
 };
 """
 HARDHAT_START_NETWORK_RETRIES = [0.1, 0.2, 0.3, 0.5, 1.0]  # seconds between network retries
@@ -214,13 +220,3 @@ class HardhatProvider(EthereumProvider):
 
     def unlock_account(self, address: str) -> bool:
         return self._make_request("hardhat_impersonateAccount", [address])
-
-
-@plugins.register(plugins.Config)
-def config_class():
-    return HardhatNetworkConfig
-
-
-@plugins.register(plugins.ProviderPlugin)
-def providers():
-    yield "ethereum", "development", HardhatProvider
