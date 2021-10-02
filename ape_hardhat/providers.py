@@ -6,6 +6,7 @@ import atexit
 import ctypes
 import platform
 import random
+import shutil
 import signal
 import sys
 import time
@@ -32,6 +33,7 @@ module.exports = {
 """
 HARDHAT_START_NETWORK_RETRIES = [0.1, 0.2, 0.3, 0.5, 1.0]  # seconds between network retries
 HARDHAT_START_PROCESS_ATTEMPTS = 3  # number of attempts to start subprocess before giving up
+PROCESS_WAIT_TIMEOUT = 15  # seconds to wait for process to terminate
 
 
 def _signal_handler(signum, frame):
@@ -40,17 +42,66 @@ def _signal_handler(signum, frame):
     sys.exit(143 if signum == signal.SIGTERM else 130)
 
 
-def _set_death_signal():
-    """Automatically sends SIGTERM to child subprocesses when parent process dies."""
+def _linux_set_death_signal():
+    """
+    Automatically sends SIGTERM to child subprocesses when parent process
+    dies (only usable on Linux).
+    """
+    # from: https://stackoverflow.com/a/43152455/75956
+    # the first argument, 1, is the flag for PR_SET_PDEATHSIG
+    # the second argument is what signal to send to child subprocesses
+    libc = ctypes.CDLL("libc.so.6")
+    return libc.prctl(1, signal.SIGTERM)
+
+
+def _get_preexec_fn():
     if platform.uname().system == "Linux":
-        # from: https://stackoverflow.com/a/43152455/75956
-        # the first argument "1" is PR_SET_PDEATHSIG
-        # the second argument is what signal to send the child
-        libc = ctypes.CDLL("libc.so.6")
-        return libc.prctl(1, signal.SIGTERM)
+        return _linux_set_death_signal
+    else:
+        return None
 
 
-class HardhatSubprocessError(ProviderError):
+def _windows_taskkill(pid: int) -> None:
+    """
+    Kills the given process and all child processes using taskkill.exe. Used
+    for subprocesses started up on Windows which run in a cmd.exe wrapper that
+    doesn't propagate signals by default (leaving orphaned processes).
+    """
+    taskkill_bin = shutil.which("taskkill")
+    if not taskkill_bin:
+        raise HardhatSubprocessError("Could not find taskkill.exe executable.")
+    proc = Popen(
+        [
+            taskkill_bin,
+            "/F",  # forcefully terminate
+            "/T",  # terminate child processes
+            "/PID",
+            str(pid),
+        ],
+        stderr=PIPE,
+        stdout=PIPE,
+        stdin=PIPE,
+    )
+    proc.wait(timeout=PROCESS_WAIT_TIMEOUT)
+
+
+def _kill_process(proc):
+    """Helper function for killing a process and its child subprocesses."""
+    if platform.uname().system == "Windows":
+        _windows_taskkill(proc.pid)
+    proc.kill()
+    proc.wait(timeout=PROCESS_WAIT_TIMEOUT)
+
+
+class HardhatProviderError(ProviderError):
+    """An error related to the Hardhat network provider plugin."""
+
+    pass
+
+
+class HardhatSubprocessError(HardhatProviderError):
+    """An error related to launching subprocesses to run Hardhat."""
+
     pass
 
 
@@ -70,17 +121,22 @@ class HardhatProvider(EthereumProvider):
         )
         self.port = None
         self.process = None
+        self.npx_bin = shutil.which("npx")
 
         hardhat_config_file = self.network.config_manager.PROJECT_FOLDER / "hardhat.config.js"
 
         if not hardhat_config_file.is_file():
             hardhat_config_file.write_text(HARDHAT_CONFIG)
 
-        if call(["npx", "--version"], stderr=PIPE, stdout=PIPE, stdin=PIPE) != 0:
+        if not self.npx_bin:
             raise HardhatSubprocessError(
-                "Missing npx binary. See ape-hardhat README for install steps."
+                "Could not locate NPM executable. See ape-hardhat README for install steps."
             )
-        if call(["npx", "hardhat", "--version"], stderr=PIPE, stdout=PIPE, stdin=PIPE) != 0:
+        if call([self.npx_bin, "--version"], stderr=PIPE, stdout=PIPE, stdin=PIPE) != 0:
+            raise HardhatSubprocessError(
+                "NPM executable returned error code. See ape-hardhat README for install steps."
+            )
+        if call([self.npx_bin, "hardhat", "--version"], stderr=PIPE, stdout=PIPE, stdin=PIPE) != 0:
             raise HardhatSubprocessError(
                 "Missing hardhat NPM package. See ape-hardhat README for install steps."
             )
@@ -95,8 +151,7 @@ class HardhatProvider(EthereumProvider):
 
     def _start_process(self):
         """Start the hardhat process and wait for it to respond over the network."""
-        # handle configs
-        cmd = ["npx", "hardhat", "node"]
+        cmd = [self.npx_bin, "hardhat", "node"]
 
         # pick a random port if one isn't configured
         self.port = self.config.port
@@ -105,7 +160,7 @@ class HardhatProvider(EthereumProvider):
         cmd.extend(["--port", str(self.port)])
 
         # TODO: Add configs to send stdout to logger / redirect to a file in plugin data dir?
-        process = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, preexec_fn=_set_death_signal)
+        process = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, preexec_fn=_get_preexec_fn())
         connected = False
         for retry_time in self.config.network_retries:
             time.sleep(retry_time)
@@ -130,12 +185,12 @@ class HardhatProvider(EthereumProvider):
             )
         self.process = process
 
-    def _verify_connection(self):
+    def _verify_connection(self) -> bool:
         """Make a network call for chain_id and verify the result."""
         try:
             chain_id = self.chain_id
             if chain_id != HARDHAT_CHAIN_ID:
-                raise AssertionError(f"Unexpected chain ID: {chain_id}")
+                raise HardhatProviderError(f"Unexpected chain ID: {chain_id}")
             return True
         except Exception as exc:
             print("Hardhat connection failed:", exc)
@@ -145,7 +200,9 @@ class HardhatProvider(EthereumProvider):
         """Start the hardhat process and verify it's up and accepting connections."""
 
         if self.process:
-            raise RuntimeError("Cannot connect twice. Call disconnect before connecting again.")
+            raise HardhatProviderError(
+                "Cannot connect twice. Call disconnect before connecting again."
+            )
 
         if self.config.port:
             # if a port is configured, only make one start up attempt
@@ -177,7 +234,7 @@ class HardhatProvider(EthereumProvider):
             # number, so let's build the URI using that port number
             return f"http://localhost:{self.port}"
         else:
-            raise RuntimeError("Can't build URI before `connect` is called.")
+            raise HardhatProviderError("Can't build URI before `connect` is called.")
 
     @property  # type: ignore
     def _web3(self):
@@ -197,7 +254,7 @@ class HardhatProvider(EthereumProvider):
     def disconnect(self):
         super().disconnect()
         if self.process:
-            self.process.kill()
+            _kill_process(self.process)
         self.process = None
         self.port = None
 

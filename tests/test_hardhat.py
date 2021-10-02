@@ -5,7 +5,7 @@ import pytest  # type: ignore
 from conftest import get_network_config
 from hexbytes import HexBytes
 
-from ape_hardhat import HardhatProvider
+from ape_hardhat import HardhatProvider, HardhatProviderError
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
 TEST_CUSTOM_PORT = 8555  # vs. Hardhat's default of 8545
@@ -139,5 +139,5 @@ def test_unlock_account(hardhat_provider):
 
 def test_double_connect(hardhat_provider):
     # connect has already been called once as part of the fixture, so connecting again should fail
-    with pytest.raises(RuntimeError):
+    with pytest.raises(HardhatProviderError):
         hardhat_provider.connect()
