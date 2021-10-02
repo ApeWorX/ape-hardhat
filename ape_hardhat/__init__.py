@@ -5,7 +5,12 @@ implementation written in Node.js).
 
 from ape import plugins
 
-from .providers import HardhatNetworkConfig, HardhatProvider
+from .providers import (
+    HardhatNetworkConfig,
+    HardhatProvider,
+    HardhatProviderError,
+    HardhatSubprocessError,
+)
 
 
 @plugins.register(plugins.Config)
@@ -16,3 +21,11 @@ def config_class():
 @plugins.register(plugins.ProviderPlugin)
 def providers():
     yield "ethereum", "development", HardhatProvider
+
+
+__all__ = [
+    "HardhatNetworkConfig",
+    "HardhatProvider",
+    "HardhatProviderError",
+    "HardhatSubprocessError",
+]
