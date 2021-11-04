@@ -4,6 +4,7 @@ Implementation for HardhatProvider.
 
 import atexit
 import ctypes
+import json
 import platform
 import random
 import shutil
@@ -11,7 +12,7 @@ import signal
 import sys
 import time
 from subprocess import PIPE, Popen, call
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from ape.exceptions import ProviderError
 from ape_http.providers import DEFAULT_SETTINGS, EthereumProvider, NetworkConfig
@@ -30,6 +31,18 @@ module.exports = {
     },
   },
 };
+
+task("dump-accounts", "Dumps accounts as JSON for the current project", async (taskArgs, hre) => {
+  const util = require("hardhat/internal/core/providers/util");
+  const { bufferToHex, privateToAddress, toBuffer } = require("ethereumjs-util");
+  const accts = util.normalizeHardhatNetworkAccountsConfig(config.networks.hardhat.accounts);
+  let out = [];
+  for(let acct of accts) {
+    acct.address = bufferToHex(privateToAddress(toBuffer(acct.privateKey)));
+    out.push(acct);
+  }
+  console.log(JSON.stringify(out, null, 2));
+});
 """
 HARDHAT_START_NETWORK_RETRIES = [0.1, 0.2, 0.3, 0.5, 1.0]  # seconds between network retries
 HARDHAT_START_PROCESS_ATTEMPTS = 3  # number of attempts to start subprocess before giving up
@@ -278,3 +291,16 @@ class HardhatProvider(EthereumProvider):
 
     def unlock_account(self, address: str) -> bool:
         return self._make_request("hardhat_impersonateAccount", [address])
+
+    def call_hardhat_task(self, task_name: str) -> Union[Dict, List]:
+        cmd = [self.npx_bin, "hardhat", task_name]
+        proc = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, preexec_fn=_get_preexec_fn())
+        proc.wait(timeout=PROCESS_WAIT_TIMEOUT)
+        (out, err) = proc.communicate()
+        return json.loads(out)
+
+    def get_accounts(self) -> List:
+        accts = self.call_hardhat_task("dump-accounts")
+        if not isinstance(accts, list):
+            raise ValueError(f"Did not get proper JSON response from dump-accounts: {accts!r}")
+        return accts
