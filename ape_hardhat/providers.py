@@ -14,6 +14,7 @@ from subprocess import PIPE, Popen, call
 from typing import Any, List, Optional
 
 from ape.exceptions import ProviderError
+from ape.logging import logger
 from ape_http.providers import DEFAULT_SETTINGS, EthereumProvider, NetworkConfig
 
 EPHEMERAL_PORTS_START = 49152
@@ -96,13 +97,9 @@ def _kill_process(proc):
 class HardhatProviderError(ProviderError):
     """An error related to the Hardhat network provider plugin."""
 
-    pass
-
 
 class HardhatSubprocessError(HardhatProviderError):
     """An error related to launching subprocesses to run Hardhat."""
-
-    pass
 
 
 class HardhatNetworkConfig(NetworkConfig):
@@ -124,7 +121,6 @@ class HardhatProvider(EthereumProvider):
         self.npx_bin = shutil.which("npx")
 
         hardhat_config_file = self.network.config_manager.PROJECT_FOLDER / "hardhat.config.js"
-
         if not hardhat_config_file.is_file():
             hardhat_config_file.write_text(HARDHAT_CONFIG)
 
@@ -193,7 +189,7 @@ class HardhatProvider(EthereumProvider):
                 raise HardhatProviderError(f"Unexpected chain ID: {chain_id}")
             return True
         except Exception as exc:
-            print("Hardhat connection failed:", exc)
+            logger.debug("Hardhat connection failed: %r", exc)
         return False
 
     def connect(self):
@@ -213,7 +209,7 @@ class HardhatProvider(EthereumProvider):
                     self._start_process()
                     break
                 except HardhatSubprocessError as exc:
-                    print("Retrying hardhat subprocess startup:", exc)
+                    logger.info("Retrying hardhat subprocess startup: %r", exc)
 
         # subprocess should be running and receiving network requests at this point
         if not (self.process and self.process.poll() is None and self.port):
