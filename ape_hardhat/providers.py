@@ -13,9 +13,10 @@ import time
 from subprocess import PIPE, Popen, call
 from typing import Any, List, Optional
 
+from ape.api import Web3Provider, TestProviderAPI
+from ape.api.config import ConfigItem
 from ape.exceptions import ProviderError
 from ape.logging import logger
-from ape_http.providers import DEFAULT_SETTINGS, EthereumProvider, NetworkConfig
 
 EPHEMERAL_PORTS_START = 49152
 EPHEMERAL_PORTS_END = 60999
@@ -28,6 +29,10 @@ module.exports = {
       hardfork: "london",
       // base fee of 0 allows use of 0 gas price when testing
       initialBaseFeePerGas: 0,
+      accounts: {
+        mnemonic: "test test test test test test test test test test test junk",
+        path: "m/44'/60'/0'"
+      }
     },
   },
 };
@@ -35,6 +40,7 @@ module.exports = {
 HARDHAT_START_NETWORK_RETRIES = [0.1, 0.2, 0.3, 0.5, 1.0]  # seconds between network retries
 HARDHAT_START_PROCESS_ATTEMPTS = 3  # number of attempts to start subprocess before giving up
 PROCESS_WAIT_TIMEOUT = 15  # seconds to wait for process to terminate
+DEFAULT_SETTINGS = {"uri": "http://localhost:8545"}
 
 
 def _signal_handler(signum, frame):
@@ -102,7 +108,7 @@ class HardhatSubprocessError(HardhatProviderError):
     """An error related to launching subprocesses to run Hardhat."""
 
 
-class HardhatNetworkConfig(NetworkConfig):
+class HardhatNodeConfig(ConfigItem):
     # --port <INT, default from Hardhat is 8545, but our default is to assign a random port number>
     port: Optional[int] = None
 
@@ -111,7 +117,24 @@ class HardhatNetworkConfig(NetworkConfig):
     process_attempts: int = HARDHAT_START_PROCESS_ATTEMPTS
 
 
-class HardhatProvider(EthereumProvider):
+class ProviderConfig(ConfigItem):
+    development = HardhatNodeConfig()
+    mainnet = DEFAULT_SETTINGS.copy()
+    ropsten: dict = DEFAULT_SETTINGS.copy()
+    rinkeby: dict = DEFAULT_SETTINGS.copy()
+    kovan: dict = DEFAULT_SETTINGS.copy()
+    goerli: dict = DEFAULT_SETTINGS.copy()
+
+
+class HardhatNetworkConfig(ConfigItem):
+    ethereum = ProviderConfig()
+
+
+class HardhatProvider(Web3Provider, TestProviderAPI):
+    @property
+    def _hardhat_network_config(self):
+        return self.config.ethereum.development
+
     def __post_init__(self):
         self._hardhat_web3 = (
             None  # we need to maintain a separate per-instance web3 client for Hardhat
@@ -150,7 +173,7 @@ class HardhatProvider(EthereumProvider):
         cmd = [self.npx_bin, "hardhat", "node"]
 
         # pick a random port if one isn't configured
-        self.port = self.config.port
+        self.port = self._hardhat_network_config.port
         if not self.port:
             self.port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
         cmd.extend(["--port", str(self.port)])
@@ -158,7 +181,7 @@ class HardhatProvider(EthereumProvider):
         # TODO: Add configs to send stdout to logger / redirect to a file in plugin data dir?
         process = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, preexec_fn=_get_preexec_fn())
         connected = False
-        for retry_time in self.config.network_retries:
+        for retry_time in self._hardhat_network_config.network_retries:
             time.sleep(retry_time)
             super().connect()
             connected = self._verify_connection()
@@ -200,11 +223,11 @@ class HardhatProvider(EthereumProvider):
                 "Cannot connect twice. Call disconnect before connecting again."
             )
 
-        if self.config.port:
+        if self._hardhat_network_config.port:
             # if a port is configured, only make one start up attempt
             self._start_process()
         else:
-            for _ in range(self.config.process_attempts):
+            for _ in range(self._hardhat_network_config.process_attempts):
                 try:
                     self._start_process()
                     break
@@ -214,18 +237,14 @@ class HardhatProvider(EthereumProvider):
         # subprocess should be running and receiving network requests at this point
         if not (self.process and self.process.poll() is None and self.port):
             raise HardhatSubprocessError(
-                "Could not start hardhat subprocess on a random port. "
+                f"Could not start hardhat subprocess on a random port {self.port}. "
                 "See logs or run `npx hardhat node` or adjust retry strategy configs to "
                 "troubleshoot."
             )
 
     @property
     def uri(self) -> str:
-        uri = getattr(self.config, self.network.ecosystem.name)[self.network.name]["uri"]
-        if uri != DEFAULT_SETTINGS["uri"]:
-            # the user configured their own URI in the project configs, let's use that
-            return uri
-        elif self.port:
+        if self.port:
             # the user did not override the default URI, and we have a port
             # number, so let's build the URI using that port number
             return f"http://localhost:{self.port}"
@@ -266,10 +285,10 @@ class HardhatProvider(EthereumProvider):
     def mine(self, timestamp: Optional[int] = None) -> str:
         return self._make_request("evm_mine", [timestamp] if timestamp else [])
 
-    def snapshot(self) -> int:
+    def snapshot(self) -> str:
         return self._make_request("evm_snapshot", [])
 
-    def revert(self, snapshot_id: int) -> bool:
+    def revert(self, snapshot_id: str):
         return self._make_request("evm_revert", [snapshot_id])
 
     def unlock_account(self, address: str) -> bool:
