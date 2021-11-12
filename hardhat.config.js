@@ -9,3 +9,16 @@ module.exports = {
     },
   },
 };
+
+task("dump-accounts", "Dumps the accounts as JSON for the current project", async (taskArgs, hre) => {
+  const util = require("hardhat/internal/core/providers/util");
+  const { bufferToHex, privateToAddress, toBuffer } = require("ethereumjs-util");
+  const accts = util.normalizeHardhatNetworkAccountsConfig(config.networks.hardhat.accounts);
+  let out = [];
+  for(let acct of accts) {
+    acct.address = bufferToHex(privateToAddress(toBuffer(acct.privateKey)));
+    out.push(acct);
+  }
+  console.log(JSON.stringify(out, null, 2));
+});
+

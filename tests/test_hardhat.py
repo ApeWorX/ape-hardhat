@@ -141,3 +141,9 @@ def test_double_connect(hardhat_provider):
     # connect has already been called once as part of the fixture, so connecting again should fail
     with pytest.raises(HardhatProviderError):
         hardhat_provider.connect()
+
+
+def test_dump_accounts(hardhat_provider):
+    accts = hardhat_provider.get_accounts()
+    assert len(accts) == 20
+    assert "privateKey" in accts[0]
