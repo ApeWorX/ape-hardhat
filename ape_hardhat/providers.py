@@ -338,15 +338,15 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
 
 def _get_vm_error(web3_value_error: ValueError) -> TransactionError:
     if not len(web3_value_error.args):
-        return VirtualMachineError(web3_value_error)
+        return VirtualMachineError(base_err=web3_value_error)
 
     err_data = web3_value_error.args[0]
     if not isinstance(err_data, dict):
-        return VirtualMachineError(web3_value_error)
+        return VirtualMachineError(base_err=web3_value_error)
 
     message = str(err_data.get("message"))
     if not message:
-        return VirtualMachineError(web3_value_error)
+        return VirtualMachineError(base_err=web3_value_error)
 
     # Handle `ContactLogicError` similary to other providers in `ape`.
     # by stripping off the unnecessary prefix that hardhat has on reverts.
