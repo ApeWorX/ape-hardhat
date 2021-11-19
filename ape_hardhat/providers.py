@@ -13,28 +13,43 @@ import time
 from subprocess import PIPE, Popen, call
 from typing import Any, List, Optional
 
-from ape.exceptions import ProviderError
+from ape.api import ReceiptAPI, TestProviderAPI, TransactionAPI, Web3Provider
+from ape.api.config import ConfigItem
+from ape.exceptions import (
+    ContractLogicError,
+    OutOfGasError,
+    ProviderError,
+    TransactionError,
+    VirtualMachineError,
+)
 from ape.logging import logger
-from ape_http.providers import DEFAULT_SETTINGS, EthereumProvider, NetworkConfig
+from ape.utils import gas_estimation_error_message
+from web3 import HTTPProvider, Web3
+from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
 EPHEMERAL_PORTS_START = 49152
 EPHEMERAL_PORTS_END = 60999
 HARDHAT_CHAIN_ID = 31337
-HARDHAT_CONFIG = """
-// See https://hardhat.org/config/ for config options.
-module.exports = {
-  networks: {
-    hardhat: {
-      hardfork: "london",
-      // base fee of 0 allows use of 0 gas price when testing
-      initialBaseFeePerGas: 0,
-    },
-  },
-};
-"""
 HARDHAT_START_NETWORK_RETRIES = [0.1, 0.2, 0.3, 0.5, 1.0]  # seconds between network retries
 HARDHAT_START_PROCESS_ATTEMPTS = 3  # number of attempts to start subprocess before giving up
 PROCESS_WAIT_TIMEOUT = 15  # seconds to wait for process to terminate
+DEFAULT_SETTINGS = {"uri": "http://localhost:8545"}
+HARDHAT_CONFIG = """
+// See https://hardhat.org/config/ for config options.
+module.exports = {{
+  networks: {{
+    hardhat: {{
+      hardfork: "london",
+      // base fee of 0 allows use of 0 gas price when testing
+      initialBaseFeePerGas: 0,
+      accounts: {{
+        mnemonic: "{0}",
+        path: "m/44'/60'/0'"
+      }}
+    }},
+  }},
+}};
+"""
 
 
 def _signal_handler(signum, frame):
@@ -102,7 +117,7 @@ class HardhatSubprocessError(HardhatProviderError):
     """An error related to launching subprocesses to run Hardhat."""
 
 
-class HardhatNetworkConfig(NetworkConfig):
+class HardhatNetworkConfig(ConfigItem):
     # --port <INT, default from Hardhat is 8545, but our default is to assign a random port number>
     port: Optional[int] = None
 
@@ -111,7 +126,7 @@ class HardhatNetworkConfig(NetworkConfig):
     process_attempts: int = HARDHAT_START_PROCESS_ATTEMPTS
 
 
-class HardhatProvider(EthereumProvider):
+class HardhatProvider(Web3Provider, TestProviderAPI):
     def __post_init__(self):
         self._hardhat_web3 = (
             None  # we need to maintain a separate per-instance web3 client for Hardhat
@@ -122,7 +137,16 @@ class HardhatProvider(EthereumProvider):
 
         hardhat_config_file = self.network.config_manager.PROJECT_FOLDER / "hardhat.config.js"
         if not hardhat_config_file.is_file():
-            hardhat_config_file.write_text(HARDHAT_CONFIG)
+            try:
+                mnemonic = self.network.config_manager.get_config("test")["mnemonic"]
+            except KeyError:
+                # For some reason, test plugins don't show up in child processes
+                from ape_test import Config as TestConfig
+
+                mnemonic = TestConfig.__defaults__["mnemonic"]
+
+            hardhat_config = HARDHAT_CONFIG.format(mnemonic)
+            hardhat_config_file.write_text(hardhat_config)
 
         if not self.npx_bin:
             raise HardhatSubprocessError(
@@ -160,7 +184,8 @@ class HardhatProvider(EthereumProvider):
         connected = False
         for retry_time in self.config.network_retries:
             time.sleep(retry_time)
-            super().connect()
+            self._web3 = Web3(HTTPProvider(self.uri))
+            self._web3.eth.set_gas_price_strategy(rpc_gas_price_strategy)
             connected = self._verify_connection()
             if connected:
                 break
@@ -221,11 +246,7 @@ class HardhatProvider(EthereumProvider):
 
     @property
     def uri(self) -> str:
-        uri = getattr(self.config, self.network.ecosystem.name)[self.network.name]["uri"]
-        if uri != DEFAULT_SETTINGS["uri"]:
-            # the user configured their own URI in the project configs, let's use that
-            return uri
-        elif self.port:
+        if self.port:
             # the user did not override the default URI, and we have a port
             # number, so let's build the URI using that port number
             return f"http://localhost:{self.port}"
@@ -247,8 +268,15 @@ class HardhatProvider(EthereumProvider):
         """
         self._hardhat_web3 = value
 
+    @property
+    def priority_fee(self) -> int:
+        """
+        Priority fee not needed in development network.
+        """
+        return 0
+
     def disconnect(self):
-        super().disconnect()
+        self._web3 = None
         if self.process:
             _kill_process(self.process)
         self.process = None
@@ -266,11 +294,70 @@ class HardhatProvider(EthereumProvider):
     def mine(self, timestamp: Optional[int] = None) -> str:
         return self._make_request("evm_mine", [timestamp] if timestamp else [])
 
-    def snapshot(self) -> int:
+    def snapshot(self) -> str:
         return self._make_request("evm_snapshot", [])
 
-    def revert(self, snapshot_id: int) -> bool:
+    def revert(self, snapshot_id: str):
         return self._make_request("evm_revert", [snapshot_id])
 
     def unlock_account(self, address: str) -> bool:
         return self._make_request("hardhat_impersonateAccount", [address])
+
+    def estimate_gas_cost(self, txn: TransactionAPI) -> int:
+        """
+        Generates and returns an estimate of how much gas is necessary
+        to allow the transaction to complete.
+        The transaction will not be added to the blockchain.
+        """
+        try:
+            return super().estimate_gas_cost(txn)
+        except ValueError as err:
+            tx_error = _get_vm_error(err)
+
+            # If this is the cause of a would-be revert,
+            # raise ContractLogicError so that we can confirm tx-reverts.
+            if isinstance(tx_error, ContractLogicError):
+                raise tx_error from err
+
+            message = gas_estimation_error_message(tx_error)
+            raise TransactionError(base_err=tx_error, message=message) from err
+
+    def send_transaction(self, txn: TransactionAPI) -> ReceiptAPI:
+        """
+        Creates a new message call transaction or a contract creation
+        for signed transactions.
+        """
+        try:
+            receipt = super().send_transaction(txn)
+        except ValueError as err:
+            raise _get_vm_error(err) from err
+
+        receipt.raise_for_status(txn)
+        return receipt
+
+
+def _get_vm_error(web3_value_error: ValueError) -> TransactionError:
+    if not len(web3_value_error.args):
+        return VirtualMachineError(base_err=web3_value_error)
+
+    err_data = web3_value_error.args[0]
+    if not isinstance(err_data, dict):
+        return VirtualMachineError(base_err=web3_value_error)
+
+    message = str(err_data.get("message"))
+    if not message:
+        return VirtualMachineError(base_err=web3_value_error)
+
+    # Handle `ContactLogicError` similary to other providers in `ape`.
+    # by stripping off the unnecessary prefix that hardhat has on reverts.
+    hardhat_prefix = (
+        "Error: VM Exception while processing transaction: reverted with reason string "
+    )
+    if message.startswith(hardhat_prefix):
+        message = message.replace(hardhat_prefix, "").strip("'")
+        raise ContractLogicError(message)
+
+    elif message == "Transaction ran out of gas":
+        raise OutOfGasError()
+
+    return VirtualMachineError(message=message)
