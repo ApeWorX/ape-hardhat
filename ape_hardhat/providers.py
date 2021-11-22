@@ -1,55 +1,25 @@
-"""
-Implementation for HardhatProvider.
-"""
-
 import atexit
-import ctypes
-import platform
 import random
-import shutil
 import signal
 import sys
-import time
-from subprocess import PIPE, Popen, call
 from typing import Any, List, Optional
 
 from ape.api import ReceiptAPI, TestProviderAPI, TransactionAPI, Web3Provider
 from ape.api.config import ConfigItem
-from ape.exceptions import (
-    ContractLogicError,
-    OutOfGasError,
-    ProviderError,
-    TransactionError,
-    VirtualMachineError,
-)
+from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
 from ape.logging import logger
 from ape.utils import gas_estimation_error_message
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
+from .exceptions import HardhatProviderError, HardhatSubprocessError
+from .process import HardhatProcess
+
 EPHEMERAL_PORTS_START = 49152
 EPHEMERAL_PORTS_END = 60999
-HARDHAT_CHAIN_ID = 31337
 HARDHAT_START_NETWORK_RETRIES = [0.1, 0.2, 0.3, 0.5, 1.0]  # seconds between network retries
 HARDHAT_START_PROCESS_ATTEMPTS = 3  # number of attempts to start subprocess before giving up
-PROCESS_WAIT_TIMEOUT = 15  # seconds to wait for process to terminate
-DEFAULT_SETTINGS = {"uri": "http://localhost:8545"}
-HARDHAT_CONFIG = """
-// See https://hardhat.org/config/ for config options.
-module.exports = {{
-  networks: {{
-    hardhat: {{
-      hardfork: "london",
-      // base fee of 0 allows use of 0 gas price when testing
-      initialBaseFeePerGas: 0,
-      accounts: {{
-        mnemonic: "{0}",
-        path: "m/44'/60'/0'"
-      }}
-    }},
-  }},
-}};
-"""
+DEFAULT_PORT = 8545
 
 
 def _signal_handler(signum, frame):
@@ -58,70 +28,11 @@ def _signal_handler(signum, frame):
     sys.exit(143 if signum == signal.SIGTERM else 130)
 
 
-def _linux_set_death_signal():
-    """
-    Automatically sends SIGTERM to child subprocesses when parent process
-    dies (only usable on Linux).
-    """
-    # from: https://stackoverflow.com/a/43152455/75956
-    # the first argument, 1, is the flag for PR_SET_PDEATHSIG
-    # the second argument is what signal to send to child subprocesses
-    libc = ctypes.CDLL("libc.so.6")
-    return libc.prctl(1, signal.SIGTERM)
-
-
-def _get_preexec_fn():
-    if platform.uname().system == "Linux":
-        return _linux_set_death_signal
-    else:
-        return None
-
-
-def _windows_taskkill(pid: int) -> None:
-    """
-    Kills the given process and all child processes using taskkill.exe. Used
-    for subprocesses started up on Windows which run in a cmd.exe wrapper that
-    doesn't propagate signals by default (leaving orphaned processes).
-    """
-    taskkill_bin = shutil.which("taskkill")
-    if not taskkill_bin:
-        raise HardhatSubprocessError("Could not find taskkill.exe executable.")
-    proc = Popen(
-        [
-            taskkill_bin,
-            "/F",  # forcefully terminate
-            "/T",  # terminate child processes
-            "/PID",
-            str(pid),
-        ],
-        stderr=PIPE,
-        stdout=PIPE,
-        stdin=PIPE,
-    )
-    proc.wait(timeout=PROCESS_WAIT_TIMEOUT)
-
-
-def _kill_process(proc):
-    """Helper function for killing a process and its child subprocesses."""
-    if platform.uname().system == "Windows":
-        _windows_taskkill(proc.pid)
-    proc.kill()
-    proc.wait(timeout=PROCESS_WAIT_TIMEOUT)
-
-
-class HardhatProviderError(ProviderError):
-    """An error related to the Hardhat network provider plugin."""
-
-
-class HardhatSubprocessError(HardhatProviderError):
-    """An error related to launching subprocesses to run Hardhat."""
-
-
 class HardhatNetworkConfig(ConfigItem):
     # --port <INT, default from Hardhat is 8545, but our default is to assign a random port number>
     port: Optional[int] = None
 
-    # retry strategy configs, try increasing these if you're getting HardhatSubprocessError
+    # Retry strategy configs, try increasing these if you're getting HardhatSubprocessError
     network_retries: List[float] = HARDHAT_START_NETWORK_RETRIES
     process_attempts: int = HARDHAT_START_PROCESS_ATTEMPTS
 
@@ -131,35 +42,15 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         self._hardhat_web3 = (
             None  # we need to maintain a separate per-instance web3 client for Hardhat
         )
-        self.port = None
+        self.port = self.config.port
         self.process = None
-        self.npx_bin = shutil.which("npx")
+        self._config_manager = self.network.config_manager
+        self._base_path = self._config_manager.PROJECT_FOLDER
 
-        hardhat_config_file = self.network.config_manager.PROJECT_FOLDER / "hardhat.config.js"
-        if not hardhat_config_file.is_file():
-            try:
-                mnemonic = self.network.config_manager.get_config("test")["mnemonic"]
-            except KeyError:
-                # For some reason, test plugins don't show up in child processes
-                from ape_test import Config as TestConfig
-
-                mnemonic = TestConfig.__defaults__["mnemonic"]
-
-            hardhat_config = HARDHAT_CONFIG.format(mnemonic)
-            hardhat_config_file.write_text(hardhat_config)
-
-        if not self.npx_bin:
-            raise HardhatSubprocessError(
-                "Could not locate NPM executable. See ape-hardhat README for install steps."
-            )
-        if call([self.npx_bin, "--version"], stderr=PIPE, stdout=PIPE, stdin=PIPE) != 0:
-            raise HardhatSubprocessError(
-                "NPM executable returned error code. See ape-hardhat README for install steps."
-            )
-        if call([self.npx_bin, "hardhat", "--version"], stderr=PIPE, stdout=PIPE, stdin=PIPE) != 0:
-            raise HardhatSubprocessError(
-                "Missing hardhat NPM package. See ape-hardhat README for install steps."
-            )
+        # When the user did not specify a port and we are attempting to start
+        # the process ourselves, we first try the default port of 8545. Otherwise,
+        # we pick a random port in an ephemeral range.
+        self._tried_default_port = False
 
         # register atexit handler to make sure disconnect is called for normal object lifecycle
         atexit.register(self.disconnect)
@@ -169,53 +60,22 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         signal.signal(signal.SIGINT, _signal_handler)
         signal.signal(signal.SIGTERM, _signal_handler)
 
-    def _start_process(self):
-        """Start the hardhat process and wait for it to respond over the network."""
-        cmd = [self.npx_bin, "hardhat", "node"]
+        config = self._config_manager.get_config("test")
+        if hasattr(config, "mnemonic"):
+            mnemonic = config.mnemonic
+            number_of_accounts = config.number_of_accounts
+        else:
+            self._failing_to_load_test_plugins = True
+            logger.error("Failed to load config from 'ape-test' plugin, using default values.")
 
-        # pick a random port if one isn't configured
-        self.port = self.config.port
-        if not self.port:
-            self.port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
-        cmd.extend(["--port", str(self.port)])
+            from ape_test import Config as TestConfig
 
-        # TODO: Add configs to send stdout to logger / redirect to a file in plugin data dir?
-        process = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE, preexec_fn=_get_preexec_fn())
-        connected = False
-        for retry_time in self.config.network_retries:
-            time.sleep(retry_time)
-            self._web3 = Web3(HTTPProvider(self.uri))
-            self._web3.eth.set_gas_price_strategy(rpc_gas_price_strategy)
-            connected = self._verify_connection()
-            if connected:
-                break
-        if not connected:
-            if process.poll() is None:
-                raise HardhatSubprocessError(
-                    "Hardhat process is running, but could not connect to RPC server. "
-                    "Run `npx hardhat node` or adjust retry strategy configs to troubleshoot."
-                )
-            raise HardhatSubprocessError(
-                "Hardhat command exited prematurely. Run `npx hardhat node` to troubleshoot or "
-                "adjust retry strategy configs to troubleshoot."
-            )
-        elif process.poll() is not None:
-            raise HardhatSubprocessError(
-                "Hardhat process exited prematurely, but connection succeeded. "
-                "Is something else listening on the port?"
-            )
-        self.process = process
+            _test_config_cls = TestConfig
+            mnemonic = _test_config_cls.__defaults__["mnemonic"]
+            number_of_accounts = _test_config_cls.__defaults__["number_of_accounts"]
 
-    def _verify_connection(self) -> bool:
-        """Make a network call for chain_id and verify the result."""
-        try:
-            chain_id = self.chain_id
-            if chain_id != HARDHAT_CHAIN_ID:
-                raise HardhatProviderError(f"Unexpected chain ID: {chain_id}")
-            return True
-        except Exception as exc:
-            logger.debug("Hardhat connection failed: %r", exc)
-        return False
+        self._mnemonic = mnemonic
+        self._number_of_accounts = number_of_accounts
 
     def connect(self):
         """Start the hardhat process and verify it's up and accepting connections."""
@@ -225,9 +85,15 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                 "Cannot connect twice. Call disconnect before connecting again."
             )
 
-        if self.config.port:
-            # if a port is configured, only make one start up attempt
-            self._start_process()
+        if self.port:
+            self._set_web3()
+            if not self._web3:
+                self._start_process()
+                self._set_web3()
+            else:
+                # We get here when user configured a port and the hardhat process
+                # was already running.
+                logger.info(f"Connecting to existing Hardhat node at port '{self.port}'.")
         else:
             for _ in range(self.config.process_attempts):
                 try:
@@ -235,23 +101,49 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                     break
                 except HardhatSubprocessError as exc:
                     logger.info("Retrying hardhat subprocess startup: %r", exc)
+                    self.port = None
 
-        # subprocess should be running and receiving network requests at this point
-        if not (self.process and self.process.poll() is None and self.port):
-            raise HardhatSubprocessError(
-                "Could not start hardhat subprocess on a random port. "
-                "See logs or run `npx hardhat node` or adjust retry strategy configs to "
-                "troubleshoot."
-            )
+            self._set_web3()
+
+    def _set_web3(self):
+        self._web3 = Web3(HTTPProvider(self.uri))
+        if not self._web3.isConnected():
+            self._web3 = None
+            return
+
+        # Verify is actually a hardhat provider,
+        # or else skip it to possibly try another port.
+        client_version = self._web3.clientVersion
+
+        if "hardhat" in client_version.lower():
+            self._web3.eth.set_gas_price_strategy(rpc_gas_price_strategy)
+        else:
+            # This will trigger the plugin to try another port
+            # (provided the user did not request a specific port).
+            self._web3 = None
+
+    def _start_process(self):
+        if not self.port:
+            if not self._tried_default_port:
+                # Try port 8545 first.
+                self.port = DEFAULT_PORT
+                self._tried_default_port = True
+
+            else:
+                # Pick a random port if one isn't configured and 8545 is taken.
+                self.port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
+
+        self.process = HardhatProcess(
+            self._base_path, self.port, self._mnemonic, self._number_of_accounts
+        )
+        self.process.start()
 
     @property
     def uri(self) -> str:
-        if self.port:
-            # the user did not override the default URI, and we have a port
-            # number, so let's build the URI using that port number
-            return f"http://localhost:{self.port}"
-        else:
-            raise HardhatProviderError("Can't build URI before `connect` is called.")
+        if not self.port:
+            raise HardhatProviderError("Can't build URI before `connect()` is called.")
+
+        return f"http://127.0.0.1:{self.port}"
 
     @property  # type: ignore
     def _web3(self):
@@ -278,8 +170,9 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
     def disconnect(self):
         self._web3 = None
         if self.process:
-            _kill_process(self.process)
-        self.process = None
+            self.process.stop()
+            self.process = None
+
         self.port = None
 
     def _make_request(self, rpc: str, args: list) -> Any:
@@ -295,9 +188,13 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         return self._make_request("evm_mine", [timestamp] if timestamp else [])
 
     def snapshot(self) -> str:
-        return self._make_request("evm_snapshot", [])
+        result = self._make_request("evm_snapshot", [])
+        return str(result)
 
     def revert(self, snapshot_id: str):
+        if isinstance(snapshot_id, str) and snapshot_id.isnumeric():
+            snapshot_id = int(snapshot_id)  # type: ignore
+
         return self._make_request("evm_revert", [snapshot_id])
 
     def unlock_account(self, address: str) -> bool:
@@ -355,9 +252,11 @@ def _get_vm_error(web3_value_error: ValueError) -> TransactionError:
     )
     if message.startswith(hardhat_prefix):
         message = message.replace(hardhat_prefix, "").strip("'")
-        raise ContractLogicError(message)
+        return ContractLogicError(message)
+    elif "Transaction reverted without a reason string" in message:
+        return ContractLogicError(revert_message="")
 
     elif message == "Transaction ran out of gas":
-        raise OutOfGasError()
+        return OutOfGasError()
 
     return VirtualMachineError(message=message)

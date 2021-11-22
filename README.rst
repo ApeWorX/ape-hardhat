@@ -50,9 +50,6 @@ This network provider takes additional Hardhat-specific configuration options. T
 
     hardhat:
       port: 8555
-      ethereum:
-        development:
-          uri: http://localhost:8555
 
 Development
 ***********
