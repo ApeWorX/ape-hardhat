@@ -89,7 +89,7 @@ class HardhatConfig:
 
 class HardhatProcess:
     """
-    A wrapper class around the hardhat node process.
+    A wrapper class around the Hardhat node process.
     """
 
     def __init__(
@@ -203,19 +203,16 @@ def _kill_process(proc):
 
     warn_prefix = "Trying to close Hardhat node process."
 
-    def _try_close(timeout, warn_message):
+    def _try_close(warn_message):
         try:
             proc.send_signal(signal.SIGINT)
-            _wait_for_popen(proc, timeout)
+            _wait_for_popen(proc, PROCESS_WAIT_TIMEOUT)
         except KeyboardInterrupt:
             logger.warning(warn_message)
 
     try:
         if proc.poll() is None:
-            _try_close(30, f"{warn_prefix}. Press Ctrl+C 2 more times to force quit")
-
-        if proc.poll() is None:
-            _try_close(10, f"{warn_prefix}. Press Ctrl+C 1 more times to force quit")
+            _try_close(f"{warn_prefix}. Press Ctrl+C 1 more times to force quit")
 
         if proc.poll() is None:
             proc.kill()

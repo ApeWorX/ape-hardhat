@@ -96,7 +96,7 @@ class RPCTimeoutError(HardhatTimeoutError):
     def __init__(self, seconds=None, exception=None, *args, **kwargs):
         error_message = (
             "Timed out waiting for successful RPC connection to "
-            f"the hardhat node ({seconds} seconds) "
+            f"the Hardhat node ({seconds} seconds) "
             "Try 'npx hardhat node' to debug."
         )
         super().__init__(
