@@ -33,26 +33,6 @@ module.exports = {{
 """
 
 
-def _popen(*cmd, preexec_fn: Optional[Callable] = None):
-    return Popen([*cmd], stdin=PIPE, stdout=PIPE, stderr=PIPE, preexec_fn=preexec_fn)
-
-
-def _call(*args):
-    return call([*args], stderr=PIPE, stdout=PIPE, stdin=PIPE)
-
-
-def _linux_set_death_signal():
-    """
-    Automatically sends SIGTERM to child subprocesses when parent process
-    dies (only usable on Linux).
-    """
-    # from: https://stackoverflow.com/a/43152455/75956
-    # the first argument, 1, is the flag for PR_SET_PDEATHSIG
-    # the second argument is what signal to send to child subprocesses
-    libc = ctypes.CDLL("libc.so.6")
-    return libc.prctl(1, signal.SIGTERM)
-
-
 class HardhatConfig:
     """
     A class representing the actual 'hardhat.config.js' file.
@@ -186,6 +166,14 @@ class HardhatProcess:
         self._process = None
 
 
+def _popen(*cmd, preexec_fn: Optional[Callable] = None):
+    return Popen([*cmd], stdin=PIPE, stdout=PIPE, stderr=PIPE, preexec_fn=preexec_fn)
+
+
+def _call(*args):
+    return call([*args], stderr=PIPE, stdout=PIPE, stdin=PIPE)
+
+
 def _wait_for_popen(proc, timeout=30):
     try:
         with HardhatTimeoutError(seconds=timeout) as _timeout:
@@ -240,3 +228,15 @@ def _windows_taskkill(pid: int) -> None:
         str(pid),
     )
     proc.wait(timeout=PROCESS_WAIT_TIMEOUT)
+
+
+def _linux_set_death_signal():
+    """
+    Automatically sends SIGTERM to child subprocesses when parent process
+    dies (only usable on Linux).
+    """
+    # from: https://stackoverflow.com/a/43152455/75956
+    # the first argument, 1, is the flag for PR_SET_PDEATHSIG
+    # the second argument is what signal to send to child subprocesses
+    libc = ctypes.CDLL("libc.so.6")
+    return libc.prctl(1, signal.SIGTERM)
