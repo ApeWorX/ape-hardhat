@@ -6,6 +6,7 @@ implementation written in Node.js).
 from ape import plugins
 
 from .providers import (
+    HardhatMainnetForkProvider,
     HardhatNetworkConfig,
     HardhatProvider,
     HardhatProviderError,
@@ -21,6 +22,7 @@ def config_class():
 @plugins.register(plugins.ProviderPlugin)
 def providers():
     yield "ethereum", "development", HardhatProvider
+    yield "ethereum", "mainnet-fork", HardhatMainnetForkProvider
 
 
 __all__ = [
