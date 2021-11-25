@@ -51,6 +51,33 @@ This network provider takes additional Hardhat-specific configuration options. T
     hardhat:
       port: 8555
 
+Mainnet Fork
+************
+
+The ``ape-hardhat`` plugin also includes a mainnet fork provider. It requires using another provider that has access to mainnet.
+
+Use it in most commands like this:
+
+.. code-block:: bash
+
+    ape console --network :mainnet-fork:hardhat
+
+Specify the upstream archive-data provider in your ``ape-config.yaml``:
+
+.. code-block:: yaml
+
+    hardhat:
+      mainnet_fork:
+        upstream_provider: infura
+
+Otherwise, it defaults to the default mainnet provider plugin. You can also specify a ``block_number``.
+
+Note: Make sure you have the upstream provider plugin installed for ape.
+
+.. code-block:: bash
+
+    ape plugins add infura
+
 Development
 ***********
 

@@ -4,7 +4,7 @@ import signal
 import sys
 from typing import Any, List, Optional
 
-from ape.api import ReceiptAPI, TestProviderAPI, TransactionAPI, Web3Provider
+from ape.api import ReceiptAPI, TestProviderAPI, TransactionAPI, UpstreamProvider, Web3Provider
 from ape.api.config import ConfigItem
 from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
 from ape.logging import logger
@@ -28,6 +28,11 @@ def _signal_handler(signum, frame):
     sys.exit(143 if signum == signal.SIGTERM else 130)
 
 
+class HardhatForkConfig(ConfigItem):
+    upstream_provider: Optional[str] = None
+    block_number: Optional[int] = None
+
+
 class HardhatNetworkConfig(ConfigItem):
     # --port <INT, default from Hardhat is 8545, but our default is to assign a random port number>
     port: Optional[int] = None
@@ -35,6 +40,10 @@ class HardhatNetworkConfig(ConfigItem):
     # Retry strategy configs, try increasing these if you're getting HardhatSubprocessError
     network_retries: List[float] = HARDHAT_START_NETWORK_RETRIES
     process_attempts: int = HARDHAT_START_PROCESS_ATTEMPTS
+
+    # For setting the values in --fork and --fork-block-number command arguments.
+    # Used only in HardhatMainnetForkProvider.
+    mainnet_fork: Optional[HardhatForkConfig] = None
 
 
 class HardhatProvider(Web3Provider, TestProviderAPI):
@@ -133,10 +142,15 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                 # Pick a random port if one isn't configured and 8545 is taken.
                 self.port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
 
-        self.process = HardhatProcess(
-            self._base_path, self.port, self._mnemonic, self._number_of_accounts
-        )
+        self.process = self._create_process()
         self.process.start()
+
+    def _create_process(self):
+        """
+        Sub-classes may override this to specify alternative values in the process,
+        such as using mainnet-fork mode.
+        """
+        return HardhatProcess(self._base_path, self.port, self._mnemonic, self._number_of_accounts)
 
     @property
     def uri(self) -> str:
@@ -233,6 +247,44 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         return receipt
 
 
+class HardhatMainnetForkProvider(HardhatProvider):
+    """
+    A Hardhat provider that uses ``--fork``, like:
+    ``npx hardhat node --fork <upstream-provider-url>``.
+
+    Set the ``upstream_provider`` in the ``hardhat.mainnet_fork`` config
+    section of your ``ape-config.yaml` file to specify which provider
+    to use as your archive node.
+    """
+
+    def _create_process(self) -> HardhatProcess:
+        mainnet_fork = self.config.mainnet_fork or {}  # type: ignore
+        upstream_provider_name = mainnet_fork.get("upstream_provider")
+        fork_block_num = mainnet_fork.get("block_number")
+        mainnet = self.network.ecosystem.mainnet
+
+        # NOTE: if `upstream_provider_name` is `None`, this gets the default mainnet provider.
+        upstream_provider = mainnet.get_provider(provider_name=upstream_provider_name)
+
+        if not isinstance(upstream_provider, UpstreamProvider):
+            raise HardhatProviderError(
+                f"Provider '{upstream_provider_name}' is not an upstream provider."
+            )
+
+        fork_url = upstream_provider.connection_str
+        if not fork_url:
+            raise HardhatProviderError("Upstream provider does not have a ``connection_str``.")
+
+        return HardhatProcess(
+            self._base_path,
+            self.port,
+            self._mnemonic,
+            self._number_of_accounts,
+            fork_url=fork_url,
+            fork_block_number=fork_block_num,
+        )
+
+
 def _get_vm_error(web3_value_error: ValueError) -> TransactionError:
     if not len(web3_value_error.args):
         return VirtualMachineError(base_err=web3_value_error)
@@ -252,9 +304,9 @@ def _get_vm_error(web3_value_error: ValueError) -> TransactionError:
     )
     if message.startswith(hardhat_prefix):
         message = message.replace(hardhat_prefix, "").strip("'")
-        return ContractLogicError(message)
+        return ContractLogicError(revert_message=message)
     elif "Transaction reverted without a reason string" in message:
-        return ContractLogicError(revert_message="")
+        return ContractLogicError()
 
     elif message == "Transaction ran out of gas":
         return OutOfGasError()

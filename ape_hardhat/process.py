@@ -79,8 +79,12 @@ class HardhatProcess:
         mnemonic: str,
         number_of_accounts: int,
         hard_fork: Optional[str] = None,
+        fork_url: Optional[str] = None,
+        fork_block_number: Optional[int] = None,
     ):
         self._port = port
+        self._fork_url = fork_url
+        self._fork_block_number = fork_block_number
         self._npx_bin = shutil.which("npx")
         self._process = None
         self._config_file = HardhatConfig(
@@ -131,6 +135,12 @@ class HardhatProcess:
             "--port",
             str(self._port),
         ]
+
+        if self._fork_url is not None:
+            cmd.extend(("--fork", self._fork_url))
+
+        if self._fork_block_number is not None:
+            cmd.extend(("--fork-block-number", self._fork_block_number))
 
         if self.is_rpc_ready:
             logger.info(f"Connecting to existing Hardhat node at port '{self._port}'.")
