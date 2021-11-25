@@ -252,8 +252,8 @@ class HardhatMainnetForkProvider(HardhatProvider):
     A Hardhat provider that uses ``--fork``, like:
     ``npx hardhat node --fork <upstream-provider-url>``.
 
-    Set the ``upstream_provider`` in the ``hardhat.fork`` config section
-    of your ``ape-config.yaml` file to specify which provider
+    Set the ``upstream_provider`` in the ``hardhat.mainnet_fork`` config
+    section of your ``ape-config.yaml` file to specify which provider
     to use as your archive node.
     """
 
