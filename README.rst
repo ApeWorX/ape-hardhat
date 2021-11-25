@@ -62,12 +62,12 @@ Use it in most commands like this:
 
     ape console --network :mainnet-fork:hardhat
 
-Specify the upstream archive URL in your ``ape-config.yaml``:
+Specify the upstream archive-data provider in your ``ape-config.yaml``:
 
 .. code-block:: yaml
 
     hardhat:
-      fork:
+      mainnet_fork:
         upstream_provider: infura
 
 Otherwise, it defaults to the default mainnet provider plugin. You can also specify a ``block_number``.
