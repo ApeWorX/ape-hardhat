@@ -68,7 +68,7 @@ Specify the upstream archive-data provider in your ``ape-config.yaml``:
 
     hardhat:
       mainnet_fork:
-        upstream_provider: infura
+        upstream_provider: alchemy
 
 Otherwise, it defaults to the default mainnet provider plugin. You can also specify a ``block_number``.
 
@@ -76,7 +76,7 @@ Note: Make sure you have the upstream provider plugin installed for ape.
 
 .. code-block:: bash
 
-    ape plugins add infura
+    ape plugins add alchemy
 
 Development
 ***********
