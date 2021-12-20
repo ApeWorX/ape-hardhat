@@ -46,7 +46,7 @@ extras_require["dev"] = (
     + extras_require["dev"]
 )
 
-readme_path, readme_content_type = "./README.rst", "text/x-rst"
+readme_path, readme_content_type = "./README.md", "text/x-rst"
 if os.path.exists("./README.md"):
     readme_path, readme_content_type = "./README.md", "text/markdown"
 
@@ -66,7 +66,7 @@ setup(
     url="https://github.com/ApeWorX/ape-hardhat",
     include_package_data=True,
     install_requires=[
-        "eth-ape>=0.1.0a29",
+        "eth-ape>=0.1.0b2",
         "importlib-metadata ; python_version<'3.8'",
     ],  # NOTE: Add 3rd party libraries here
     python_requires=">=3.7,<4",
@@ -78,7 +78,7 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*"]),
     package_data={"ape_hardhat": ["py.typed"]},
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
