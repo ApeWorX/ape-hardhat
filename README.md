@@ -79,4 +79,4 @@ Comments, questions, criticisms and pull requests are welcomed.
 
 ## License
 
-This project is licensed under the `Apache 2.0 <./LICENSE>`_.
+This project is licensed under the [Apache 2.0](LICENSE).
