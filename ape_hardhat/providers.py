@@ -196,7 +196,9 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)])
 
     def set_timestamp(self, new_timestamp: int):
-        self._make_request("evm_increaseTime", [new_timestamp])
+        pending_timestamp = self.get_block("pending").timestamp
+        seconds_to_increase = new_timestamp - pending_timestamp
+        self._make_request("evm_increaseTime", [seconds_to_increase])
 
     def mine(self, num_blocks: int = 1):
         for i in range(num_blocks):

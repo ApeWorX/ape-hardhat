@@ -94,19 +94,19 @@ def test_set_block_gas_limit(hardhat_provider):
     assert hardhat_provider.set_block_gas_limit(gas_limit) is True
 
 
-def test_sleep(hardhat_provider):
+def test_set_timestamp(hardhat_provider):
     seconds = 5
-    time_1 = hardhat_provider.sleep(seconds)
-    time_2 = hardhat_provider.sleep(seconds)
+    pending_time_stamp = hardhat_provider.get_block("pending").timestamp
+    time_1 = hardhat_provider.set_timestamp(seconds + pending_time_stamp)
+    time_2 = hardhat_provider.set_timestamp(2 * seconds + pending_time_stamp)
     assert time_2 - time_1 == seconds
 
 
 def test_mine(hardhat_provider):
-    block1 = hardhat_provider._web3.eth.get_block("latest")
-    assert hardhat_provider.mine() == "0x0"
-    block2 = hardhat_provider._web3.eth.get_block("latest")
-    assert hardhat_provider.mine() == "0x0"
-    assert block1.hash != block2.hash and block2.number > block1.number
+    block_num = hardhat_provider.get_block("latest").number
+    hardhat_provider.mine()
+    next_block_num = hardhat_provider.get_block("latest").number
+    assert next_block_num == block_num + 1
 
 
 def test_revert_failure(hardhat_provider):
