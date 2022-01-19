@@ -195,11 +195,12 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
     def set_block_gas_limit(self, gas_limit: int) -> bool:
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)])
 
-    def sleep(self, seconds: int) -> int:
-        return int(self._make_request("evm_increaseTime", [seconds]))
+    def set_timestamp(self, new_timestamp: int):
+        self._make_request("evm_increaseTime", [new_timestamp])
 
-    def mine(self, timestamp: Optional[int] = None) -> str:
-        return self._make_request("evm_mine", [timestamp] if timestamp else [])
+    def mine(self, num_blocks: int = 1):
+        for i in range(num_blocks):
+            self._make_request("evm_mine", [])
 
     def snapshot(self) -> str:
         result = self._make_request("evm_snapshot", [])
