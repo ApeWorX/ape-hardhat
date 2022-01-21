@@ -4,11 +4,13 @@ import signal
 import sys
 from typing import Any, List, Optional
 
-from ape.api import ReceiptAPI, TestProviderAPI, TransactionAPI, UpstreamProvider, Web3Provider
+import requests
+from ape.api import BlockAPI, ReceiptAPI, TestProviderAPI, TransactionAPI, UpstreamProvider, Web3Provider
 from ape.api.config import ConfigItem
 from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
 from ape.logging import logger
 from ape.utils import gas_estimation_error_message
+from ape.types import BlockID
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
@@ -197,6 +199,27 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
             self._process = None
 
         self.port = None
+
+    def get_block(self, block_id: BlockID) -> BlockAPI:
+        if block_id == "pending":
+            # NOTE: Have to do this hack because of a bug in web3.
+            # Can remove once https://github.com/ethereum/web3.py/issues/2317 is resolved.
+            params = {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["pending", True],"id":0}
+            response = requests.post(self.uri, json=params)
+            response.raise_for_status()
+            block_data = response.json()
+
+            error_data = block_data.get("error")
+            if error_data:
+                message = error_data.get("message", str(error_data))
+                raise HardhatProviderError(message)
+
+
+            block_data = block_data.get("result", block_data)
+            block_class = self.network.ecosystem.block_class
+            return block_class.decode(block_data)
+
+        return super().get_block(block_id)
 
     def _make_request(self, rpc: str, args: list) -> Any:
         return self._web3.manager.request_blocking(rpc, args)  # type: ignore
