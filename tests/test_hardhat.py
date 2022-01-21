@@ -101,7 +101,7 @@ def test_set_timestamp(hardhat_provider):
     time_1 = hardhat_provider.get_block("pending").timestamp
     hardhat_provider.set_timestamp(2 * seconds + pending_time_stamp)
     time_2 = hardhat_provider.get_block("pending").timestamp
-    actual = time_2 - time_1
+    actual = abs(time_2 - time_1)
     assert actual - seconds in (0, 1)
 
 

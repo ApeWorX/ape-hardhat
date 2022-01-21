@@ -97,13 +97,15 @@ class HardhatProcess:
             base_path, mnemonic, number_of_accounts, hard_fork=hard_fork
         )
         self._config_file.write_if_not_exists()
+
         hardhat_install_path_str = shutil.which("hardhat")
-
-        if not hardhat_install_path_str:
-            raise HardhatNotInstalledError()
-
-        hardhat_install_path = Path(hardhat_install_path_str)
-        expected_install_path = base_path / "node_modules" / ".bin" / "hardhat"
+        if hardhat_install_path_str:
+            hardhat_install_path = Path(hardhat_install_path_str)
+            expected_install_path = base_path / "node_modules" / ".bin" / "hardhat"
+            if hardhat_install_path != expected_install_path:
+                # If we get here, we know that `hardhat` is at least installed
+                # and therefore, 'actual_install_path' is not None.
+                raise NonLocalHardhatError(hardhat_install_path, expected_install_path)
 
         if not self._npx_bin:
             raise HardhatSubprocessError(
@@ -115,10 +117,6 @@ class HardhatProcess:
             )
         elif _call(self._npx_bin, "hardhat", "--version") != 0:
             raise HardhatNotInstalledError()
-        elif hardhat_install_path != expected_install_path:
-            # If we get here, we know that `hardhat` is at least installed
-            # and therefore, 'actual_install_path' is not None.
-            raise NonLocalHardhatError(hardhat_install_path, expected_install_path)
 
     @property
     def started(self) -> bool:
