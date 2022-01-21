@@ -4,7 +4,7 @@ import shutil
 import signal
 import time
 from pathlib import Path
-from subprocess import PIPE, Popen, call, SubprocessError
+from subprocess import PIPE, Popen, SubprocessError, call
 from typing import Callable, Optional
 from urllib.request import urlopen
 
@@ -13,8 +13,8 @@ from ape.logging import logger
 from .exceptions import (
     HardhatSubprocessError,
     HardhatTimeoutError,
-    RPCTimeoutError,
     NonLocalHardhatError,
+    RPCTimeoutError,
 )
 
 HARDHAT_CHAIN_ID = 31337

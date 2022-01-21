@@ -1,5 +1,6 @@
 import time
-from typing import Optional, TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
 from ape.exceptions import ProviderError
 
