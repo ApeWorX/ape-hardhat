@@ -131,6 +131,18 @@ class RPCTimeoutError(HardhatTimeoutError):
             f"the Hardhat node ({seconds} seconds) "
             "Try 'npx hardhat node' to debug."
         )
-        super().__init__(
-            process, message=error_message, seconds=seconds, exception=exception, *args, **kwargs
-        )
+        kwargs["message"] = error_message
+        if seconds:
+            kwargs["seconds"] = seconds
+        if exception:
+            kwargs["exception"] = exception
+        super().__init__(process, *args, **kwargs)
+
+
+class HardhatNotInstalledError(HardhatSubprocessError):
+    """
+    Raised when Hardhat is not installed.
+    """
+
+    def __init__(self):
+        super().__init__("Missing Hardhat NPM package. See ape-hardhat README for install steps.")

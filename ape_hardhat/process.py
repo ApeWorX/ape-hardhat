@@ -4,13 +4,14 @@ import shutil
 import signal
 import time
 from pathlib import Path
-from subprocess import PIPE, Popen, SubprocessError, call
+from subprocess import PIPE, Popen, call
 from typing import Callable, Optional
 from urllib.request import urlopen
 
 from ape.logging import logger
 
 from .exceptions import (
+    HardhatNotInstalledError,
     HardhatSubprocessError,
     HardhatTimeoutError,
     NonLocalHardhatError,
@@ -96,7 +97,12 @@ class HardhatProcess:
             base_path, mnemonic, number_of_accounts, hard_fork=hard_fork
         )
         self._config_file.write_if_not_exists()
-        actual_install_path = Path(shutil.which("hardhat"))
+        hardhat_install_path_str = shutil.which("hardhat")
+
+        if not hardhat_install_path_str:
+            raise HardhatNotInstalledError()
+
+        hardhat_install_path = Path(hardhat_install_path_str)
         expected_install_path = base_path / "node_modules" / ".bin" / "hardhat"
 
         if not self._npx_bin:
@@ -108,13 +114,11 @@ class HardhatProcess:
                 "NPM executable returned error code. See ape-hardhat README for install steps."
             )
         elif _call(self._npx_bin, "hardhat", "--version") != 0:
-            raise HardhatSubprocessError(
-                "Missing Hardhat NPM package. See ape-hardhat README for install steps."
-            )
-        elif actual_install_path != expected_install_path:
+            raise HardhatNotInstalledError()
+        elif hardhat_install_path != expected_install_path:
             # If we get here, we know that `hardhat` is at least installed
             # and therefore, 'actual_install_path' is not None.
-            raise NonLocalHardhatError(actual_install_path, expected_install_path)
+            raise NonLocalHardhatError(hardhat_install_path, expected_install_path)
 
     @property
     def started(self) -> bool:
@@ -151,7 +155,7 @@ class HardhatProcess:
             cmd.extend(("--fork", self._fork_url))
 
         if self._fork_block_number is not None:
-            cmd.extend(("--fork-block-number", self._fork_block_number))
+            cmd.extend(("--fork-block-number", str(self._fork_block_number)))
 
         if self.is_rpc_ready:
             logger.info(f"Connecting to existing Hardhat node at port '{self._port}'.")
@@ -182,7 +186,7 @@ class HardhatProcess:
 
     def _kill_process(self):
         if platform.uname().system == "Windows":
-            _windows_taskkill(proc.pid)
+            _windows_taskkill(self._process.pid)
             return
 
         warn_prefix = "Trying to close Hardhat node process."
@@ -199,15 +203,19 @@ class HardhatProcess:
                 _try_close(f"{warn_prefix}. Press Ctrl+C 1 more times to force quit")
 
             if self._process.poll() is None:
-                proc.kill()
+                self._process.kill()
                 self._wait_for_popen(2)
 
         except KeyboardInterrupt:
-            proc.kill()
+            self._process.kill()
 
         self._process = None
 
     def _wait_for_popen(self, timeout: int = 30):
+        if not self._process:
+            # Mostly just to make mypy happy.
+            raise HardhatSubprocessError("Unable to wait for process. It is not set yet.")
+
         try:
             with HardhatTimeoutError(self, seconds=timeout) as _timeout:
                 while self._process.poll() is None:

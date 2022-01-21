@@ -1,20 +1,26 @@
 import atexit
-from hexbytes import HexBytes
 import random
 import signal
 import sys
 from typing import Any, List, Optional
 
 import requests
-from ape.api import BlockAPI, ReceiptAPI, TestProviderAPI, TransactionAPI, UpstreamProvider, Web3Provider
+from ape.api import (
+    BlockAPI,
+    ReceiptAPI,
+    TestProviderAPI,
+    TransactionAPI,
+    UpstreamProvider,
+    Web3Provider,
+)
 from ape.api.config import ConfigItem
 from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
 from ape.logging import logger
+from ape.types import BlockID, SnapshotID
 from ape.utils import gas_estimation_error_message
-from ape.types import BlockID
+from eth_utils import to_int
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
-from eth_utils import to_int
 
 from .exceptions import HardhatProviderError, HardhatSubprocessError, NonLocalHardhatError
 from .process import HardhatProcess
@@ -206,7 +212,12 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         if block_id == "pending":
             # NOTE: Have to do this hack because of a bug in web3.
             # Can remove once https://github.com/ethereum/web3.py/issues/2317 is resolved.
-            params = {"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["pending", True],"id":0}
+            params = {
+                "jsonrpc": "2.0",
+                "method": "eth_getBlockByNumber",
+                "params": ["pending", True],
+                "id": 0,
+            }
             response = requests.post(self.uri, json=params)
             response.raise_for_status()
             block_data = response.json()
@@ -245,7 +256,7 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         result = self._make_request("evm_snapshot", [])
         return str(result)
 
-    def revert(self, snapshot_id: str):
+    def revert(self, snapshot_id: SnapshotID):
         if isinstance(snapshot_id, str) and snapshot_id.isnumeric():
             snapshot_id = int(snapshot_id)  # type: ignore
 
@@ -320,7 +331,7 @@ class HardhatMainnetForkProvider(HardhatProvider):
 
         return HardhatProcess(
             self._base_path,
-            self.port,
+            self.port or DEFAULT_PORT,
             self._mnemonic,
             self._number_of_accounts,
             fork_url=fork_url,
