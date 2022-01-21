@@ -72,16 +72,18 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         config = self._config_manager.get_config("test")
         if hasattr(config, "mnemonic"):
             mnemonic = config.mnemonic
-            number_of_accounts = config.number_of_accounts
+            number_of_accounts = config.number_of_accounts  # type: ignore
         else:
+            # This happens in highly unusual circumstances
+            # but, this hack allows `ape-hardhat` to still function if it does.
             self._failing_to_load_test_plugins = True
             logger.error("Failed to load config from 'ape-test' plugin, using default values.")
 
             from ape_test import Config as TestConfig
 
             _test_config_cls = TestConfig
-            mnemonic = _test_config_cls.__defaults__["mnemonic"]
-            number_of_accounts = _test_config_cls.__defaults__["number_of_accounts"]
+            mnemonic = _test_config_cls.__defaults__["mnemonic"]  # type: ignore
+            number_of_accounts = _test_config_cls.__defaults__["number_of_accounts"]  # type: ignore
 
         self._mnemonic = mnemonic
         self._number_of_accounts = number_of_accounts
