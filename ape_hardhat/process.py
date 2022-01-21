@@ -96,6 +96,8 @@ class HardhatProcess:
             base_path, mnemonic, number_of_accounts, hard_fork=hard_fork
         )
         self._config_file.write_if_not_exists()
+        actual_install_path = Path(shutil.which("hardhat"))
+        expected_install_path = base_path / "node_modules" / ".bin" / "hardhat"
 
         if not self._npx_bin:
             raise HardhatSubprocessError(
@@ -109,8 +111,10 @@ class HardhatProcess:
             raise HardhatSubprocessError(
                 "Missing Hardhat NPM package. See ape-hardhat README for install steps."
             )
-        elif Path(shutil.which("hardhat")) != base_path / "node_modules" / ".bin" / "hardhat":
-            raise NonLocalHardhatError()
+        elif actual_install_path != expected_install_path:
+            # If we get here, we know that `hardhat` is at least installed
+            # and therefore, 'actual_install_path' is not None.
+            raise NonLocalHardhatError(actual_install_path, expected_install_path)
 
     @property
     def started(self) -> bool:
