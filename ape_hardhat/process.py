@@ -14,7 +14,6 @@ from .exceptions import (
     HardhatNotInstalledError,
     HardhatSubprocessError,
     HardhatTimeoutError,
-    NonLocalHardhatError,
     RPCTimeoutError,
 )
 
