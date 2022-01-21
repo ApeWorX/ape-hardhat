@@ -4,7 +4,7 @@ import shutil
 import signal
 import time
 from pathlib import Path
-from subprocess import PIPE, Popen, call
+from subprocess import PIPE, Popen, call, SubprocessError
 from typing import Callable, Optional
 from urllib.request import urlopen
 
@@ -109,6 +109,8 @@ class HardhatProcess:
             raise HardhatSubprocessError(
                 "Missing Hardhat NPM package. See ape-hardhat README for install steps."
             )
+        elif Path(shutil.which("hardhat")) != base_path / "node_modules" / ".bin" / "hardhat":
+            raise NonLocalHardhatError()
 
     @property
     def started(self) -> bool:
@@ -156,19 +158,7 @@ class HardhatProcess:
             pre_exec_fn = _linux_set_death_signal if platform.uname().system == "Linux" else None
             process = _popen(*cmd, preexec_fn=pre_exec_fn)  # Starts Hardhat if it not running.
 
-            if process is None:
-                raise HardhatSubprocessError(
-                    "Failed to start Hardhat. Use 'npx hardhat node' to debug."
-                )
-
-            streamdata = [b.decode() for b in process.communicate() if b.strip() != b""]
-            if process.returncode != 0:
-                if streamdata and "non-local installation" in streamdata[0].lower():
-                    raise NonLocalHardhatError()
-
-                raise HardhatSubprocessError("Failed to start Hardhat node.")
-
-            with RPCTimeoutError(seconds=timeout) as _timeout:
+            with RPCTimeoutError(self, seconds=timeout) as _timeout:
                 while True:
                     if self.is_rpc_ready:
                         break
