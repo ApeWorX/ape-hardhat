@@ -102,7 +102,7 @@ class HardhatProcess:
             )
         elif _call(self._npx_bin, "hardhat", "--version") != 0:
             raise HardhatSubprocessError(
-                "Missing hardhat NPM package. See ape-hardhat README for install steps."
+                "Missing Hardhat NPM package. See ape-hardhat README for install steps."
             )
 
     @property
@@ -149,11 +149,11 @@ class HardhatProcess:
             logger.info(f"Started Hardhat node at port '{self._port}'.")
 
             pre_exec_fn = _linux_set_death_signal if platform.uname().system == "Linux" else None
-            process = _popen(*cmd, preexec_fn=pre_exec_fn)  # Starts hardhat if it not running.
+            process = _popen(*cmd, preexec_fn=pre_exec_fn)  # Starts Hardhat if it not running.
 
             if process is None:
                 raise HardhatSubprocessError(
-                    "Failed to start hardhat. Use 'npx hardhat node' to debug."
+                    "Failed to start Hardhat. Use 'npx hardhat node' to debug."
                 )
 
             streamdata = [b.decode() for b in process.communicate() if b.strip() != b""]

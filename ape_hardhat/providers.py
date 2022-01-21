@@ -118,7 +118,7 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                     # so we don't keep retrying.
                     raise
                 except HardhatSubprocessError as exc:
-                    logger.info("Retrying hardhat subprocess startup: %r", exc)
+                    logger.info("Retrying Hardhat subprocess startup: %r", exc)
                     self.port = None
 
             self._set_web3()
@@ -129,7 +129,7 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
             self._web3 = None
             return
 
-        # Verify is actually a hardhat provider,
+        # Verify is actually a Hardhat provider,
         # or else skip it to possibly try another port.
         client_version = self._web3.clientVersion
 
