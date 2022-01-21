@@ -20,19 +20,6 @@ class HardhatSubprocessError(HardhatProviderError):
     """
 
 
-class NonLocalHardhatError(HardhatSubprocessError):
-    """
-    An error raised when trying to use a non-local installation of Hardhat.
-    """
-
-    def __init__(self, install_path: Path, expected_path: Path):
-        super().__init__(
-            "Please use and run Hardhat from your 'ape' project directory. "
-            "A non-local installation of Hardhat is not allowed. "
-            f"(Actual Installation Path={install_path}, Expected Installation Path={expected_path})"
-        )
-
-
 class HardhatTimeoutError(HardhatSubprocessError):
     """
     A context-manager exception that raises if its operations exceed

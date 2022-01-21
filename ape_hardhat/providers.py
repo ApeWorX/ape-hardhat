@@ -22,7 +22,7 @@ from eth_utils import to_int
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
-from .exceptions import HardhatProviderError, HardhatSubprocessError, NonLocalHardhatError
+from .exceptions import HardhatProviderError, HardhatSubprocessError, HardhatNotInstalledError
 from .process import HardhatProcess
 
 EPHEMERAL_PORTS_START = 49152
@@ -123,7 +123,7 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                 try:
                     self._start_process()
                     break
-                except NonLocalHardhatError:
+                except HardhatNotInstalledError:
                     # Is a sub-class of `HardhatSubprocessError` but we to still raise
                     # so we don't keep retrying.
                     raise
