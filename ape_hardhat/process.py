@@ -10,7 +10,7 @@ from urllib.request import urlopen
 
 from ape.logging import logger
 
-from .exceptions import HardhatSubprocessError, HardhatTimeoutError, RPCTimeoutError
+from .exceptions import HardhatSubprocessError, HardhatTimeoutError, RPCTimeoutError, NonLocalHardhatError
 
 HARDHAT_CHAIN_ID = 31337
 PROCESS_WAIT_TIMEOUT = 15  # seconds to wait for process to terminate
@@ -25,7 +25,7 @@ module.exports = {{
       accounts: {{
         mnemonic: "{mnemonic}",
         path: "m/44'/60'/0'",
-        count: {number_of_accounts},
+        count: {number_of_accounts}
       }}
     }},
   }},
@@ -155,6 +155,13 @@ class HardhatProcess:
                 raise HardhatSubprocessError(
                     "Failed to start hardhat. Use 'npx hardhat node' to debug."
                 )
+
+            streamdata = [b.decode() for b in process.communicate() if b.strip() != b""]
+            if process.returncode != 0:
+                if streamdata and "non-local installation" in streamdata[0].lower():
+                    raise NonLocalHardhatError()
+
+                raise HardhatSubprocessError("Failed to start Hardhat node.")
 
             with RPCTimeoutError(seconds=timeout) as _timeout:
                 while True:

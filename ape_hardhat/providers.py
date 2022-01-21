@@ -12,7 +12,7 @@ from ape.utils import gas_estimation_error_message
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
-from .exceptions import HardhatProviderError, HardhatSubprocessError
+from .exceptions import HardhatProviderError, HardhatSubprocessError, NonLocalHardhatError
 from .process import HardhatProcess
 
 EPHEMERAL_PORTS_START = 49152
@@ -113,6 +113,10 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                 try:
                     self._start_process()
                     break
+                except NonLocalHardhatError:
+                    # Is a sub-class of `HardhatSubprocessError` but we to still raise
+                    # so we don't keep retrying.
+                    raise
                 except HardhatSubprocessError as exc:
                     logger.info("Retrying hardhat subprocess startup: %r", exc)
                     self.port = None

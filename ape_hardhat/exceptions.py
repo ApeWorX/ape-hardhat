@@ -16,6 +16,15 @@ class HardhatSubprocessError(HardhatProviderError):
     """
 
 
+class NonLocalHardhatError(HardhatSubprocessError):
+    """
+    An error raised when trying to use a non-local installation of Hardhat.
+    """
+
+    def __init__(self):
+        super().__init__("Non-local installation of Hardhat is not allowed.")
+
+
 class HardhatTimeoutError(HardhatSubprocessError):
     """
     A context-manager exception that raises if its operations exceed
