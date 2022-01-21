@@ -1,4 +1,5 @@
 import atexit
+from hexbytes import HexBytes
 import random
 import signal
 import sys
@@ -13,6 +14,7 @@ from ape.utils import gas_estimation_error_message
 from ape.types import BlockID
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
+from eth_utils import to_int
 
 from .exceptions import HardhatProviderError, HardhatSubprocessError, NonLocalHardhatError
 from .process import HardhatProcess
@@ -214,10 +216,13 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                 message = error_data.get("message", str(error_data))
                 raise HardhatProviderError(message)
 
-
             block_data = block_data.get("result", block_data)
+            block_data["timestamp"] = to_int(hexstr=block_data["timestamp"])
+            block_data["size"] = to_int(hexstr=block_data["size"])
             block_class = self.network.ecosystem.block_class
-            return block_class.decode(block_data)
+            block = block_class.decode(block_data)
+
+            return block
 
         return super().get_block(block_id)
 

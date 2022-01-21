@@ -40,4 +40,4 @@ def network_config(project):
 def hardhat_provider(network_api, network_config):
     provider = HardhatProvider("hardhat", network_api, network_config, {}, Path("."), "")
     provider.connect()
-    return provider
+    yield provider
