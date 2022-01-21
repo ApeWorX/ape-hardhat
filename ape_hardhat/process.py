@@ -178,8 +178,43 @@ class HardhatProcess:
             return
 
         logger.info("Stopping Hardhat node.")
-        _kill_process(self._process)
+        self._kill_process()
+
+    def _kill_process(self):
+        if platform.uname().system == "Windows":
+            _windows_taskkill(proc.pid)
+            return
+
+        warn_prefix = "Trying to close Hardhat node process."
+
+        def _try_close(warn_message):
+            try:
+                self._process.send_signal(signal.SIGINT)
+                self._wait_for_popen(PROCESS_WAIT_TIMEOUT)
+            except KeyboardInterrupt:
+                logger.warning(warn_message)
+
+        try:
+            if self._process.poll() is None:
+                _try_close(f"{warn_prefix}. Press Ctrl+C 1 more times to force quit")
+
+            if self._process.poll() is None:
+                proc.kill()
+                self._wait_for_popen(2)
+
+        except KeyboardInterrupt:
+            proc.kill()
+
         self._process = None
+
+    def _wait_for_popen(self, timeout: int = 30):
+        try:
+            with HardhatTimeoutError(self, seconds=timeout) as _timeout:
+                while self._process.poll() is None:
+                    time.sleep(0.1)
+                    _timeout.check()
+        except HardhatTimeoutError:
+            pass
 
 
 def _popen(*cmd, preexec_fn: Optional[Callable] = None):
@@ -188,42 +223,6 @@ def _popen(*cmd, preexec_fn: Optional[Callable] = None):
 
 def _call(*args):
     return call([*args], stderr=PIPE, stdout=PIPE, stdin=PIPE)
-
-
-def _wait_for_popen(proc, timeout: int = 30):
-    try:
-        with HardhatTimeoutError(seconds=timeout) as _timeout:
-            while proc.poll() is None:
-                time.sleep(0.1)
-                _timeout.check()
-    except HardhatTimeoutError:
-        pass
-
-
-def _kill_process(proc):
-    if platform.uname().system == "Windows":
-        _windows_taskkill(proc.pid)
-        return
-
-    warn_prefix = "Trying to close Hardhat node process."
-
-    def _try_close(warn_message):
-        try:
-            proc.send_signal(signal.SIGINT)
-            _wait_for_popen(proc, PROCESS_WAIT_TIMEOUT)
-        except KeyboardInterrupt:
-            logger.warning(warn_message)
-
-    try:
-        if proc.poll() is None:
-            _try_close(f"{warn_prefix}. Press Ctrl+C 1 more times to force quit")
-
-        if proc.poll() is None:
-            proc.kill()
-            _wait_for_popen(proc, 2)
-
-    except KeyboardInterrupt:
-        proc.kill()
 
 
 def _windows_taskkill(pid: int) -> None:
