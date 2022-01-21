@@ -145,4 +145,9 @@ class HardhatNotInstalledError(HardhatSubprocessError):
     """
 
     def __init__(self):
-        super().__init__("Missing Hardhat NPM package. See ape-hardhat README for install steps.")
+        super().__init__(
+            "Missing local Hardhat NPM package. "
+            "See ape-hardhat README for install steps. "
+            "Note: global installation of Hardhat will not work and "
+            "you must be in your project's directory."
+        )

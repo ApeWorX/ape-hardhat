@@ -98,15 +98,6 @@ class HardhatProcess:
         )
         self._config_file.write_if_not_exists()
 
-        hardhat_install_path_str = shutil.which("hardhat")
-        if hardhat_install_path_str:
-            hardhat_install_path = Path(hardhat_install_path_str)
-            expected_install_path = base_path / "node_modules" / ".bin" / "hardhat"
-            if hardhat_install_path != expected_install_path:
-                # If we get here, we know that `hardhat` is at least installed
-                # and therefore, 'actual_install_path' is not None.
-                raise NonLocalHardhatError(hardhat_install_path, expected_install_path)
-
         if not self._npx_bin:
             raise HardhatSubprocessError(
                 "Could not locate NPM executable. See ape-hardhat README for install steps."
@@ -115,7 +106,7 @@ class HardhatProcess:
             raise HardhatSubprocessError(
                 "NPM executable returned error code. See ape-hardhat README for install steps."
             )
-        elif _call(self._npx_bin, "hardhat", "--version") != 0:
+        elif _call(self._npx_bin, "hardhat") != 0:
             raise HardhatNotInstalledError()
 
     @property
