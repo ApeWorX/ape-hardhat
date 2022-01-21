@@ -16,6 +16,7 @@ extras_require = {
         "mypy>=0.910,<1.0",  # Static type analyzer
         "flake8>=3.8.3,<4.0",  # Style linter
         "isort>=5.9.3,<6.0",  # Import sorting linter
+        "types-requests",  # NOTE: Needed due to mypy typeshed
     ],
     "doc": [
         "Sphinx>=3.4.3,<4",  # Documentation generator
