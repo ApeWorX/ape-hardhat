@@ -47,12 +47,15 @@ class HardhatNetworkConfig(ConfigItem):
 
 
 class HardhatProvider(Web3Provider, TestProviderAPI):
+    port: Optional[int] = None
+    _process = None
+
     def __post_init__(self):
         self._hardhat_web3 = (
             None  # we need to maintain a separate per-instance web3 client for Hardhat
         )
-        self.port = self.config.port
-        self.process = None
+        self.port = self.config.port  # type: ignore
+        self._process = None
         self._config_manager = self.network.config_manager
         self._base_path = self._config_manager.PROJECT_FOLDER
 
@@ -74,8 +77,8 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
             mnemonic = config.mnemonic
             number_of_accounts = config.number_of_accounts  # type: ignore
         else:
-            # This happens in highly unusual circumstances
-            # but, this hack allows `ape-hardhat` to still function if it does.
+            # This happens in unusual circumstances, such as when executing `pytest`
+            # without `-p no:ape_test`. This hack allows this plugin to still function.
             self._failing_to_load_test_plugins = True
             logger.error("Failed to load config from 'ape-test' plugin, using default values.")
 
@@ -91,7 +94,7 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
     def connect(self):
         """Start the hardhat process and verify it's up and accepting connections."""
 
-        if self.process:
+        if self._process:
             raise HardhatProviderError(
                 "Cannot connect twice. Call disconnect before connecting again."
             )
@@ -106,7 +109,7 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                 # was already running.
                 logger.info(f"Connecting to existing Hardhat node at port '{self.port}'.")
         else:
-            for _ in range(self.config.process_attempts):
+            for _ in range(self.config.process_attempts):  # type: ignore
                 try:
                     self._start_process()
                     break
@@ -144,8 +147,8 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                 # Pick a random port if one isn't configured and 8545 is taken.
                 self.port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
 
-        self.process = self._create_process()
-        self.process.start()
+        self._process = self._create_process()
+        self._process.start()
 
     def _create_process(self):
         """
@@ -185,9 +188,9 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
 
     def disconnect(self):
         self._web3 = None
-        if self.process:
-            self.process.stop()
-            self.process = None
+        if self._process:
+            self._process.stop()
+            self._process = None
 
         self.port = None
 
