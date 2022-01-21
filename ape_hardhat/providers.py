@@ -283,6 +283,9 @@ class HardhatMainnetForkProvider(HardhatProvider):
         if not fork_url:
             raise HardhatProviderError("Upstream provider does not have a ``connection_str``.")
 
+        if fork_url.replace("localhost", "127.0.0.1") == self.uri:
+            raise HardhatProviderError("Upstream-fork URL is the same as the Hardhat node URL.")
+
         return HardhatProcess(
             self._base_path,
             self.port,
@@ -305,7 +308,7 @@ def _get_vm_error(web3_value_error: ValueError) -> TransactionError:
     if not message:
         return VirtualMachineError(base_err=web3_value_error)
 
-    # Handle `ContactLogicError` similary to other providers in `ape`.
+    # Handle `ContactLogicError` similarly to other providers in `ape`.
     # by stripping off the unnecessary prefix that hardhat has on reverts.
     hardhat_prefix = (
         "Error: VM Exception while processing transaction: reverted with reason string "
