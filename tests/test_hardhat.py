@@ -83,14 +83,14 @@ def test_multiple_hardhat_instances(network_api):
     provider_1.mine()
     provider_2.mine()
     provider_3.mine()
-    hash_1 = provider_1._web3.eth.get_block("latest").hash
-    hash_2 = provider_2._web3.eth.get_block("latest").hash
-    hash_3 = provider_3._web3.eth.get_block("latest").hash
+    hash_1 = provider_1.get_block("latest").hash
+    hash_2 = provider_2.get_block("latest").hash
+    hash_3 = provider_3.get_block("latest").hash
     assert hash_1 != hash_2 != hash_3
 
 
 def test_set_block_gas_limit(hardhat_provider):
-    gas_limit = hardhat_provider._web3.eth.get_block("latest").gasLimit
+    gas_limit = hardhat_provider.get_block("latest").gas_data.gas_limit
     assert hardhat_provider.set_block_gas_limit(gas_limit) is True
 
 
@@ -117,14 +117,14 @@ def test_snapshot_and_revert(hardhat_provider):
     snap = hardhat_provider.snapshot()
     assert snap == "1"
 
-    block_1 = hardhat_provider._web3.eth.get_block("latest")
+    block_1 = hardhat_provider.get_block("latest")
     hardhat_provider.mine()
-    block_2 = hardhat_provider._web3.eth.get_block("latest")
+    block_2 = hardhat_provider.get_block("latest")
     assert block_2.number > block_1.number
     assert block_1.hash != block_2.hash
 
     hardhat_provider.revert(snap)
-    block_3 = hardhat_provider._web3.eth.get_block("latest")
+    block_3 = hardhat_provider.get_block("latest")
     assert block_1.number == block_3.number
     assert block_1.hash == block_3.hash
 
