@@ -25,7 +25,10 @@ class NonLocalHardhatError(HardhatSubprocessError):
     """
 
     def __init__(self):
-        super().__init__("Non-local installation of Hardhat is not allowed.")
+        super().__init__(
+            "Please use and run Hardhat from your 'ape' project directory. "
+            "A non-local installation of Hardhat is not allowed."
+        )
 
 
 class HardhatTimeoutError(HardhatSubprocessError):
