@@ -10,7 +10,12 @@ from urllib.request import urlopen
 
 from ape.logging import logger
 
-from .exceptions import HardhatSubprocessError, HardhatTimeoutError, RPCTimeoutError, NonLocalHardhatError
+from .exceptions import (
+    HardhatSubprocessError,
+    HardhatTimeoutError,
+    RPCTimeoutError,
+    NonLocalHardhatError,
+)
 
 HARDHAT_CHAIN_ID = 31337
 PROCESS_WAIT_TIMEOUT = 15  # seconds to wait for process to terminate
@@ -20,7 +25,7 @@ module.exports = {{
   networks: {{
     hardhat: {{
       hardfork: "london",
-      // base fee of 0 allows use of 0 gas price when testing
+      // Base fee of 0 allows use of 0 gas price when testing
       initialBaseFeePerGas: 0,
       accounts: {{
         mnemonic: "{mnemonic}",
@@ -56,7 +61,7 @@ class HardhatConfig:
     def _content(self) -> str:
         return HARDHAT_CONFIG.format(
             mnemonic=self._mnemonic, number_of_accounts=self._num_of_accounts
-        )
+        ).lstrip()
 
     @property
     def _path(self) -> Path:
@@ -122,7 +127,7 @@ class HardhatProcess:
         else:
             return True
 
-    def start(self, timeout=20):
+    def start(self, timeout: int = 20):
         """Start the hardhat process and wait for it to respond over the network."""
 
         # TODO: Add configs to send stdout to logger / redirect to a file in plugin data dir?
@@ -191,7 +196,7 @@ def _call(*args):
     return call([*args], stderr=PIPE, stdout=PIPE, stdin=PIPE)
 
 
-def _wait_for_popen(proc, timeout=30):
+def _wait_for_popen(proc, timeout: int = 30):
     try:
         with HardhatTimeoutError(seconds=timeout) as _timeout:
             while proc.poll() is None:
