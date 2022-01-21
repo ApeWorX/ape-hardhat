@@ -102,14 +102,14 @@ def test_set_timestamp(hardhat_provider):
     hardhat_provider.set_timestamp(2 * seconds + pending_time_stamp)
     time_2 = hardhat_provider.get_block("pending").timestamp
     actual = time_2 - time_1
-    assert actual == seconds
+    assert actual - seconds in (0, 1)
 
 
 def test_mine(hardhat_provider):
     block_num = hardhat_provider.get_block("latest").number
     hardhat_provider.mine()
     next_block_num = hardhat_provider.get_block("latest").number
-    assert next_block_num == block_num + 1
+    assert next_block_num > block_num
 
 
 def test_revert_failure(hardhat_provider):
