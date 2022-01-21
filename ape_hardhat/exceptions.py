@@ -1,5 +1,4 @@
 import time
-from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from ape.exceptions import ProviderError

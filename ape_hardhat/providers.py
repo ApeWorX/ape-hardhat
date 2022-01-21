@@ -22,7 +22,7 @@ from eth_utils import to_int
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
-from .exceptions import HardhatProviderError, HardhatSubprocessError, HardhatNotInstalledError
+from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
 from .process import HardhatProcess
 
 EPHEMERAL_PORTS_START = 49152
