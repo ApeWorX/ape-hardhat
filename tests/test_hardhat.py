@@ -99,7 +99,8 @@ def test_set_timestamp(hardhat_provider):
     time_1 = hardhat_provider.get_block("pending").timestamp
     hardhat_provider.set_timestamp(seconds + time_1)
     time_2 = hardhat_provider.get_block("pending").timestamp
-    assert time_2 - time_1 == seconds
+    actual = time_2 - time_1
+    assert abs(actual - seconds) <= 1
 
 
 def test_mine(hardhat_provider):
