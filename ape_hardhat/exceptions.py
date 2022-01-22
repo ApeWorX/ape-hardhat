@@ -97,7 +97,10 @@ class HardhatTimeoutError(HardhatSubprocessError):
             raise self
 
     def cancel(self):
-        self._process.stop()
+        if self._process and self._process.running:
+            self._process.stop()
+            self._process = None
+
         self._is_running = False
 
 

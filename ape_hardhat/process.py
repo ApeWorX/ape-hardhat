@@ -7,6 +7,7 @@ from pathlib import Path
 from subprocess import PIPE, Popen, call
 from typing import Callable, Optional
 from urllib.request import urlopen
+from threading import Lock
 
 from ape.logging import logger
 
@@ -76,6 +77,9 @@ class HardhatProcess:
     """
     A wrapper class around the Hardhat node process.
     """
+
+    __process_lock = Lock()
+    is_stopping = False
 
     def __init__(
         self,
@@ -166,11 +170,15 @@ class HardhatProcess:
 
     def stop(self):
         """Helper function for killing a process and its child subprocesses."""
-        if not self._process:
+        if not self._process or self.is_stopping:
             return
 
-        logger.info("Stopping Hardhat node.")
-        self._kill_process()
+        with self.__process_lock:
+            self.is_stopping = True
+            logger.info("Stopping Hardhat node.")
+            self._kill_process()
+
+        self.is_stopping = False
 
     def _kill_process(self):
         if platform.uname().system == "Windows":
