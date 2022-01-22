@@ -60,9 +60,7 @@ class HardhatTimeoutError(HardhatSubprocessError):
     @property
     def expire_at(self) -> float:
         if self._seconds is None:
-            raise ValueError(
-                "Timeouts with 'seconds == None' do not have an expiration time."
-            )
+            raise ValueError("Timeouts with 'seconds == None' do not have an expiration time.")
         elif self._start_time is None:
             raise ValueError("Timeout has not been started.")
 

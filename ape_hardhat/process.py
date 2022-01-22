@@ -5,9 +5,9 @@ import signal
 import time
 from pathlib import Path
 from subprocess import PIPE, Popen, call
+from threading import Lock
 from typing import Callable, Optional
 from urllib.request import urlopen
-from threading import Lock
 
 from ape.logging import logger
 
