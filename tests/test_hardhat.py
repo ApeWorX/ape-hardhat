@@ -95,12 +95,12 @@ def test_set_block_gas_limit(hardhat_provider):
 
 
 def test_set_timestamp(hardhat_provider):
-    seconds = 5
-    time_1 = hardhat_provider.get_block("pending").timestamp
-    hardhat_provider.set_timestamp(seconds + time_1)
-    time_2 = hardhat_provider.get_block("pending").timestamp
-    actual = time_2 - time_1
-    assert -1 <= actual <= 1
+    start_time = hardhat_provider.get_block("pending").timestamp
+    hardhat_provider.set_timestamp(start_time + 5)  # Increase by 5 seconds
+    new_time = hardhat_provider.get_block("pending").timestamp
+
+    # Adding 5 seconds but seconds can be weird so give it a 1 second margin.
+    assert 4 <= new_time - start_time <= 5
 
 
 def test_mine(hardhat_provider):
