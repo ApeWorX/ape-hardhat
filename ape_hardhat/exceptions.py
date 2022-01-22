@@ -1,7 +1,10 @@
 import time
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from ape.exceptions import ProviderError
+
+if TYPE_CHECKING:
+    from ape_hardhat.process import HardhatProcess
 
 
 class HardhatProviderError(ProviderError):
@@ -26,12 +29,14 @@ class HardhatTimeoutError(HardhatSubprocessError):
 
     def __init__(
         self,
+        process: "HardhatProcess",
         message: Optional[str] = None,
         seconds: Optional[int] = None,
         exception: Optional[Exception] = None,
         *args,
         **kwargs,
     ):
+        self._process = process
         self._message = message or "Timed out waiting for process."
         self._seconds = seconds
         self._exception = exception
@@ -43,6 +48,7 @@ class HardhatTimeoutError(HardhatSubprocessError):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cancel()
         return False
 
     def __str__(self):
@@ -89,16 +95,44 @@ class HardhatTimeoutError(HardhatSubprocessError):
             raise self
 
     def cancel(self):
+        if self._process and self._process.running:
+            self._process.stop()
+            self._process = None
+
         self._is_running = False
 
 
 class RPCTimeoutError(HardhatTimeoutError):
-    def __init__(self, seconds=None, exception=None, *args, **kwargs):
+    def __init__(
+        self,
+        process: "HardhatProcess",
+        seconds: Optional[int] = None,
+        exception: Optional[Exception] = None,
+        *args,
+        **kwargs,
+    ):
         error_message = (
             "Timed out waiting for successful RPC connection to "
             f"the Hardhat node ({seconds} seconds) "
             "Try 'npx hardhat node' to debug."
         )
+        kwargs["message"] = error_message
+        if seconds:
+            kwargs["seconds"] = seconds
+        if exception:
+            kwargs["exception"] = exception
+        super().__init__(process, *args, **kwargs)
+
+
+class HardhatNotInstalledError(HardhatSubprocessError):
+    """
+    Raised when Hardhat is not installed.
+    """
+
+    def __init__(self):
         super().__init__(
-            message=error_message, seconds=seconds, exception=exception, *args, **kwargs
+            "Missing local Hardhat NPM package. "
+            "See ape-hardhat README for install steps. "
+            "Note: global installation of Hardhat will not work and "
+            "you must be in your project's directory."
         )

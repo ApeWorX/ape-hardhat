@@ -4,15 +4,25 @@ import signal
 import sys
 from typing import Any, List, Optional
 
-from ape.api import ReceiptAPI, TestProviderAPI, TransactionAPI, UpstreamProvider, Web3Provider
+import requests
+from ape.api import (
+    BlockAPI,
+    ReceiptAPI,
+    TestProviderAPI,
+    TransactionAPI,
+    UpstreamProvider,
+    Web3Provider,
+)
 from ape.api.config import ConfigItem
 from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
 from ape.logging import logger
+from ape.types import BlockID, SnapshotID
 from ape.utils import gas_estimation_error_message
+from eth_utils import to_int
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
-from .exceptions import HardhatProviderError, HardhatSubprocessError
+from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
 from .process import HardhatProcess
 
 EPHEMERAL_PORTS_START = 49152
@@ -47,12 +57,15 @@ class HardhatNetworkConfig(ConfigItem):
 
 
 class HardhatProvider(Web3Provider, TestProviderAPI):
+    port: Optional[int] = None
+    _process = None
+
     def __post_init__(self):
         self._hardhat_web3 = (
             None  # we need to maintain a separate per-instance web3 client for Hardhat
         )
-        self.port = self.config.port
-        self.process = None
+        self.port = self.config.port  # type: ignore
+        self._process = None
         self._config_manager = self.network.config_manager
         self._base_path = self._config_manager.PROJECT_FOLDER
 
@@ -72,16 +85,18 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         config = self._config_manager.get_config("test")
         if hasattr(config, "mnemonic"):
             mnemonic = config.mnemonic
-            number_of_accounts = config.number_of_accounts
+            number_of_accounts = config.number_of_accounts  # type: ignore
         else:
+            # This happens in unusual circumstances, such as when executing `pytest`
+            # without `-p no:ape_test`. This hack allows this plugin to still function.
             self._failing_to_load_test_plugins = True
             logger.error("Failed to load config from 'ape-test' plugin, using default values.")
 
             from ape_test import Config as TestConfig
 
             _test_config_cls = TestConfig
-            mnemonic = _test_config_cls.__defaults__["mnemonic"]
-            number_of_accounts = _test_config_cls.__defaults__["number_of_accounts"]
+            mnemonic = _test_config_cls.__defaults__["mnemonic"]  # type: ignore
+            number_of_accounts = _test_config_cls.__defaults__["number_of_accounts"]  # type: ignore
 
         self._mnemonic = mnemonic
         self._number_of_accounts = number_of_accounts
@@ -89,7 +104,7 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
     def connect(self):
         """Start the hardhat process and verify it's up and accepting connections."""
 
-        if self.process:
+        if self._process:
             raise HardhatProviderError(
                 "Cannot connect twice. Call disconnect before connecting again."
             )
@@ -104,12 +119,16 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                 # was already running.
                 logger.info(f"Connecting to existing Hardhat node at port '{self.port}'.")
         else:
-            for _ in range(self.config.process_attempts):
+            for _ in range(self.config.process_attempts):  # type: ignore
                 try:
                     self._start_process()
                     break
+                except HardhatNotInstalledError:
+                    # Is a sub-class of `HardhatSubprocessError` but we to still raise
+                    # so we don't keep retrying.
+                    raise
                 except HardhatSubprocessError as exc:
-                    logger.info("Retrying hardhat subprocess startup: %r", exc)
+                    logger.info("Retrying Hardhat subprocess startup: %r", exc)
                     self.port = None
 
             self._set_web3()
@@ -120,7 +139,7 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
             self._web3 = None
             return
 
-        # Verify is actually a hardhat provider,
+        # Verify is actually a Hardhat provider,
         # or else skip it to possibly try another port.
         client_version = self._web3.clientVersion
 
@@ -142,8 +161,8 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                 # Pick a random port if one isn't configured and 8545 is taken.
                 self.port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
 
-        self.process = self._create_process()
-        self.process.start()
+        self._process = self._create_process()
+        self._process.start()
 
     def _create_process(self):
         """
@@ -183,11 +202,40 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
 
     def disconnect(self):
         self._web3 = None
-        if self.process:
-            self.process.stop()
-            self.process = None
+        if self._process:
+            self._process.stop()
+            self._process = None
 
         self.port = None
+
+    def get_block(self, block_id: BlockID) -> BlockAPI:
+        if block_id == "pending":
+            # NOTE: Have to do this hack because of a bug in web3.
+            # Can remove once https://github.com/ethereum/web3.py/issues/2317 is resolved.
+            params = {
+                "jsonrpc": "2.0",
+                "method": "eth_getBlockByNumber",
+                "params": ["pending", True],
+                "id": 0,
+            }
+            response = requests.post(self.uri, json=params)
+            response.raise_for_status()
+            block_data = response.json()
+
+            error_data = block_data.get("error")
+            if error_data:
+                message = error_data.get("message", str(error_data))
+                raise HardhatProviderError(message)
+
+            block_data = block_data.get("result", block_data)
+            block_data["timestamp"] = to_int(hexstr=block_data["timestamp"])
+            block_data["size"] = to_int(hexstr=block_data["size"])
+            block_class = self.network.ecosystem.block_class
+            block = block_class.decode(block_data)
+
+            return block
+
+        return super().get_block(block_id)
 
     def _make_request(self, rpc: str, args: list) -> Any:
         return self._web3.manager.request_blocking(rpc, args)  # type: ignore
@@ -195,17 +243,20 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
     def set_block_gas_limit(self, gas_limit: int) -> bool:
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)])
 
-    def sleep(self, seconds: int) -> int:
-        return int(self._make_request("evm_increaseTime", [seconds]))
+    def set_timestamp(self, new_timestamp: int):
+        pending_timestamp = self.get_block("pending").timestamp
+        seconds_to_increase = new_timestamp - pending_timestamp
+        self._make_request("evm_increaseTime", [seconds_to_increase])
 
-    def mine(self, timestamp: Optional[int] = None) -> str:
-        return self._make_request("evm_mine", [timestamp] if timestamp else [])
+    def mine(self, num_blocks: int = 1):
+        for i in range(num_blocks):
+            self._make_request("evm_mine", [])
 
     def snapshot(self) -> str:
         result = self._make_request("evm_snapshot", [])
         return str(result)
 
-    def revert(self, snapshot_id: str):
+    def revert(self, snapshot_id: SnapshotID):
         if isinstance(snapshot_id, str) and snapshot_id.isnumeric():
             snapshot_id = int(snapshot_id)  # type: ignore
 
@@ -275,9 +326,12 @@ class HardhatMainnetForkProvider(HardhatProvider):
         if not fork_url:
             raise HardhatProviderError("Upstream provider does not have a ``connection_str``.")
 
+        if fork_url.replace("localhost", "127.0.0.1") == self.uri:
+            raise HardhatProviderError("Upstream-fork URL is the same as the Hardhat node URL.")
+
         return HardhatProcess(
             self._base_path,
-            self.port,
+            self.port or DEFAULT_PORT,
             self._mnemonic,
             self._number_of_accounts,
             fork_url=fork_url,
@@ -297,7 +351,7 @@ def _get_vm_error(web3_value_error: ValueError) -> TransactionError:
     if not message:
         return VirtualMachineError(base_err=web3_value_error)
 
-    # Handle `ContactLogicError` similary to other providers in `ape`.
+    # Handle `ContactLogicError` similarly to other providers in `ape`.
     # by stripping off the unnecessary prefix that hardhat has on reverts.
     hardhat_prefix = (
         "Error: VM Exception while processing transaction: reverted with reason string "

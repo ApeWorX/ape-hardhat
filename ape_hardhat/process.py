@@ -10,7 +10,12 @@ from urllib.request import urlopen
 
 from ape.logging import logger
 
-from .exceptions import HardhatSubprocessError, HardhatTimeoutError, RPCTimeoutError
+from .exceptions import (
+    HardhatNotInstalledError,
+    HardhatSubprocessError,
+    HardhatTimeoutError,
+    RPCTimeoutError,
+)
 
 HARDHAT_CHAIN_ID = 31337
 PROCESS_WAIT_TIMEOUT = 15  # seconds to wait for process to terminate
@@ -20,12 +25,12 @@ module.exports = {{
   networks: {{
     hardhat: {{
       hardfork: "london",
-      // base fee of 0 allows use of 0 gas price when testing
+      // Base fee of 0 allows use of 0 gas price when testing
       initialBaseFeePerGas: 0,
       accounts: {{
         mnemonic: "{mnemonic}",
         path: "m/44'/60'/0'",
-        count: {number_of_accounts},
+        count: {number_of_accounts}
       }}
     }},
   }},
@@ -56,7 +61,7 @@ class HardhatConfig:
     def _content(self) -> str:
         return HARDHAT_CONFIG.format(
             mnemonic=self._mnemonic, number_of_accounts=self._num_of_accounts
-        )
+        ).lstrip()
 
     @property
     def _path(self) -> Path:
@@ -71,6 +76,8 @@ class HardhatProcess:
     """
     A wrapper class around the Hardhat node process.
     """
+
+    _is_stopping = False
 
     def __init__(
         self,
@@ -100,10 +107,8 @@ class HardhatProcess:
             raise HardhatSubprocessError(
                 "NPM executable returned error code. See ape-hardhat README for install steps."
             )
-        elif _call(self._npx_bin, "hardhat", "--version") != 0:
-            raise HardhatSubprocessError(
-                "Missing hardhat NPM package. See ape-hardhat README for install steps."
-            )
+        elif _call(self._npx_bin, "hardhat") != 0:
+            raise HardhatNotInstalledError()
 
     @property
     def started(self) -> bool:
@@ -122,7 +127,7 @@ class HardhatProcess:
         else:
             return True
 
-    def start(self, timeout=20):
+    def start(self, timeout: int = 20):
         """Start the hardhat process and wait for it to respond over the network."""
 
         # TODO: Add configs to send stdout to logger / redirect to a file in plugin data dir?
@@ -140,7 +145,7 @@ class HardhatProcess:
             cmd.extend(("--fork", self._fork_url))
 
         if self._fork_block_number is not None:
-            cmd.extend(("--fork-block-number", self._fork_block_number))
+            cmd.extend(("--fork-block-number", str(self._fork_block_number)))
 
         if self.is_rpc_ready:
             logger.info(f"Connecting to existing Hardhat node at port '{self._port}'.")
@@ -149,14 +154,9 @@ class HardhatProcess:
             logger.info(f"Started Hardhat node at port '{self._port}'.")
 
             pre_exec_fn = _linux_set_death_signal if platform.uname().system == "Linux" else None
-            process = _popen(*cmd, preexec_fn=pre_exec_fn)  # Starts hardhat if it not running.
+            process = _popen(*cmd, preexec_fn=pre_exec_fn)  # Starts Hardhat if it not running.
 
-            if process is None:
-                raise HardhatSubprocessError(
-                    "Failed to start hardhat. Use 'npx hardhat node' to debug."
-                )
-
-            with RPCTimeoutError(seconds=timeout) as _timeout:
+            with RPCTimeoutError(self, seconds=timeout) as _timeout:
                 while True:
                     if self.is_rpc_ready:
                         break
@@ -168,12 +168,53 @@ class HardhatProcess:
 
     def stop(self):
         """Helper function for killing a process and its child subprocesses."""
-        if not self._process:
+        if not self._process or self._is_stopping:
             return
 
+        self._is_stopping = True
         logger.info("Stopping Hardhat node.")
-        _kill_process(self._process)
+        self._kill_process()
+        self._is_stopping = False
+
+    def _kill_process(self):
+        if platform.uname().system == "Windows":
+            _windows_taskkill(self._process.pid)
+            return
+
+        warn_prefix = "Trying to close Hardhat node process."
+
+        def _try_close(warn_message):
+            try:
+                self._process.send_signal(signal.SIGINT)
+                self._wait_for_popen(PROCESS_WAIT_TIMEOUT)
+            except KeyboardInterrupt:
+                logger.warning(warn_message)
+
+        try:
+            if self._process.poll() is None:
+                _try_close(f"{warn_prefix}. Press Ctrl+C 1 more times to force quit")
+
+            if self._process.poll() is None:
+                self._process.kill()
+                self._wait_for_popen(2)
+
+        except KeyboardInterrupt:
+            self._process.kill()
+
         self._process = None
+
+    def _wait_for_popen(self, timeout: int = 30):
+        if not self._process:
+            # Mostly just to make mypy happy.
+            raise HardhatSubprocessError("Unable to wait for process. It is not set yet.")
+
+        try:
+            with HardhatTimeoutError(self, seconds=timeout) as _timeout:
+                while self._process.poll() is None:
+                    time.sleep(0.1)
+                    _timeout.check()
+        except HardhatTimeoutError:
+            pass
 
 
 def _popen(*cmd, preexec_fn: Optional[Callable] = None):
@@ -182,42 +223,6 @@ def _popen(*cmd, preexec_fn: Optional[Callable] = None):
 
 def _call(*args):
     return call([*args], stderr=PIPE, stdout=PIPE, stdin=PIPE)
-
-
-def _wait_for_popen(proc, timeout=30):
-    try:
-        with HardhatTimeoutError(seconds=timeout) as _timeout:
-            while proc.poll() is None:
-                time.sleep(0.1)
-                _timeout.check()
-    except HardhatTimeoutError:
-        pass
-
-
-def _kill_process(proc):
-    if platform.uname().system == "Windows":
-        _windows_taskkill(proc.pid)
-        return
-
-    warn_prefix = "Trying to close Hardhat node process."
-
-    def _try_close(warn_message):
-        try:
-            proc.send_signal(signal.SIGINT)
-            _wait_for_popen(proc, PROCESS_WAIT_TIMEOUT)
-        except KeyboardInterrupt:
-            logger.warning(warn_message)
-
-    try:
-        if proc.poll() is None:
-            _try_close(f"{warn_prefix}. Press Ctrl+C 1 more times to force quit")
-
-        if proc.poll() is None:
-            proc.kill()
-            _wait_for_popen(proc, 2)
-
-    except KeyboardInterrupt:
-        proc.kill()
 
 
 def _windows_taskkill(pid: int) -> None:

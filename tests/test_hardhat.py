@@ -28,7 +28,7 @@ def test_disconnect(network_api, network_config):
     provider = HardhatProvider("hardhat", network_api, network_config, {}, Path("."), "")
     provider.connect()
     provider.disconnect()
-    assert not provider.process
+    assert not provider._process
 
 
 def test_gas_price(hardhat_provider):
@@ -83,30 +83,31 @@ def test_multiple_hardhat_instances(network_api):
     provider_1.mine()
     provider_2.mine()
     provider_3.mine()
-    hash_1 = provider_1._web3.eth.get_block("latest").hash
-    hash_2 = provider_2._web3.eth.get_block("latest").hash
-    hash_3 = provider_3._web3.eth.get_block("latest").hash
+    hash_1 = provider_1.get_block("latest").hash
+    hash_2 = provider_2.get_block("latest").hash
+    hash_3 = provider_3.get_block("latest").hash
     assert hash_1 != hash_2 != hash_3
 
 
 def test_set_block_gas_limit(hardhat_provider):
-    gas_limit = hardhat_provider._web3.eth.get_block("latest").gasLimit
+    gas_limit = hardhat_provider.get_block("latest").gas_data.gas_limit
     assert hardhat_provider.set_block_gas_limit(gas_limit) is True
 
 
-def test_sleep(hardhat_provider):
-    seconds = 5
-    time_1 = hardhat_provider.sleep(seconds)
-    time_2 = hardhat_provider.sleep(seconds)
-    assert time_2 - time_1 == seconds
+def test_set_timestamp(hardhat_provider):
+    start_time = hardhat_provider.get_block("pending").timestamp
+    hardhat_provider.set_timestamp(start_time + 5)  # Increase by 5 seconds
+    new_time = hardhat_provider.get_block("pending").timestamp
+
+    # Adding 5 seconds but seconds can be weird so give it a 1 second margin.
+    assert 4 <= new_time - start_time <= 5
 
 
 def test_mine(hardhat_provider):
-    block1 = hardhat_provider._web3.eth.get_block("latest")
-    assert hardhat_provider.mine() == "0x0"
-    block2 = hardhat_provider._web3.eth.get_block("latest")
-    assert hardhat_provider.mine() == "0x0"
-    assert block1.hash != block2.hash and block2.number > block1.number
+    block_num = hardhat_provider.get_block("latest").number
+    hardhat_provider.mine()
+    next_block_num = hardhat_provider.get_block("latest").number
+    assert next_block_num > block_num
 
 
 def test_revert_failure(hardhat_provider):
@@ -115,16 +116,15 @@ def test_revert_failure(hardhat_provider):
 
 def test_snapshot_and_revert(hardhat_provider):
     snap = hardhat_provider.snapshot()
-    assert snap == "1"
 
-    block_1 = hardhat_provider._web3.eth.get_block("latest")
+    block_1 = hardhat_provider.get_block("latest")
     hardhat_provider.mine()
-    block_2 = hardhat_provider._web3.eth.get_block("latest")
+    block_2 = hardhat_provider.get_block("latest")
     assert block_2.number > block_1.number
     assert block_1.hash != block_2.hash
 
     hardhat_provider.revert(snap)
-    block_3 = hardhat_provider._web3.eth.get_block("latest")
+    block_3 = hardhat_provider.get_block("latest")
     assert block_1.number == block_3.number
     assert block_1.hash == block_3.hash
 
