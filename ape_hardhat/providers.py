@@ -208,35 +208,6 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
 
         self.port = None
 
-    def get_block(self, block_id: BlockID) -> BlockAPI:
-        if block_id == "pending":
-            # NOTE: Have to do this hack because of a bug in web3.
-            # Can remove once https://github.com/ethereum/web3.py/issues/2317 is resolved.
-            params = {
-                "jsonrpc": "2.0",
-                "method": "eth_getBlockByNumber",
-                "params": ["pending", True],
-                "id": 0,
-            }
-            response = requests.post(self.uri, json=params)
-            response.raise_for_status()
-            block_data = response.json()
-
-            error_data = block_data.get("error")
-            if error_data:
-                message = error_data.get("message", str(error_data))
-                raise HardhatProviderError(message)
-
-            block_data = block_data.get("result", block_data)
-            block_data["timestamp"] = to_int(hexstr=block_data["timestamp"])
-            block_data["size"] = to_int(hexstr=block_data["size"])
-            block_class = self.network.ecosystem.block_class
-            block = block_class.decode(block_data)
-
-            return block
-
-        return super().get_block(block_id)
-
     def _make_request(self, rpc: str, args: list) -> Any:
         return self._web3.manager.request_blocking(rpc, args)  # type: ignore
 
@@ -307,6 +278,15 @@ class HardhatMainnetForkProvider(HardhatProvider):
     section of your ``ape-config.yaml` file to specify which provider
     to use as your archive node.
     """
+
+    def connect(self):
+        super().connect()
+        if self.get_block("latest").number == 0:
+            self.disconnect()
+            raise HardhatProviderError(
+                "Attempted to connect Hardhat Mainnet fork provider to normal Hardhat provider. "
+                "Stop or restart your Hardhat node in Mainnet fork mode to use this provider."
+            )
 
     def _create_process(self) -> HardhatProcess:
         mainnet_fork = self.config.mainnet_fork or {}  # type: ignore
