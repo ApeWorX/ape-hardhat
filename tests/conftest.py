@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest  # type: ignore
 from ape import Project, networks
+from ape.api.networks import LOCAL_NETWORK_NAME
 from ape.managers.project import ProjectManager
 
 from ape_hardhat import HardhatNetworkConfig, HardhatProvider
@@ -28,7 +29,7 @@ def project():
 
 @pytest.fixture
 def network_api():
-    return networks.ecosystems["ethereum"]["development"]
+    return networks.ecosystems["ethereum"][LOCAL_NETWORK_NAME]
 
 
 @pytest.fixture

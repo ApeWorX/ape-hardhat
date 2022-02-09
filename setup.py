@@ -31,7 +31,7 @@ extras_require = {
     ],
     "dev": [
         "commitizen",  # Manage commits and publishing releases
-        "pre-commit",  # Ensure that linters are run prior to commiting
+        "pre-commit",  # Ensure that linters are run prior to committing
         "pytest-watch",  # `ptw` test watcher/runner
         "IPython",  # Console for interacting
         "ipdb",  # Debugger (Must use `export PYTHONBREAKPOINT=ipdb.set_trace`)
@@ -67,7 +67,7 @@ setup(
     url="https://github.com/ApeWorX/ape-hardhat",
     include_package_data=True,
     install_requires=[
-        "eth-ape>=0.1.0b4",
+        "eth-ape>=0.1.0b5",
         "importlib-metadata ; python_version<'3.8'",
     ],  # NOTE: Add 3rd party libraries here
     python_requires=">=3.7,<4",
