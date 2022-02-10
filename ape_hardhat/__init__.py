@@ -4,6 +4,7 @@ implementation written in Node.js).
 """
 
 from ape import plugins
+from ape.api.networks import LOCAL_NETWORK_NAME
 
 from .providers import (
     HardhatMainnetForkProvider,
@@ -21,7 +22,7 @@ def config_class():
 
 @plugins.register(plugins.ProviderPlugin)
 def providers():
-    yield "ethereum", "development", HardhatProvider
+    yield "ethereum", LOCAL_NETWORK_NAME, HardhatProvider
     yield "ethereum", "mainnet-fork", HardhatMainnetForkProvider
 
 

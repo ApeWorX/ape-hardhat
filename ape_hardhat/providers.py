@@ -4,9 +4,8 @@ import signal
 import sys
 from typing import Any, List, Optional
 
-import requests
 from ape.api import (
-    BlockAPI,
+    ProviderAPI,
     ReceiptAPI,
     TestProviderAPI,
     TransactionAPI,
@@ -16,9 +15,8 @@ from ape.api import (
 from ape.api.config import ConfigItem
 from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
 from ape.logging import logger
-from ape.types import BlockID, SnapshotID
-from ape.utils import gas_estimation_error_message
-from eth_utils import to_int
+from ape.types import SnapshotID
+from ape.utils import cached_property, gas_estimation_error_message
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
@@ -208,35 +206,6 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
 
         self.port = None
 
-    def get_block(self, block_id: BlockID) -> BlockAPI:
-        if block_id == "pending":
-            # NOTE: Have to do this hack because of a bug in web3.
-            # Can remove once https://github.com/ethereum/web3.py/issues/2317 is resolved.
-            params = {
-                "jsonrpc": "2.0",
-                "method": "eth_getBlockByNumber",
-                "params": ["pending", True],
-                "id": 0,
-            }
-            response = requests.post(self.uri, json=params)
-            response.raise_for_status()
-            block_data = response.json()
-
-            error_data = block_data.get("error")
-            if error_data:
-                message = error_data.get("message", str(error_data))
-                raise HardhatProviderError(message)
-
-            block_data = block_data.get("result", block_data)
-            block_data["timestamp"] = to_int(hexstr=block_data["timestamp"])
-            block_data["size"] = to_int(hexstr=block_data["size"])
-            block_class = self.network.ecosystem.block_class
-            block = block_class.decode(block_data)
-
-            return block
-
-        return super().get_block(block_id)
-
     def _make_request(self, rpc: str, args: list) -> Any:
         return self._web3.manager.request_blocking(rpc, args)  # type: ignore
 
@@ -308,34 +277,54 @@ class HardhatMainnetForkProvider(HardhatProvider):
     to use as your archive node.
     """
 
-    def _create_process(self) -> HardhatProcess:
-        mainnet_fork = self.config.mainnet_fork or {}  # type: ignore
-        upstream_provider_name = mainnet_fork.get("upstream_provider")
-        fork_block_num = mainnet_fork.get("block_number")
+    @property
+    def _fork_config(self) -> ConfigItem:
+        return self.config.mainnet_fork or {}  # type: ignore
+
+    @cached_property
+    def _upstream_provider(self) -> ProviderAPI:
+        # NOTE: if 'upstream_provider_name' is 'None', this gets the default mainnet provider.
         mainnet = self.network.ecosystem.mainnet
-
-        # NOTE: if `upstream_provider_name` is `None`, this gets the default mainnet provider.
+        upstream_provider_name = self._fork_config.get("upstream_provider")
         upstream_provider = mainnet.get_provider(provider_name=upstream_provider_name)
+        return upstream_provider
 
-        if not isinstance(upstream_provider, UpstreamProvider):
+    def connect(self):
+        super().connect()
+
+        # Verify that we're connected to a Hardhat node with mainnet-fork mode.
+        self._upstream_provider.connect()
+        upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
+        self._upstream_provider.disconnect()
+        if self.get_block(0).hash != upstream_genesis_block_hash:
+            self.disconnect()
             raise HardhatProviderError(
-                f"Provider '{upstream_provider_name}' is not an upstream provider."
+                f"Upstream network is not {self.network.name.replace('-fork', '')}"
             )
 
-        fork_url = upstream_provider.connection_str
+    def _create_process(self) -> HardhatProcess:
+        if not isinstance(self._upstream_provider, UpstreamProvider):
+            raise HardhatProviderError(
+                f"Provider '{self._upstream_provider.name}' is not an upstream provider."
+            )
+
+        fork_url = self._upstream_provider.connection_str
         if not fork_url:
             raise HardhatProviderError("Upstream provider does not have a ``connection_str``.")
 
         if fork_url.replace("localhost", "127.0.0.1") == self.uri:
-            raise HardhatProviderError("Upstream-fork URL is the same as the Hardhat node URL.")
+            raise HardhatProviderError(
+                "Invalid upstream-fork URL. Can't be same as local Hardhat node."
+            )
 
+        fork_block_number = self._fork_config.get("block_number")
         return HardhatProcess(
             self._base_path,
             self.port or DEFAULT_PORT,
             self._mnemonic,
             self._number_of_accounts,
             fork_url=fork_url,
-            fork_block_number=fork_block_num,
+            fork_block_number=fork_block_number,
         )
 
 
