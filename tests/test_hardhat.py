@@ -28,7 +28,7 @@ def test_disconnect(network_api, network_config):
     provider = HardhatProvider("hardhat", network_api, network_config, {}, Path("."), "")
     provider.connect()
     provider.disconnect()
-    assert not provider._process
+    assert not provider.process
 
 
 def test_gas_price(hardhat_provider):

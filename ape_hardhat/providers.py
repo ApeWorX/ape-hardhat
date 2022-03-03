@@ -2,9 +2,11 @@ import atexit
 import random
 import signal
 import sys
+from pathlib import Path
 from typing import Any, List, Optional
 
 from ape.api import (
+    PluginConfig,
     ProviderAPI,
     ReceiptAPI,
     TestProviderAPI,
@@ -12,11 +14,10 @@ from ape.api import (
     UpstreamProvider,
     Web3Provider,
 )
-from ape.api.config import ConfigItem
 from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
 from ape.logging import logger
 from ape.types import SnapshotID
-from ape.utils import cached_property, gas_estimation_error_message
+from ape.utils import cached_property, gas_estimation_error_message, DEFAULT_NUMBER_OF_TEST_ACCOUNTS
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
@@ -36,12 +37,12 @@ def _signal_handler(signum, frame):
     sys.exit(143 if signum == signal.SIGTERM else 130)
 
 
-class HardhatForkConfig(ConfigItem):
+class HardhatForkConfig(PluginConfig):
     upstream_provider: Optional[str] = None
     block_number: Optional[int] = None
 
 
-class HardhatNetworkConfig(ConfigItem):
+class HardhatNetworkConfig(PluginConfig):
     # --port <INT, default from Hardhat is 8545, but our default is to assign a random port number>
     port: Optional[int] = None
 
@@ -56,31 +57,31 @@ class HardhatNetworkConfig(ConfigItem):
 
 class HardhatProvider(Web3Provider, TestProviderAPI):
     port: Optional[int] = None
-    _process = None
+    process: Optional[HardhatProcess] = None
+    attempted_ports: List[int] = []
+    mnemonic: str = ""
+    number_of_accounts: int = DEFAULT_NUMBER_OF_TEST_ACCOUNTS
 
-    def __post_init__(self):
-        self._hardhat_web3 = (
-            None  # we need to maintain a separate per-instance web3 client for Hardhat
-        )
+    @property
+    def project_folder(self) -> Path:
+        return self.config_manager.PROJECT_FOLDER
+
+    def connect(self):
+        """
+        Start the hardhat process and verify it's up and accepting connections.
+        """
+
         self.port = self.config.port  # type: ignore
-        self._process = None
-        self._config_manager = self.network.config_manager
-        self._base_path = self._config_manager.PROJECT_FOLDER
 
-        # When the user did not specify a port and we are attempting to start
-        # the process ourselves, we first try the default port of 8545. Otherwise,
-        # we pick a random port in an ephemeral range.
-        self._tried_default_port = False
-
-        # register atexit handler to make sure disconnect is called for normal object lifecycle
+        # Register atexit handler to make sure disconnect is called for normal object lifecycle
         atexit.register(self.disconnect)
 
-        # register signal handlers to make sure atexit handlers are called when the parent python
+        # Register signal handlers to make sure atexit handlers are called when the parent python
         # process is killed
         signal.signal(signal.SIGINT, _signal_handler)
         signal.signal(signal.SIGTERM, _signal_handler)
 
-        config = self._config_manager.get_config("test")
+        config = self.config_manager.get_config("test")
         if hasattr(config, "mnemonic"):
             mnemonic = config.mnemonic
             number_of_accounts = config.number_of_accounts  # type: ignore
@@ -96,13 +97,10 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
             mnemonic = _test_config_cls.__defaults__["mnemonic"]  # type: ignore
             number_of_accounts = _test_config_cls.__defaults__["number_of_accounts"]  # type: ignore
 
-        self._mnemonic = mnemonic
-        self._number_of_accounts = number_of_accounts
+        self.mnemonic = mnemonic
+        self.number_of_accounts = number_of_accounts
 
-    def connect(self):
-        """Start the hardhat process and verify it's up and accepting connections."""
-
-        if self._process:
+        if self.process:
             raise HardhatProviderError(
                 "Cannot connect twice. Call disconnect before connecting again."
             )
@@ -150,24 +148,34 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
 
     def _start_process(self):
         if not self.port:
-            if not self._tried_default_port:
-                # Try port 8545 first.
+            if self.port not in self.attempted_ports:
                 self.port = DEFAULT_PORT
-                self._tried_default_port = True
-
             else:
-                # Pick a random port if one isn't configured and 8545 is taken.
-                self.port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
+                # Pick a random port if default one is taken.
+                port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
+                max_attempts = 25
+                attempts = 0
+                while port not in self.attempted_ports:
+                    port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
+                    attempts += 1
+                    if attempts == max_attempts:
+                        ports_str = ", ".join(self.attempted_ports)
+                        raise HardhatProviderError(f"Unable to find an available port. Ports tried: {ports_str}")
 
-        self._process = self._create_process()
-        self._process.start()
+                self.port = port
+
+        self.attempted_ports.append(self.port)
+        self.process = self._create_process()
+        self.process.start()
 
     def _create_process(self):
         """
         Sub-classes may override this to specify alternative values in the process,
         such as using mainnet-fork mode.
         """
-        return HardhatProcess(self._base_path, self.port, self._mnemonic, self._number_of_accounts)
+        return HardhatProcess(
+            self.project_folder, self.port, self.mnemonic, self.number_of_accounts
+        )
 
     @property
     def uri(self) -> str:
@@ -175,21 +183,6 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
             raise HardhatProviderError("Can't build URI before `connect()` is called.")
 
         return f"http://127.0.0.1:{self.port}"
-
-    @property  # type: ignore
-    def _web3(self):
-        """
-        This property overrides the ``EthereumProvider._web3`` class variable to return our
-        instance variable.
-        """
-        return self._hardhat_web3
-
-    @_web3.setter
-    def _web3(self, value):
-        """
-        Redirect the base class's assignments of self._web3 class variable to our instance variable.
-        """
-        self._hardhat_web3 = value
 
     @property
     def priority_fee(self) -> int:
@@ -200,9 +193,9 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
 
     def disconnect(self):
         self._web3 = None
-        if self._process:
-            self._process.stop()
-            self._process = None
+        if self.process:
+            self.process.stop()
+            self.process = None
 
         self.port = None
 
@@ -278,7 +271,7 @@ class HardhatMainnetForkProvider(HardhatProvider):
     """
 
     @property
-    def _fork_config(self) -> ConfigItem:
+    def _fork_config(self) -> PluginConfig:
         return self.config.mainnet_fork or {}  # type: ignore
 
     @cached_property
@@ -319,10 +312,10 @@ class HardhatMainnetForkProvider(HardhatProvider):
 
         fork_block_number = self._fork_config.get("block_number")
         return HardhatProcess(
-            self._base_path,
+            self.project_folder,
             self.port or DEFAULT_PORT,
-            self._mnemonic,
-            self._number_of_accounts,
+            self.mnemonic,
+            self.number_of_accounts,
             fork_url=fork_url,
             fork_block_number=fork_block_number,
         )
