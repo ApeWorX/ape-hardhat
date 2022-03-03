@@ -56,5 +56,7 @@ def create_hardhat_provider(network_api: NetworkAPI, config: HardhatNetworkConfi
 @pytest.fixture
 def hardhat_connected(hardhat):
     hardhat.connect()
-    yield hardhat
-    hardhat.disconnect()
+    try:
+        yield hardhat
+    finally:
+        hardhat.disconnect()
