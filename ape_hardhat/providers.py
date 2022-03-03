@@ -3,7 +3,7 @@ import random
 import signal
 import sys
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List, Optional, cast
 
 from ape.api import (
     PluginConfig,
@@ -17,7 +17,7 @@ from ape.api import (
 from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
 from ape.logging import logger
 from ape.types import SnapshotID
-from ape.utils import cached_property, gas_estimation_error_message, DEFAULT_NUMBER_OF_TEST_ACCOUNTS
+from ape.utils import DEFAULT_NUMBER_OF_TEST_ACCOUNTS, cached_property, gas_estimation_error_message
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
@@ -160,7 +160,9 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                     attempts += 1
                     if attempts == max_attempts:
                         ports_str = ", ".join(self.attempted_ports)
-                        raise HardhatProviderError(f"Unable to find an available port. Ports tried: {ports_str}")
+                        raise HardhatProviderError(
+                            f"Unable to find an available port. Ports tried: {ports_str}"
+                        )
 
                 self.port = port
 
@@ -271,14 +273,15 @@ class HardhatMainnetForkProvider(HardhatProvider):
     """
 
     @property
-    def _fork_config(self) -> PluginConfig:
-        return self.config.mainnet_fork or {}  # type: ignore
+    def _fork_config(self) -> HardhatForkConfig:
+        config = cast(HardhatNetworkConfig, self.config)
+        return config.mainnet_fork or HardhatForkConfig()
 
     @cached_property
     def _upstream_provider(self) -> ProviderAPI:
         # NOTE: if 'upstream_provider_name' is 'None', this gets the default mainnet provider.
         mainnet = self.network.ecosystem.mainnet
-        upstream_provider_name = self._fork_config.get("upstream_provider")
+        upstream_provider_name = self._fork_config.upstream_provider
         upstream_provider = mainnet.get_provider(provider_name=upstream_provider_name)
         return upstream_provider
 
@@ -310,7 +313,7 @@ class HardhatMainnetForkProvider(HardhatProvider):
                 "Invalid upstream-fork URL. Can't be same as local Hardhat node."
             )
 
-        fork_block_number = self._fork_config.get("block_number")
+        fork_block_number = self._fork_config.block_number
         return HardhatProcess(
             self.project_folder,
             self.port or DEFAULT_PORT,

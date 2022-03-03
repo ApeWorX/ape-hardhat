@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest  # type: ignore
 from ape import Project, networks
-from ape.api.networks import LOCAL_NETWORK_NAME
+from ape.api.networks import LOCAL_NETWORK_NAME, NetworkAPI
 from ape.managers.project import ProjectManager
 
 from ape_hardhat import HardhatNetworkConfig, HardhatProvider
@@ -38,7 +38,23 @@ def network_config(project):
 
 
 @pytest.fixture
-def hardhat_provider(network_api, network_config):
-    provider = HardhatProvider("hardhat", network_api, network_config, {}, Path("."), "")
-    provider.connect()
-    return provider
+def hardhat(network_api, network_config):
+    return create_hardhat_provider(network_api, network_config)
+
+
+def create_hardhat_provider(network_api: NetworkAPI, config: HardhatNetworkConfig):
+    return HardhatProvider(
+        name="hardhat",
+        network=network_api,
+        config=config,
+        request_header={},
+        data_folder=Path("."),
+        provider_settings={},
+    )
+
+
+@pytest.fixture
+def hardhat_connected(hardhat):
+    hardhat.connect()
+    yield hardhat
+    hardhat.disconnect()
