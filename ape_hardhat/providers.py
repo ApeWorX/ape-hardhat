@@ -3,7 +3,7 @@ import random
 import signal
 import sys
 from pathlib import Path
-from typing import Any, List, Optional, cast
+from typing import Any, List, Literal, Optional, Union, cast
 
 from ape.api import (
     PluginConfig,
@@ -44,7 +44,7 @@ class HardhatForkConfig(PluginConfig):
 
 class HardhatNetworkConfig(PluginConfig):
     # --port <INT, default from Hardhat is 8545, but our default is to assign a random port number>
-    port: Optional[int] = None
+    port: Optional[Union[int, Literal["auto"]]] = None
 
     # Retry strategy configs, try increasing these if you're getting HardhatSubprocessError
     network_retries: List[float] = HARDHAT_START_NETWORK_RETRIES
@@ -71,7 +71,8 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         Start the hardhat process and verify it's up and accepting connections.
         """
 
-        self.port = self.config.port  # type: ignore
+        if not self.port:
+            self.port = self.config.port  # type: ignore
 
         # Register atexit handler to make sure disconnect is called for normal object lifecycle
         atexit.register(self.disconnect)
@@ -147,15 +148,17 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
             self._web3 = None
 
     def _start_process(self):
+        force_random_port = self.port == "auto"
+        self.port = None if force_random_port else self.port
+
         if not self.port:
-            if self.port not in self.attempted_ports:
+            if DEFAULT_PORT not in self.attempted_ports and not force_random_port:
                 self.port = DEFAULT_PORT
             else:
-                # Pick a random port if default one is taken.
                 port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
                 max_attempts = 25
                 attempts = 0
-                while port not in self.attempted_ports:
+                while port in self.attempted_ports:
                     port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
                     attempts += 1
                     if attempts == max_attempts:

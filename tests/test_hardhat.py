@@ -4,30 +4,26 @@ from hexbytes import HexBytes
 from ape_hardhat.exceptions import HardhatProviderError
 from ape_hardhat.process import HARDHAT_CHAIN_ID
 from ape_hardhat.providers import HardhatProvider
-from tests.conftest import create_hardhat_provider, get_network_config
+from tests.conftest import get_hardhat_provider
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
 
 
-def test_instantiation(hardhat):
-    assert hardhat.name == "hardhat"
+def test_instantiation(hardhat_disconnected):
+    assert hardhat_disconnected.name == "hardhat"
 
 
-def test_connect(hardhat):
+def test_connect_and_disconnect(network_api):
+    # Use custom port to prevent connecting to a port used in another test.
+    hardhat = get_hardhat_provider(network_api)
+    hardhat.port = 8555
     hardhat.connect()
     try:
         assert hardhat.chain_id == HARDHAT_CHAIN_ID
     finally:
         hardhat.disconnect()
 
-
-def test_disconnect(network_api, network_config):
-    # Use custom port to prevent connecting to a port used in another test.
-    network_config.port = 8555
-    provider = create_hardhat_provider(network_api, network_config)
-    provider.connect()
-    provider.disconnect()
-    assert provider.process is None
+    assert hardhat.process is None
 
 
 def test_gas_price(hardhat_connected):
@@ -35,9 +31,9 @@ def test_gas_price(hardhat_connected):
     assert gas_price > 1
 
 
-def test_uri_not_connected(hardhat):
+def test_uri_disconnected(hardhat_disconnected):
     with pytest.raises(HardhatProviderError) as err:
-        _ = hardhat.uri
+        _ = hardhat_disconnected.uri
 
     assert "Can't build URI before `connect()` is called." in str(err.value)
 
@@ -64,17 +60,13 @@ def test_multiple_hardhat_instances(network_api):
     Validate the somewhat tricky internal logic of running multiple Hardhat subprocesses
     under a single parent process.
     """
-    network_config_1 = get_network_config()
-    network_config_1.port = 8556
-    network_config_2 = get_network_config()
-    network_config_2.port = 8557
-    network_config_3 = get_network_config()
-    network_config_3.port = 8558
-
     # instantiate the providers (which will start the subprocesses) and validate the ports
-    provider_1 = create_hardhat_provider(network_api, network_config_1)
-    provider_2 = create_hardhat_provider(network_api, network_config_2)
-    provider_3 = create_hardhat_provider(network_api, network_config_3)
+    provider_1 = get_hardhat_provider(network_api)
+    provider_2 = get_hardhat_provider(network_api)
+    provider_3 = get_hardhat_provider(network_api)
+    provider_1.port = 8556
+    provider_2.port = 8557
+    provider_3.port = 8558
     provider_1.connect()
     provider_2.connect()
     provider_3.connect()
@@ -107,7 +99,7 @@ def test_set_timestamp(hardhat_connected):
     new_time = hardhat_connected.get_block("pending").timestamp
 
     # Adding 5 seconds but seconds can be weird so give it a 1 second margin.
-    assert 4 <= new_time - start_time <= 5
+    assert 4 <= new_time - start_time <= 6
 
 
 def test_mine(hardhat_connected):
