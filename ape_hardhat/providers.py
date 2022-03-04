@@ -3,7 +3,7 @@ import random
 import signal
 import sys
 from pathlib import Path
-from typing import Any, List, Literal, Optional, Union, cast
+from typing import Any, List, Optional, Union, cast
 
 from ape.api import (
     PluginConfig,
@@ -14,6 +14,7 @@ from ape.api import (
     UpstreamProvider,
     Web3Provider,
 )
+from ape._compat import Literal
 from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
 from ape.logging import logger
 from ape.types import SnapshotID
