@@ -84,11 +84,8 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         signal.signal(signal.SIGTERM, _signal_handler)
 
         config = self.config_manager.get_config("test")
-        mnemonic = config.mnemonic
-        number_of_accounts = config.number_of_accounts
-
-        self.mnemonic = mnemonic
-        self.number_of_accounts = number_of_accounts
+        self.mnemonic = config.mnemonic
+        self.number_of_accounts = config.number_of_accounts
 
         if self.process:
             raise HardhatProviderError(
