@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Any, List, Optional, Union, cast
 
+from ape._compat import Literal
 from ape.api import (
     PluginConfig,
     ProviderAPI,
@@ -14,7 +15,6 @@ from ape.api import (
     UpstreamProvider,
     Web3Provider,
 )
-from ape._compat import Literal
 from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
 from ape.logging import logger
 from ape.types import SnapshotID
@@ -85,7 +85,7 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
 
         config = self.config_manager.get_config("test")
         mnemonic = config.mnemonic
-        number_of_accounts = config.number_of_accounts  # type: ignore
+        number_of_accounts = config.number_of_accounts
 
         self.mnemonic = mnemonic
         self.number_of_accounts = number_of_accounts
