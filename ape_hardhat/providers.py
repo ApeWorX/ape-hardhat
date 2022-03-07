@@ -84,20 +84,8 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
         signal.signal(signal.SIGTERM, _signal_handler)
 
         config = self.config_manager.get_config("test")
-        if hasattr(config, "mnemonic"):
-            mnemonic = config.mnemonic
-            number_of_accounts = config.number_of_accounts  # type: ignore
-        else:
-            # This happens in unusual circumstances, such as when executing `pytest`
-            # without `-p no:ape_test`. This hack allows this plugin to still function.
-            self._failing_to_load_test_plugins = True
-            logger.error("Failed to load config from 'ape-test' plugin, using default values.")
-
-            from ape_test import Config as TestConfig
-
-            _test_config_cls = TestConfig
-            mnemonic = _test_config_cls.__defaults__["mnemonic"]  # type: ignore
-            number_of_accounts = _test_config_cls.__defaults__["number_of_accounts"]  # type: ignore
+        mnemonic = config.mnemonic
+        number_of_accounts = config.number_of_accounts  # type: ignore
 
         self.mnemonic = mnemonic
         self.number_of_accounts = number_of_accounts
