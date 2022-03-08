@@ -158,13 +158,12 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return 0
 
     @property
-    def is_rpc_ready(self):
+    def is_connected(self) -> bool:
+        if not self.process:
+            return False
+
         self._set_web3()
         return self._web3 is not None
-
-    @property
-    def is_connected(self) -> bool:
-        return self.running and self.is_rpc_ready
 
     def connect(self):
         """

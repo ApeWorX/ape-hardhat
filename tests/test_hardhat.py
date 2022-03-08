@@ -1,4 +1,5 @@
 import pytest
+from ape.exceptions import ProviderError
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
@@ -18,10 +19,12 @@ def test_connect_and_disconnect(network_api):
     hardhat.port = 8555
     hardhat.connect()
     try:
+        assert hardhat.is_connected
         assert hardhat.chain_id == HARDHAT_CHAIN_ID
     finally:
         hardhat.disconnect()
 
+    assert not hardhat.is_connected
     assert hardhat.process is None
 
 
@@ -132,6 +135,5 @@ def test_unlock_account(hardhat_connected):
 
 
 def test_double_connect(hardhat_connected):
-    # connect has already been called once as part of the fixture, so connecting again should fail
-    with pytest.raises(HardhatProviderError):
+    with pytest.raises(ProviderError):
         hardhat_connected.connect()
