@@ -1,8 +1,7 @@
-import atexit
 import random
-import signal
-import sys
+import shutil
 from pathlib import Path
+from subprocess import PIPE, call
 from typing import Any, List, Optional, Union, cast
 
 from ape._compat import Literal
@@ -10,12 +9,19 @@ from ape.api import (
     PluginConfig,
     ProviderAPI,
     ReceiptAPI,
+    SubprocessProvider,
     TestProviderAPI,
     TransactionAPI,
     UpstreamProvider,
     Web3Provider,
 )
-from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
+from ape.exceptions import (
+    ContractLogicError,
+    OutOfGasError,
+    SubprocessError,
+    TransactionError,
+    VirtualMachineError,
+)
 from ape.logging import logger
 from ape.types import SnapshotID
 from ape.utils import DEFAULT_NUMBER_OF_TEST_ACCOUNTS, cached_property, gas_estimation_error_message
@@ -23,19 +29,65 @@ from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
 from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
-from .process import HardhatProcess
 
 EPHEMERAL_PORTS_START = 49152
 EPHEMERAL_PORTS_END = 60999
 HARDHAT_START_NETWORK_RETRIES = [0.1, 0.2, 0.3, 0.5, 1.0]  # seconds between network retries
 HARDHAT_START_PROCESS_ATTEMPTS = 3  # number of attempts to start subprocess before giving up
 DEFAULT_PORT = 8545
+HARDHAT_CHAIN_ID = 31337
+HARDHAT_CONFIG = """
+// See https://hardhat.org/config/ for config options.
+module.exports = {{
+  networks: {{
+    hardhat: {{
+      hardfork: "london",
+      // Base fee of 0 allows use of 0 gas price when testing
+      initialBaseFeePerGas: 0,
+      accounts: {{
+        mnemonic: "{mnemonic}",
+        path: "m/44'/60'/0'",
+        count: {number_of_accounts}
+      }}
+    }},
+  }},
+}};
+"""
+HARDHAT_CONFIG_FILE_NAME = "hardhat.config.js"
 
 
-def _signal_handler(signum, frame):
-    """Runs on SIGTERM and SIGINT to force ``atexit`` handlers to run."""
-    atexit._run_exitfuncs()
-    sys.exit(143 if signum == signal.SIGTERM else 130)
+class HardhatConfigJS:
+    """
+    A class representing the actual ``hardhat.config.js`` file.
+    """
+
+    FILE_NAME = "hardhat.config.js"
+
+    def __init__(
+        self,
+        project_path: Path,
+        mnemonic: str,
+        num_of_accounts: int,
+        hard_fork: Optional[str] = None,
+    ):
+        self._base_path = project_path
+        self._mnemonic = mnemonic
+        self._num_of_accounts = num_of_accounts
+        self._hard_fork = hard_fork or "london"
+
+    @property
+    def _content(self) -> str:
+        return HARDHAT_CONFIG.format(
+            mnemonic=self._mnemonic, number_of_accounts=self._num_of_accounts
+        )
+
+    @property
+    def _path(self) -> Path:
+        return self._base_path / self.FILE_NAME
+
+    def write_if_not_exists(self):
+        if not self._path.is_file():
+            self._path.write_text(self._content)
 
 
 class HardhatForkConfig(PluginConfig):
@@ -56,51 +108,89 @@ class HardhatNetworkConfig(PluginConfig):
     mainnet_fork: Optional[HardhatForkConfig] = None
 
 
-class HardhatProvider(Web3Provider, TestProviderAPI):
+def _call(*args):
+    return call([*args], stderr=PIPE, stdout=PIPE, stdin=PIPE)
+
+
+class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     port: Optional[int] = None
-    process: Optional[HardhatProcess] = None
     attempted_ports: List[int] = []
     mnemonic: str = ""
     number_of_accounts: int = DEFAULT_NUMBER_OF_TEST_ACCOUNTS
 
     @property
+    def process_name(self) -> str:
+        return "Hardhat node"
+
+    @cached_property
+    def npx_bin(self) -> str:
+        npx = shutil.which("npx")
+
+        if not npx:
+            raise HardhatSubprocessError(
+                "Could not locate NPM executable. See ape-hardhat README for install steps."
+            )
+        elif _call(npx, "--version") != 0:
+            raise HardhatSubprocessError(
+                "NPM executable returned error code. See ape-hardhat README for install steps."
+            )
+        elif _call(npx, "hardhat") != 0:
+            raise HardhatNotInstalledError()
+
+        return npx
+
+    @cached_property
+    def hardhat_config_js(self) -> HardhatConfigJS:
+        js_config = HardhatConfigJS(self.project_folder, self.mnemonic, self.number_of_accounts)
+        js_config.write_if_not_exists()
+        return js_config
+
+    @property
     def project_folder(self) -> Path:
         return self.config_manager.PROJECT_FOLDER
+
+    @property
+    def uri(self) -> str:
+        if not self.port:
+            raise HardhatProviderError("Can't build URI before `connect()` is called.")
+
+        return f"http://127.0.0.1:{self.port}"
+
+    @property
+    def priority_fee(self) -> int:
+        """
+        Priority fee not needed in development network.
+        """
+        return 0
+
+    @property
+    def is_connected(self) -> bool:
+        if not self.process:
+            return False
+
+        self._set_web3()
+        return self._web3 is not None
 
     def connect(self):
         """
         Start the hardhat process and verify it's up and accepting connections.
         """
+        super().connect()  # Set up process MGMT
 
         if not self.port:
             self.port = self.config.port  # type: ignore
-
-        # Register atexit handler to make sure disconnect is called for normal object lifecycle
-        atexit.register(self.disconnect)
-
-        # Register signal handlers to make sure atexit handlers are called when the parent python
-        # process is killed
-        signal.signal(signal.SIGINT, _signal_handler)
-        signal.signal(signal.SIGTERM, _signal_handler)
 
         config = self.config_manager.get_config("test")
         self.mnemonic = config.mnemonic
         self.number_of_accounts = config.number_of_accounts
 
-        if self.process:
-            raise HardhatProviderError(
-                "Cannot connect twice. Call disconnect before connecting again."
-            )
-
         if self.port:
             self._set_web3()
             if not self._web3:
                 self._start_process()
-                self._set_web3()
             else:
-                # We get here when user configured a port and the hardhat process
-                # was already running.
-                logger.info(f"Connecting to existing Hardhat node at port '{self.port}'.")
+                # The user configured a port and the hardhat process was already running.
+                logger.info(f"Connecting to existing '{self.process_name}' at port '{self.port}'.")
         else:
             for _ in range(self.config.process_attempts):  # type: ignore
                 try:
@@ -110,11 +200,9 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                     # Is a sub-class of `HardhatSubprocessError` but we to still raise
                     # so we don't keep retrying.
                     raise
-                except HardhatSubprocessError as exc:
+                except SubprocessError as exc:
                     logger.info("Retrying Hardhat subprocess startup: %r", exc)
                     self.port = None
-
-            self._set_web3()
 
     def _set_web3(self):
         self._web3 = Web3(HTTPProvider(self.uri))
@@ -156,39 +244,23 @@ class HardhatProvider(Web3Provider, TestProviderAPI):
                 self.port = port
 
         self.attempted_ports.append(self.port)
-        self.process = self._create_process()
-        self.process.start()
-
-    def _create_process(self):
-        """
-        Sub-classes may override this to specify alternative values in the process,
-        such as using mainnet-fork mode.
-        """
-        return HardhatProcess(
-            self.project_folder, self.port, self.mnemonic, self.number_of_accounts
-        )
-
-    @property
-    def uri(self) -> str:
-        if not self.port:
-            raise HardhatProviderError("Can't build URI before `connect()` is called.")
-
-        return f"http://127.0.0.1:{self.port}"
-
-    @property
-    def priority_fee(self) -> int:
-        """
-        Priority fee not needed in development network.
-        """
-        return 0
+        self.start()
 
     def disconnect(self):
         self._web3 = None
-        if self.process:
-            self.process.stop()
-            self.process = None
-
         self.port = None
+        super().disconnect()
+
+    def build_command(self) -> List[str]:
+        return [
+            self.npx_bin,
+            "hardhat",
+            "node",
+            "--hostname",
+            "127.0.0.1",
+            "--port",
+            str(self.port),
+        ]
 
     def _make_request(self, rpc: str, args: list) -> Any:
         return self._web3.manager.request_blocking(rpc, args)  # type: ignore
@@ -287,7 +359,7 @@ class HardhatMainnetForkProvider(HardhatProvider):
                 f"Upstream network is not {self.network.name.replace('-fork', '')}"
             )
 
-    def _create_process(self) -> HardhatProcess:
+    def build_command(self) -> List[str]:
         if not isinstance(self._upstream_provider, UpstreamProvider):
             raise HardhatProviderError(
                 f"Provider '{self._upstream_provider.name}' is not an upstream provider."
@@ -302,15 +374,13 @@ class HardhatMainnetForkProvider(HardhatProvider):
                 "Invalid upstream-fork URL. Can't be same as local Hardhat node."
             )
 
+        cmd = super().build_command()
+        cmd.extend(("--fork", fork_url))
         fork_block_number = self._fork_config.block_number
-        return HardhatProcess(
-            self.project_folder,
-            self.port or DEFAULT_PORT,
-            self.mnemonic,
-            self.number_of_accounts,
-            fork_url=fork_url,
-            fork_block_number=fork_block_number,
-        )
+        if fork_block_number is not None:
+            cmd.extend(("--fork-block-number", str(fork_block_number)))
+
+        return cmd
 
 
 def _get_vm_error(web3_value_error: ValueError) -> TransactionError:
