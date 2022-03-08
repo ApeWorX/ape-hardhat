@@ -15,7 +15,13 @@ from ape.api import (
     UpstreamProvider,
     Web3Provider,
 )
-from ape.exceptions import ContractLogicError, OutOfGasError, TransactionError, VirtualMachineError
+from ape.exceptions import (
+    ContractLogicError,
+    OutOfGasError,
+    SubprocessError,
+    TransactionError,
+    VirtualMachineError,
+)
 from ape.logging import logger
 from ape.types import SnapshotID
 from ape.utils import DEFAULT_NUMBER_OF_TEST_ACCOUNTS, cached_property, gas_estimation_error_message
@@ -194,7 +200,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                     # Is a sub-class of `HardhatSubprocessError` but we to still raise
                     # so we don't keep retrying.
                     raise
-                except HardhatSubprocessError as exc:
+                except SubprocessError as exc:
                     logger.info("Retrying Hardhat subprocess startup: %r", exc)
                     self.port = None
 

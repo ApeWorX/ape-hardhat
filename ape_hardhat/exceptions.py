@@ -1,4 +1,4 @@
-from ape.exceptions import ProviderError
+from ape.exceptions import ProviderError, SubprocessError
 
 
 class HardhatProviderError(ProviderError):
@@ -7,7 +7,7 @@ class HardhatProviderError(ProviderError):
     """
 
 
-class HardhatSubprocessError(HardhatProviderError):
+class HardhatSubprocessError(HardhatProviderError, SubprocessError):
     """
     An error related to launching subprocesses to run Hardhat.
     """
