@@ -96,8 +96,7 @@ class HardhatForkConfig(PluginConfig):
 
 
 class HardhatNetworkConfig(PluginConfig):
-    # --port <INT, default from Hardhat is 8545, but our default is to assign a random port number>
-    port: Optional[Union[int, Literal["auto"]]] = None
+    port: Optional[Union[int, Literal["auto"]]] = DEFAULT_PORT
 
     # Retry strategy configs, try increasing these if you're getting HardhatSubprocessError
     network_retries: List[float] = HARDHAT_START_NETWORK_RETRIES
@@ -165,9 +164,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def is_connected(self) -> bool:
-        if not self.process:
-            return False
-
         self._set_web3()
         return self._web3 is not None
 
@@ -175,34 +171,42 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         """
         Start the hardhat process and verify it's up and accepting connections.
         """
-        super().connect()  # Set up process MGMT
-
+        # NOTE: Must set port before calling 'super().connect()'.
         if not self.port:
             self.port = self.config.port  # type: ignore
 
-        config = self.config_manager.get_config("test")
-        self.mnemonic = config.mnemonic
-        self.number_of_accounts = config.number_of_accounts
-
-        if self.port:
-            self._set_web3()
-            if not self._web3:
-                self._start_process()
-            else:
-                # The user configured a port and the hardhat process was already running.
-                logger.info(f"Connecting to existing '{self.process_name}' at port '{self.port}'.")
+        if self.is_connected:
+            # Connects to already running process
+            self._start()
         else:
-            for _ in range(self.config.process_attempts):  # type: ignore
-                try:
-                    self._start_process()
-                    break
-                except HardhatNotInstalledError:
-                    # Is a sub-class of `HardhatSubprocessError` but we to still raise
-                    # so we don't keep retrying.
-                    raise
-                except SubprocessError as exc:
-                    logger.info("Retrying Hardhat subprocess startup: %r", exc)
-                    self.port = None
+            # Only do base-process setup if not connecting to already-running process
+            super().connect()
+
+            config = self.config_manager.get_config("test")
+            self.mnemonic = config.mnemonic
+            self.number_of_accounts = config.number_of_accounts
+
+            if self.port:
+                self._set_web3()
+                if not self._web3:
+                    self._start()
+                else:
+                    # The user configured a port and the hardhat process was already running.
+                    logger.info(
+                        f"Connecting to existing '{self.process_name}' at port '{self.port}'."
+                    )
+            else:
+                for _ in range(self.config.process_attempts):  # type: ignore
+                    try:
+                        self._start()
+                        break
+                    except HardhatNotInstalledError:
+                        # Is a sub-class of `HardhatSubprocessError` but we to still raise
+                        # so we don't keep retrying.
+                        raise
+                    except SubprocessError as exc:
+                        logger.info("Retrying Hardhat subprocess startup: %r", exc)
+                        self.port = None
 
     def _set_web3(self):
         self._web3 = Web3(HTTPProvider(self.uri))
@@ -221,12 +225,12 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             # (provided the user did not request a specific port).
             self._web3 = None
 
-    def _start_process(self):
-        force_random_port = self.port == "auto"
-        self.port = None if force_random_port else self.port
+    def _start(self):
+        use_random_port = self.port == "auto"
+        if use_random_port:
+            self.port = None
 
-        if not self.port:
-            if DEFAULT_PORT not in self.attempted_ports and not force_random_port:
+            if DEFAULT_PORT not in self.attempted_ports and not use_random_port:
                 self.port = DEFAULT_PORT
             else:
                 port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
