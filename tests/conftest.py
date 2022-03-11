@@ -12,16 +12,6 @@ def get_project() -> ProjectManager:
     return Project(Path(__file__).parent)
 
 
-# def get_network_config() -> HardhatNetworkConfig:
-#     config = HardhatNetworkConfig()
-#
-#     # bump up the timeouts to decrease chance of tests flaking due to race conditions
-#     config.network_retries = [0.1, 0.2, 0.3, 0.5, 0.5, 1, 1, 1, 1, 1, 1, 5]
-#     config.process_attempts = 10
-#
-#     return config
-
-
 def get_hardhat_provider(network_api: NetworkAPI):
     return HardhatProvider(
         name="hardhat",
