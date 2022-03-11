@@ -1,5 +1,4 @@
 import pytest
-from ape.exceptions import ProviderError
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
@@ -132,8 +131,3 @@ def test_snapshot_and_revert(hardhat_connected):
 
 def test_unlock_account(hardhat_connected):
     assert hardhat_connected.unlock_account(TEST_WALLET_ADDRESS) is True
-
-
-def test_double_connect(hardhat_connected):
-    with pytest.raises(ProviderError):
-        hardhat_connected.connect()

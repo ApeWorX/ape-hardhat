@@ -209,6 +209,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                         self.port = None
 
     def _set_web3(self):
+        if not self.port:
+            return
+
         self._web3 = Web3(HTTPProvider(self.uri))
         if not self._web3.isConnected():
             self._web3 = None
