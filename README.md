@@ -45,6 +45,15 @@ hardhat:
   port: 8555
 ```
 
+To select a random port, use a value of "auto":
+
+```yaml
+hardhat:
+  port: auto
+```
+
+This is useful for multiprocessing and starting up multiple providers.
+
 ## Mainnet Fork
 
 The ``ape-hardhat`` plugin also includes a mainnet fork provider. It requires using another provider that has access to mainnet.
@@ -73,8 +82,7 @@ ape plugins add alchemy
 
 ## Development
 
-This project is in development and should be considered a beta.
-Things might not be in their final state and breaking changes may occur.
+Please see the [contributing guide](CONTRIBUTING.md) to learn more how to contribute to this project.
 Comments, questions, criticisms and pull requests are welcomed.
 
 ## License

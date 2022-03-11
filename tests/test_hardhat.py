@@ -1,43 +1,47 @@
-from pathlib import Path
-
-import pytest  # type: ignore
+import pytest
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
-from ape_hardhat.providers import HardhatProvider
-
-from .conftest import get_network_config  # type: ignore
+from ape_hardhat.providers import HARDHAT_CHAIN_ID, HardhatProvider
+from tests.conftest import get_hardhat_provider
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
 
 
-def test_instantiation(network_api, network_config):
-    provider = HardhatProvider("hardhat", network_api, network_config, {}, Path("."), "")
-    assert provider.name == "hardhat"
+def test_instantiation(hardhat_disconnected):
+    assert hardhat_disconnected.name == "hardhat"
 
 
-def test_connect(network_api, network_config):
-    provider = HardhatProvider("hardhat", network_api, network_config, {}, Path("."), "")
-    provider.connect()
-    assert provider.chain_id == 31337
-
-
-def test_disconnect(network_api, network_config):
+def test_connect_and_disconnect(network_api):
     # Use custom port to prevent connecting to a port used in another test.
-    network_config.port = 8555
-    provider = HardhatProvider("hardhat", network_api, network_config, {}, Path("."), "")
-    provider.connect()
-    provider.disconnect()
-    assert not provider._process
+    hardhat = get_hardhat_provider(network_api)
+    hardhat.port = 8555
+    hardhat.connect()
+    try:
+        assert hardhat.is_connected
+        assert hardhat.chain_id == HARDHAT_CHAIN_ID
+    finally:
+        hardhat.disconnect()
+
+    assert not hardhat.is_connected
+    assert hardhat.process is None
 
 
-def test_gas_price(hardhat_provider):
-    gas_price = hardhat_provider.gas_price
+def test_gas_price(hardhat_connected):
+    gas_price = hardhat_connected.gas_price
     assert gas_price > 1
 
 
-def test_uri(hardhat_provider):
-    assert f"http://127.0.0.1:{hardhat_provider.port}" in hardhat_provider.uri
+def test_uri_disconnected(hardhat_disconnected):
+    with pytest.raises(HardhatProviderError) as err:
+        _ = hardhat_disconnected.uri
+
+    assert "Can't build URI before `connect()` is called." in str(err.value)
+
+
+def test_uri(hardhat_connected):
+    expected_uri = f"http://127.0.0.1:{hardhat_connected.port}"
+    assert expected_uri in hardhat_connected.uri
 
 
 @pytest.mark.parametrize(
@@ -48,8 +52,8 @@ def test_uri(hardhat_provider):
         (HardhatProvider.get_code, [TEST_WALLET_ADDRESS], HexBytes("")),
     ],
 )
-def test_rpc_methods(hardhat_provider, method, args, expected):
-    assert method(hardhat_provider, *args) == expected
+def test_rpc_methods(hardhat_connected, method, args, expected):
+    assert method(hardhat_connected, *args) == expected
 
 
 def test_multiple_hardhat_instances(network_api):
@@ -57,17 +61,13 @@ def test_multiple_hardhat_instances(network_api):
     Validate the somewhat tricky internal logic of running multiple Hardhat subprocesses
     under a single parent process.
     """
-    network_config_1 = get_network_config()
-    network_config_1.port = 8556
-    network_config_2 = get_network_config()
-    network_config_2.port = 8557
-    network_config_3 = get_network_config()
-    network_config_3.port = 8558
-
     # instantiate the providers (which will start the subprocesses) and validate the ports
-    provider_1 = HardhatProvider("hardhat", network_api, network_config_1, {}, Path("."), "")
-    provider_2 = HardhatProvider("hardhat", network_api, network_config_2, {}, Path("."), "")
-    provider_3 = HardhatProvider("hardhat", network_api, network_config_3, {}, Path("."), "")
+    provider_1 = get_hardhat_provider(network_api)
+    provider_2 = get_hardhat_provider(network_api)
+    provider_3 = get_hardhat_provider(network_api)
+    provider_1.port = 8556
+    provider_2.port = 8557
+    provider_3.port = 8558
     provider_1.connect()
     provider_2.connect()
     provider_3.connect()
@@ -89,51 +89,45 @@ def test_multiple_hardhat_instances(network_api):
     assert hash_1 != hash_2 != hash_3
 
 
-def test_set_block_gas_limit(hardhat_provider):
-    gas_limit = hardhat_provider.get_block("latest").gas_data.gas_limit
-    assert hardhat_provider.set_block_gas_limit(gas_limit) is True
+def test_set_block_gas_limit(hardhat_connected):
+    gas_limit = hardhat_connected.get_block("latest").gas_data.gas_limit
+    assert hardhat_connected.set_block_gas_limit(gas_limit) is True
 
 
-def test_set_timestamp(hardhat_provider):
-    start_time = hardhat_provider.get_block("pending").timestamp
-    hardhat_provider.set_timestamp(start_time + 5)  # Increase by 5 seconds
-    new_time = hardhat_provider.get_block("pending").timestamp
+def test_set_timestamp(hardhat_connected):
+    start_time = hardhat_connected.get_block("pending").timestamp
+    hardhat_connected.set_timestamp(start_time + 5)  # Increase by 5 seconds
+    new_time = hardhat_connected.get_block("pending").timestamp
 
     # Adding 5 seconds but seconds can be weird so give it a 1 second margin.
-    assert 4 <= new_time - start_time <= 5
+    assert 4 <= new_time - start_time <= 6
 
 
-def test_mine(hardhat_provider):
-    block_num = hardhat_provider.get_block("latest").number
-    hardhat_provider.mine()
-    next_block_num = hardhat_provider.get_block("latest").number
+def test_mine(hardhat_connected):
+    block_num = hardhat_connected.get_block("latest").number
+    hardhat_connected.mine()
+    next_block_num = hardhat_connected.get_block("latest").number
     assert next_block_num > block_num
 
 
-def test_revert_failure(hardhat_provider):
-    assert hardhat_provider.revert(0xFFFF) is False
+def test_revert_failure(hardhat_connected):
+    assert hardhat_connected.revert(0xFFFF) is False
 
 
-def test_snapshot_and_revert(hardhat_provider):
-    snap = hardhat_provider.snapshot()
+def test_snapshot_and_revert(hardhat_connected):
+    snap = hardhat_connected.snapshot()
 
-    block_1 = hardhat_provider.get_block("latest")
-    hardhat_provider.mine()
-    block_2 = hardhat_provider.get_block("latest")
+    block_1 = hardhat_connected.get_block("latest")
+    hardhat_connected.mine()
+    block_2 = hardhat_connected.get_block("latest")
     assert block_2.number > block_1.number
     assert block_1.hash != block_2.hash
 
-    hardhat_provider.revert(snap)
-    block_3 = hardhat_provider.get_block("latest")
+    hardhat_connected.revert(snap)
+    block_3 = hardhat_connected.get_block("latest")
     assert block_1.number == block_3.number
     assert block_1.hash == block_3.hash
 
 
-def test_unlock_account(hardhat_provider):
-    assert hardhat_provider.unlock_account(TEST_WALLET_ADDRESS) is True
-
-
-def test_double_connect(hardhat_provider):
-    # connect has already been called once as part of the fixture, so connecting again should fail
-    with pytest.raises(HardhatProviderError):
-        hardhat_provider.connect()
+def test_unlock_account(hardhat_connected):
+    assert hardhat_connected.unlock_account(TEST_WALLET_ADDRESS) is True
