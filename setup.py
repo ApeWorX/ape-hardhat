@@ -79,7 +79,7 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*"]),
     package_data={"ape_hardhat": ["py.typed"]},
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
