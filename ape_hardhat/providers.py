@@ -18,6 +18,7 @@ from ape.api import (
 from ape.exceptions import (
     ContractLogicError,
     OutOfGasError,
+    ProviderError,
     SubprocessError,
     TransactionError,
     VirtualMachineError,
@@ -224,9 +225,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if "hardhat" in client_version.lower():
             self._web3.eth.set_gas_price_strategy(rpc_gas_price_strategy)
         else:
-            # This will trigger the plugin to try another port
-            # (provided the user did not request a specific port).
-            self._web3 = None
+            raise ProviderError(
+                f"Port '{self.port}' already in use by another process that isn't a Hardhat node."
+            )
 
     def _start(self):
         use_random_port = self.port == "auto"
