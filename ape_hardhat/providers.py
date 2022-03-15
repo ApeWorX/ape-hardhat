@@ -26,6 +26,7 @@ from ape.exceptions import (
 from ape.logging import logger
 from ape.types import SnapshotID
 from ape.utils import cached_property, gas_estimation_error_message
+from ape_test import Config as TestConfig
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
@@ -169,8 +170,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return self._web3 is not None
 
     @cached_property
-    def _test_config(self) -> PluginConfig:
-        return self.config_manager.get_config("test")
+    def _test_config(self) -> TestConfig:
+        return cast(TestConfig, self.config_manager.get_config("test"))
 
     def connect(self):
         """
