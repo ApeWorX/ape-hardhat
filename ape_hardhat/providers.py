@@ -18,13 +18,15 @@ from ape.api import (
 from ape.exceptions import (
     ContractLogicError,
     OutOfGasError,
+    ProviderError,
     SubprocessError,
     TransactionError,
     VirtualMachineError,
 )
 from ape.logging import logger
 from ape.types import SnapshotID
-from ape.utils import DEFAULT_NUMBER_OF_TEST_ACCOUNTS, cached_property, gas_estimation_error_message
+from ape.utils import cached_property, gas_estimation_error_message
+from ape_test import Config as TestConfig
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
@@ -114,8 +116,14 @@ def _call(*args):
 class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     port: Optional[int] = None
     attempted_ports: List[int] = []
-    mnemonic: str = ""
-    number_of_accounts: int = DEFAULT_NUMBER_OF_TEST_ACCOUNTS
+
+    @property
+    def mnemonic(self) -> str:
+        return self._test_config.mnemonic
+
+    @property
+    def number_of_accounts(self) -> int:
+        return self._test_config.number_of_accounts
 
     @property
     def process_name(self) -> str:
@@ -137,12 +145,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             raise HardhatNotInstalledError()
 
         return npx
-
-    @cached_property
-    def hardhat_config_js(self) -> HardhatConfigJS:
-        js_config = HardhatConfigJS(self.project_folder, self.mnemonic, self.number_of_accounts)
-        js_config.write_if_not_exists()
-        return js_config
 
     @property
     def project_folder(self) -> Path:
@@ -167,10 +169,18 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         self._set_web3()
         return self._web3 is not None
 
+    @cached_property
+    def _test_config(self) -> TestConfig:
+        return cast(TestConfig, self.config_manager.get_config("test"))
+
     def connect(self):
         """
         Start the hardhat process and verify it's up and accepting connections.
         """
+
+        js_config = HardhatConfigJS(self.project_folder, self.mnemonic, self.number_of_accounts)
+        js_config.write_if_not_exists()
+
         # NOTE: Must set port before calling 'super().connect()'.
         if not self.port:
             self.port = self.config.port  # type: ignore
@@ -181,10 +191,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         else:
             # Only do base-process setup if not connecting to already-running process
             super().connect()
-
-            config = self.config_manager.get_config("test")
-            self.mnemonic = config.mnemonic
-            self.number_of_accounts = config.number_of_accounts
 
             if self.port:
                 self._set_web3()
@@ -224,9 +230,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if "hardhat" in client_version.lower():
             self._web3.eth.set_gas_price_strategy(rpc_gas_price_strategy)
         else:
-            # This will trigger the plugin to try another port
-            # (provided the user did not request a specific port).
-            self._web3 = None
+            raise ProviderError(
+                f"Port '{self.port}' already in use by another process that isn't a Hardhat node."
+            )
 
     def _start(self):
         use_random_port = self.port == "auto"

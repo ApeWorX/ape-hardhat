@@ -1,8 +1,11 @@
+from pathlib import Path
+
 import pytest
+from ape.utils import DEFAULT_TEST_MNEMONIC
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
-from ape_hardhat.providers import HARDHAT_CHAIN_ID, HardhatProvider
+from ape_hardhat.providers import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME, HardhatProvider
 from tests.conftest import get_hardhat_provider
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
@@ -14,9 +17,17 @@ def test_instantiation(hardhat_disconnected):
 
 def test_connect_and_disconnect(network_api):
     # Use custom port to prevent connecting to a port used in another test.
+
     hardhat = get_hardhat_provider(network_api)
     hardhat.port = 8555
     hardhat.connect()
+
+    # Verify config file got created
+    config = Path(HARDHAT_CONFIG_FILE_NAME)
+    config_text = config.read_text()
+    assert config.exists()
+    assert DEFAULT_TEST_MNEMONIC in config_text
+
     try:
         assert hardhat.is_connected
         assert hardhat.chain_id == HARDHAT_CHAIN_ID
