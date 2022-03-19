@@ -375,11 +375,10 @@ class HardhatMainnetForkProvider(HardhatProvider):
 
     @cached_property
     def _upstream_provider(self) -> ProviderAPI:
-        # NOTE: if 'upstream_provider_name' is 'None', this gets the default mainnet provider.
-        mainnet = self.network.ecosystem.mainnet
+        upstream_network = self.network.ecosystem.networks[self._upstream_network_name]
         upstream_provider_name = self._fork_config.upstream_provider
-        upstream_provider = mainnet.get_provider(provider_name=upstream_provider_name)
-        return upstream_provider
+        # NOTE: if 'upstream_provider_name' is 'None', this gets the default mainnet provider.
+        return upstream_network.get_provider(provider_name=upstream_provider_name)
 
     def connect(self):
         super().connect()
