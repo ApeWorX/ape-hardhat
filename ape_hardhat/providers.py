@@ -360,7 +360,10 @@ class HardhatMainnetForkProvider(HardhatProvider):
 
         # NOTE: Only for backwards compatibility
         if "mainnet_fork" in config.dict():
-            # TODO: Log a warning
+            logger.warning(
+                "Use of key `mainnet_fork` in `hardhat` config is deprecated. "
+                "Please use the `fork` key, with `ecosystem` and `network` subkeys."
+            )
             return HardhatForkConfig.parse_obj(config.dict().get("mainnet_fork"))
 
         ecosystem_name = self.network.ecosystem.name
