@@ -2,7 +2,7 @@ import random
 import shutil
 from pathlib import Path
 from subprocess import PIPE, call
-from typing import Any, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 from ape._compat import Literal
 from ape.api import (
@@ -106,7 +106,11 @@ class HardhatNetworkConfig(PluginConfig):
 
     # For setting the values in --fork and --fork-block-number command arguments.
     # Used only in HardhatMainnetForkProvider.
-    mainnet_fork: Optional[HardhatForkConfig] = None
+    # Mapping of ecosystem_name => network_name => HardhatForkConfig
+    fork: Dict[str, Dict[str, HardhatForkConfig]] = {}
+
+    class Config:
+        extra = "allow"
 
 
 def _call(*args):
@@ -341,15 +345,33 @@ class HardhatMainnetForkProvider(HardhatProvider):
     A Hardhat provider that uses ``--fork``, like:
     ``npx hardhat node --fork <upstream-provider-url>``.
 
-    Set the ``upstream_provider`` in the ``hardhat.mainnet_fork`` config
+    Set the ``upstream_provider`` in the ``hardhat.fork`` config
     section of your ``ape-config.yaml` file to specify which provider
     to use as your archive node.
     """
 
     @property
+    def _upstream_network_name(self) -> str:
+        return self.network.name.replace("-fork", "")
+
+    @property
     def _fork_config(self) -> HardhatForkConfig:
         config = cast(HardhatNetworkConfig, self.config)
-        return config.mainnet_fork or HardhatForkConfig()
+
+        # NOTE: Only for backwards compatibility
+        if "mainnet_fork" in config.dict():
+            # TODO: Log a warning
+            return HardhatForkConfig.parse_obj(config.dict().get("mainnet_fork"))
+
+        ecosystem_name = self.network.ecosystem.name
+        if ecosystem_name not in config.fork:
+            return HardhatForkConfig()  # Just use default
+
+        network_name = self._upstream_network_name
+        if network_name not in config.fork[ecosystem_name]:
+            return HardhatForkConfig()  # Just use default
+
+        return config.fork[ecosystem_name][network_name]
 
     @cached_property
     def _upstream_provider(self) -> ProviderAPI:
@@ -368,9 +390,7 @@ class HardhatMainnetForkProvider(HardhatProvider):
         self._upstream_provider.disconnect()
         if self.get_block(0).hash != upstream_genesis_block_hash:
             self.disconnect()
-            raise HardhatProviderError(
-                f"Upstream network is not {self.network.name.replace('-fork', '')}"
-            )
+            raise HardhatProviderError(f"Upstream network is not {self._upstream_network_name}")
 
     def build_command(self) -> List[str]:
         if not isinstance(self._upstream_provider, UpstreamProvider):
