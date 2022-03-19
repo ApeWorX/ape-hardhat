@@ -24,6 +24,8 @@ def config_class():
 def providers():
     yield "ethereum", LOCAL_NETWORK_NAME, HardhatProvider
     yield "ethereum", "mainnet-fork", HardhatMainnetForkProvider
+    yield "fantom", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "fantom", "opera-fork", HardhatMainnetForkProvider
 
 
 __all__ = [
