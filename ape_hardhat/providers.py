@@ -24,7 +24,7 @@ from ape.exceptions import (
     VirtualMachineError,
 )
 from ape.logging import logger
-from ape.types import SnapshotID
+from ape.types import AddressType, SnapshotID
 from ape.utils import cached_property, gas_estimation_error_message
 from ape_test import Config as TestConfig
 from web3 import HTTPProvider, Web3
@@ -304,7 +304,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         return self._make_request("evm_revert", [snapshot_id])
 
-    def unlock_account(self, address: str) -> bool:
+    def unlock_account(self, address: AddressType) -> bool:
         return self._make_request("hardhat_impersonateAccount", [address])
 
     def estimate_gas_cost(self, txn: TransactionAPI) -> int:
