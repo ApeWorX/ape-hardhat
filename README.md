@@ -68,8 +68,10 @@ Specify the upstream archive-data provider in your ``ape-config.yaml``:
 
 ```yaml
 hardhat:
-  mainnet_fork:
-    upstream_provider: alchemy
+  fork:
+    ethereum:
+      mainnet-fork:
+        upstream_provider: alchemy
 ```
 
 Otherwise, it defaults to the default mainnet provider plugin. You can also specify a ``block_number``.
