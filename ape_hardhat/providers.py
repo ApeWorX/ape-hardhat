@@ -2,7 +2,7 @@ import random
 import shutil
 from pathlib import Path
 from subprocess import PIPE, call
-from typing import Any, Callable, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Union, cast
 
 from ape._compat import Literal
 from ape.api import (
@@ -27,7 +27,6 @@ from ape.logging import logger
 from ape.types import AddressType, SnapshotID
 from ape.utils import cached_property, gas_estimation_error_message
 from ape_test import Config as TestConfig
-from eth_account._utils.legacy_transactions import serializable_unsigned_transaction_from_dict
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
@@ -343,24 +342,23 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if sender in self.unlocked_accounts:
             # Allow for an unsigned transaction
             txn_dict = txn.dict()
-            txn_bytes = serializable_unsigned_transaction_from_dict(txn_dict)
-            receipt_data = self._throw_revert_on_error(
-                self._make_request("eth_sendTransaction", [txn_bytes])
-            )
-            return self.network.ecosystem.decode_receipt({**txn_dict, **receipt_data})
+
+            try:
+                txn_hash = self._web3.eth.send_transaction(txn_dict)
+            except ValueError as err:
+                raise _get_vm_error(err) from err
+
+            return self.get_transaction(txn_hash)
 
         else:
-            receipt = self._throw_revert_on_error(
-                lambda: super(Web3Provider, self).send_transaction(txn)
-            )
-            receipt.raise_for_status()
-            return receipt
 
-    def _throw_revert_on_error(self, action: Callable):
-        try:
-            return action()
-        except ValueError as err:
-            raise _get_vm_error(err) from err
+            try:
+                receipt = super().send_transaction(txn)
+            except ValueError as err:
+                raise _get_vm_error(err) from err
+
+        receipt.raise_for_status()
+        return receipt
 
 
 class HardhatMainnetForkProvider(HardhatProvider):
