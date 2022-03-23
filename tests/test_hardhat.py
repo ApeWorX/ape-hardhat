@@ -142,3 +142,4 @@ def test_snapshot_and_revert(hardhat_connected):
 
 def test_unlock_account(hardhat_connected):
     assert hardhat_connected.unlock_account(TEST_WALLET_ADDRESS) is True
+    assert TEST_WALLET_ADDRESS in hardhat_connected.unlocked_accounts

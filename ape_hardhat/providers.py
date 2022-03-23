@@ -120,6 +120,7 @@ def _call(*args):
 class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     port: Optional[int] = None
     attempted_ports: List[int] = []
+    unlocked_accounts: List[AddressType] = []
 
     @property
     def mnemonic(self) -> str:
@@ -305,7 +306,12 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return self._make_request("evm_revert", [snapshot_id])
 
     def unlock_account(self, address: AddressType) -> bool:
-        return self._make_request("hardhat_impersonateAccount", [address])
+        result = self._make_request("hardhat_impersonateAccount", [address])
+
+        if result:
+            self.unlocked_accounts.append(address)
+
+        return result
 
     def estimate_gas_cost(self, txn: TransactionAPI) -> int:
         """
@@ -331,10 +337,26 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         Creates a new message call transaction or a contract creation
         for signed transactions.
         """
-        try:
-            receipt = super().send_transaction(txn)
-        except ValueError as err:
-            raise _get_vm_error(err) from err
+
+        sender = self.conversion_manager.convert(txn.sender, AddressType)
+        if sender in self.unlocked_accounts:
+            # Allow for an unsigned transaction
+            txn_dict = txn.dict()
+
+            try:
+                txn_hash = self._web3.eth.send_transaction(txn_dict)  # type: ignore
+            except ValueError as err:
+                raise _get_vm_error(err) from err
+
+            receipt = self.get_transaction(
+                txn_hash.hex(), required_confirmations=txn.required_confirmations or 0
+            )
+
+        else:
+            try:
+                receipt = super().send_transaction(txn)
+            except ValueError as err:
+                raise _get_vm_error(err) from err
 
         receipt.raise_for_status()
         return receipt
