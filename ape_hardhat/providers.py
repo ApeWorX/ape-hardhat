@@ -344,14 +344,15 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             txn_dict = txn.dict()
 
             try:
-                txn_hash = self._web3.eth.send_transaction(txn_dict)
+                txn_hash = self._web3.eth.send_transaction(txn_dict)  # type: ignore
             except ValueError as err:
                 raise _get_vm_error(err) from err
 
-            return self.get_transaction(txn_hash)
+            return self.get_transaction(
+                txn_hash.hex(), required_confirmations=txn.required_confirmations or 0
+            )
 
         else:
-
             try:
                 receipt = super().send_transaction(txn)
             except ValueError as err:
