@@ -348,7 +348,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             except ValueError as err:
                 raise _get_vm_error(err) from err
 
-            return self.get_transaction(
+            receipt = self.get_transaction(
                 txn_hash.hex(), required_confirmations=txn.required_confirmations or 0
             )
 
