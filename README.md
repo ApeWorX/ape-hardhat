@@ -70,7 +70,7 @@ Specify the upstream archive-data provider in your ``ape-config.yaml``:
 hardhat:
   fork:
     ethereum:
-      mainnet-fork:
+      mainnet:
         upstream_provider: alchemy
 ```
 

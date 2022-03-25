@@ -376,7 +376,7 @@ class HardhatMainnetForkProvider(HardhatProvider):
     def _upstream_network_name(self) -> str:
         return self.network.name.replace("-fork", "")
 
-    @property
+    @cached_property
     def _fork_config(self) -> HardhatForkConfig:
         config = cast(HardhatNetworkConfig, self.config)
 
