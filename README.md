@@ -79,7 +79,7 @@ Otherwise, it defaults to the default mainnet provider plugin. You can also spec
 **NOTE**: Make sure you have the upstream provider plugin installed for ape.
 
 ```bash
-ape plugins add alchemy
+ape plugins install alchemy
 ```
 
 ## Development

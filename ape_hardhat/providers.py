@@ -2,7 +2,7 @@ import random
 import shutil
 from pathlib import Path
 from subprocess import PIPE, call
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, Iterator, List, Optional, Union, cast
 
 from ape._compat import Literal
 from ape.api import (
@@ -27,6 +27,7 @@ from ape.logging import logger
 from ape.types import AddressType, SnapshotID
 from ape.utils import cached_property, gas_estimation_error_message
 from ape_test import Config as TestConfig
+from evm_trace import TraceFrame
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
@@ -360,6 +361,20 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         receipt.raise_for_status()
         return receipt
+
+    def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
+        """
+        Provide a detailed description of opcodes.
+
+        Args:
+            txn_hash (str): The hash of a transaction to trace.
+
+        Returns:
+            Iterator(TraceFrame): Transaction execution trace object.
+        """
+        logs = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
+        for log in logs:
+            yield TraceFrame(**log)
 
 
 class HardhatMainnetForkProvider(HardhatProvider):
