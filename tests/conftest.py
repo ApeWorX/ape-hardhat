@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest  # type: ignore
-from ape import Project, networks
+from ape import Project, accounts, networks
 from ape.api.networks import LOCAL_NETWORK_NAME, NetworkAPI
 from ape.managers.project import ProjectManager
 
@@ -20,6 +20,26 @@ def get_hardhat_provider(network_api: NetworkAPI):
         data_folder=Path("."),
         provider_settings={},
     )
+
+
+@pytest.fixture
+def test_accounts():
+    return accounts.test_accounts
+
+
+@pytest.fixture
+def sender(test_accounts):
+    return test_accounts[0]
+
+
+@pytest.fixture
+def receiver(test_accounts):
+    return test_accounts[1]
+
+
+@pytest.fixture
+def owner(test_accounts):
+    return test_accounts[2]
 
 
 @pytest.fixture(scope="session")
@@ -43,6 +63,7 @@ def hardhat_connected(network_api):
     provider = get_hardhat_provider(network_api)
     provider.port = "auto"  # For better multi-processing support
     provider.connect()
+    networks.active_provider = provider
     try:
         yield provider
     finally:

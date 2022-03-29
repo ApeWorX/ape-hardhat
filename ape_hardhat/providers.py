@@ -135,6 +135,13 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def process_name(self) -> str:
         return "Hardhat node"
 
+    @property
+    def chain_id(self) -> int:
+        if hasattr(self._web3, "eth"):
+            return self._web3.eth.chain_id
+        else:
+            return HARDHAT_CHAIN_ID
+
     @cached_property
     def npx_bin(self) -> str:
         npx = shutil.which("npx")
