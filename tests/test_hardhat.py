@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from ape.utils import DEFAULT_TEST_MNEMONIC
+from evm_trace import TraceFrame
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
@@ -143,3 +144,10 @@ def test_snapshot_and_revert(hardhat_connected):
 def test_unlock_account(hardhat_connected):
     assert hardhat_connected.unlock_account(TEST_WALLET_ADDRESS) is True
     assert TEST_WALLET_ADDRESS in hardhat_connected.unlocked_accounts
+
+
+def test_get_transaction_trace(hardhat_connected, sender, receiver):
+    transfer = sender.transfer(receiver, 1)
+    logs = hardhat_connected.get_transaction_trace(transfer.txn_hash)
+    for log in logs:
+        assert isinstance(log, TraceFrame)
