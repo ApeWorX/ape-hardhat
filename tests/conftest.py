@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest  # type: ignore
-from ape import Project, networks
+from ape import Project, accounts, networks
 from ape.api.networks import LOCAL_NETWORK_NAME, NetworkAPI
 from ape.contracts import ContractContainer, ContractInstance
 from ape.managers.project import ProjectManager
@@ -99,7 +99,7 @@ def get_hardhat_provider(network_api: NetworkAPI):
 
 
 @pytest.fixture
-def test_accounts(accounts):
+def test_accounts():
     return accounts.test_accounts
 
 
