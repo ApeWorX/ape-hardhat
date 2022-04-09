@@ -1,6 +1,8 @@
 from pathlib import Path
 
 import pytest
+from ape import accounts
+from ape.exceptions import SignatureError
 from ape.utils import DEFAULT_TEST_MNEMONIC
 from evm_trace import TraceFrame
 from hexbytes import HexBytes
@@ -10,6 +12,11 @@ from ape_hardhat.providers import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME, Ha
 from tests.conftest import get_hardhat_provider
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
+
+
+@pytest.fixture
+def test_account():
+    return accounts.test_accounts[0]
 
 
 def test_instantiation(hardhat_disconnected):
@@ -151,3 +158,13 @@ def test_get_transaction_trace(hardhat_connected, sender, receiver):
     logs = hardhat_connected.get_transaction_trace(transfer.txn_hash)
     for log in logs:
         assert isinstance(log, TraceFrame)
+
+
+def test_send_transaction(contract_instance, owner):
+    contract_instance.set_number(10, sender=owner)
+    assert contract_instance.my_number() == 10
+
+
+def test_send_transaction_when_no_sender_raises_signature_error(contract_instance):
+    with pytest.raises(SignatureError):
+        contract_instance.set_number(10)
