@@ -84,11 +84,6 @@ def contract_instance(owner, contract_container, hardhat_connected_from_ape) -> 
     return owner.deploy(contract_container)
 
 
-@pytest.fixture
-def test_accounts(accounts):
-    return accounts.test_accounts
-
-
 def get_project() -> ProjectManager:
     return Project(Path(__file__).parent)
 
@@ -101,6 +96,11 @@ def get_hardhat_provider(network_api: NetworkAPI):
         data_folder=Path("."),
         provider_settings={},
     )
+
+
+@pytest.fixture
+def test_accounts(accounts):
+    return accounts.test_accounts
 
 
 @pytest.fixture

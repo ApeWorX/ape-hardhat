@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-from ape import accounts
 from ape.exceptions import SignatureError
 from ape.utils import DEFAULT_TEST_MNEMONIC
 from evm_trace import TraceFrame
@@ -12,11 +11,6 @@ from ape_hardhat.providers import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME, Ha
 from tests.conftest import get_hardhat_provider
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
-
-
-@pytest.fixture
-def test_account():
-    return accounts.test_accounts[0]
 
 
 def test_instantiation(hardhat_disconnected):
