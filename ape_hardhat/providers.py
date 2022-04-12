@@ -346,7 +346,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         for signed transactions.
         """
 
-        sender = self.conversion_manager.convert(txn.sender, AddressType)
+        sender = txn.sender
+        if sender:
+            sender = self.conversion_manager.convert(txn.sender, AddressType)
+
         if sender in self.unlocked_accounts:
             # Allow for an unsigned transaction
             txn_dict = txn.dict()

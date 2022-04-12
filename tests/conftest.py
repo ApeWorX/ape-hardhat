@@ -22,22 +22,22 @@ def get_hardhat_provider(network_api: NetworkAPI):
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def test_accounts():
     return accounts.test_accounts
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def sender(test_accounts):
     return test_accounts[0]
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def receiver(test_accounts):
     return test_accounts[1]
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def owner(test_accounts):
     return test_accounts[2]
 
