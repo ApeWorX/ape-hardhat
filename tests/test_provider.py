@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-from ape.exceptions import SignatureError
 from ape.utils import DEFAULT_TEST_MNEMONIC
 from evm_trace import TraceFrame
 from hexbytes import HexBytes
@@ -152,13 +151,3 @@ def test_get_transaction_trace(hardhat_connected, sender, receiver):
     logs = hardhat_connected.get_transaction_trace(transfer.txn_hash)
     for log in logs:
         assert isinstance(log, TraceFrame)
-
-
-def test_send_transaction(contract_instance, owner):
-    contract_instance.set_number(10, sender=owner)
-    assert contract_instance.my_number() == 10
-
-
-def test_send_transaction_when_no_sender_raises_signature_error(contract_instance):
-    with pytest.raises(SignatureError):
-        contract_instance.set_number(10)
