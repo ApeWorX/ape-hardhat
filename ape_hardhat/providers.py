@@ -27,7 +27,7 @@ from ape.logging import logger
 from ape.types import AddressType, SnapshotID
 from ape.utils import cached_property, gas_estimation_error_message
 from ape_test import Config as TestConfig
-from evm_trace import TraceFrame
+from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_trace
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
@@ -382,9 +382,25 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         Returns:
             Iterator(TraceFrame): Transaction execution trace object.
         """
-        logs = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
-        for log in logs:
-            yield TraceFrame(**log)
+
+        for frame in self._make_request("debug_traceTransaction", [txn_hash]).structLogs:
+            yield TraceFrame(**frame)
+
+    def get_calltree_from_trace(
+        self, txn_hash: str, show_internals=False, **root_node_kwargs
+    ) -> CallTreeNode:
+        txn = self.get_transaction(txn_hash=txn_hash)
+        root_node_kwargs["gas_cost"] = txn.gas_used
+        root_node_kwargs["gas_limit"] = txn.gas_limit
+        root_node_kwargs["address"] = txn.receiver
+        # TODO: logic for calldata from a transaction
+        root_node_kwargs["calldata"] = getattr(txn, "data", b"")
+        # TODO: logic for CallType
+        root_node_kwargs["call_type"] = CallType.MUTABLE
+
+        return get_calltree_from_trace(
+            trace=self.get_transaction_trace(txn_hash=txn_hash), **root_node_kwargs
+        )
 
 
 class HardhatMainnetForkProvider(HardhatProvider):
