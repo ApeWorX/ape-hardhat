@@ -354,6 +354,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             # Allow for an unsigned transaction
             txn_dict = txn.dict()
 
+            if txn_dict['chainId'] is not self.chain_id:
+                txn_dict['chainId'] = self.chain_id
+                txn_dict['maxFeePerGas'] = 0
+                txn_dict['maxPriorityFeePerGas'] = 0
             try:
                 txn_hash = self._web3.eth.send_transaction(txn_dict)  # type: ignore
             except ValueError as err:
