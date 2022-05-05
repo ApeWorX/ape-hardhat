@@ -53,19 +53,19 @@ def networks():
 
 
 @pytest.fixture(scope="session")
-def network_api(networks):
+def local_network_api(networks):
     return networks.ecosystems["ethereum"][LOCAL_NETWORK_NAME]
 
 
 @pytest.fixture(scope="session")
-def hardhat_disconnected(network_api):
-    provider = get_hardhat_provider(network_api)
+def hardhat_disconnected(local_network_api):
+    provider = get_hardhat_provider(local_network_api)
     return provider
 
 
 @pytest.fixture(scope="session")
-def hardhat_connected(network_api):
-    provider = get_hardhat_provider(network_api)
+def hardhat_connected(local_network_api):
+    provider = get_hardhat_provider(local_network_api)
     provider.port = "auto"  # For better multi-processing support
     provider.connect()
     ape.networks.active_provider = provider

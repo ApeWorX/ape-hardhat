@@ -16,10 +16,10 @@ def test_instantiation(hardhat_disconnected):
     assert hardhat_disconnected.name == "hardhat"
 
 
-def test_connect_and_disconnect(network_api):
+def test_connect_and_disconnect(local_network_api):
     # Use custom port to prevent connecting to a port used in another test.
 
-    hardhat = get_hardhat_provider(network_api)
+    hardhat = get_hardhat_provider(local_network_api)
     hardhat.port = 8555
     hardhat.connect()
 
@@ -68,15 +68,15 @@ def test_rpc_methods(hardhat_connected, method, args, expected):
     assert method(hardhat_connected, *args) == expected
 
 
-def test_multiple_hardhat_instances(network_api):
+def test_multiple_hardhat_instances(local_network_api):
     """
     Validate the somewhat tricky internal logic of running multiple Hardhat subprocesses
     under a single parent process.
     """
     # instantiate the providers (which will start the subprocesses) and validate the ports
-    provider_1 = get_hardhat_provider(network_api)
-    provider_2 = get_hardhat_provider(network_api)
-    provider_3 = get_hardhat_provider(network_api)
+    provider_1 = get_hardhat_provider(local_network_api)
+    provider_2 = get_hardhat_provider(local_network_api)
+    provider_3 = get_hardhat_provider(local_network_api)
     provider_1.port = 8556
     provider_2.port = 8557
     provider_3.port = 8558
