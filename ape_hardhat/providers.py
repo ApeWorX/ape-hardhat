@@ -140,7 +140,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def chain_id(self) -> int:
-        if hasattr(self._web3, "eth"):
+        if self._web3:
             return self._web3.eth.chain_id
         else:
             return HARDHAT_CHAIN_ID
