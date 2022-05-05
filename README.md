@@ -4,14 +4,14 @@ Hardhat network provider plugin for Ape. Hardhat is a development framework writ
 
 ## Dependencies
 
-* `python3 <https://www.python.org/downloads>`_ version 3.7 or greater, python3-dev
-* Node.js, NPM, and Hardhat. See Hardhat's `Installation <https://hardhat.org/getting-started/#installation>`_ documentation for steps.
+* [python3](https://www.python.org/downloads) version 3.7 or greater, python3-dev
+* Node.js, NPM, and Hardhat. See Hardhat's [Installation](https://hardhat.org/getting-started/#installation>) documentation for steps.
 
 ## Installation
 
 ### via ``pip``
 
-You can install the latest release via `pip <https://pypi.org/project/pip/>`_:
+You can install the latest release via [`pip`](https://pypi.org/project/pip/):
 
 ```bash
 pip install ape-hardhat
@@ -19,7 +19,7 @@ pip install ape-hardhat
 
 ### via ``setuptools``
 
-You can clone the repository and use `setuptools <https://github.com/pypa/setuptools>`_ for the most up-to-date version:
+You can clone the repository and use [`setuptools`](https://github.com/pypa/setuptools) for the most up-to-date version:
 
 ```bash
 git clone https://github.com/ApeWorX/ape-hardhat.git
