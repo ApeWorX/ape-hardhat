@@ -30,6 +30,7 @@ from ape_test import Config as TestConfig
 from evm_trace import TraceFrame
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
+from web3.middleware import geth_poa_middleware
 
 from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
 
@@ -433,8 +434,14 @@ class HardhatForkProvider(HardhatProvider):
 
         # Verify that we're connected to a Hardhat node with mainnet-fork mode.
         self._upstream_provider.connect()
+        upstream_chain_id = self._upstream_provider.chain_id
         upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
         self._upstream_provider.disconnect()
+
+        # If upstream network is rinkeby, goerli, or kovan (PoA test-nets)
+        if upstream_chain_id in (4, 5, 42):
+            self._web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+
         if self.get_block(0).hash != upstream_genesis_block_hash:
             logger.warning(
                 "Upstream network has mismatching genesis block. "
