@@ -33,8 +33,6 @@ from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
 from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
 
-# from ape import providers
-
 
 EPHEMERAL_PORTS_START = 49152
 EPHEMERAL_PORTS_END = 60999
