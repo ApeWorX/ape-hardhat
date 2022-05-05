@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 from subprocess import PIPE, call
 from typing import Any, Dict, Iterator, List, Optional, Union, cast
+#from ape import providers
 
 from ape._compat import Literal
 from ape.api import (
@@ -352,12 +353,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         if sender in self.unlocked_accounts:
             # Allow for an unsigned transaction
+            txn = self.prepare_transaction(txn)
             txn_dict = txn.dict()
 
-            if txn_dict["chainId"] is not self.chain_id:
-                txn_dict["chainId"] = self.chain_id
-                txn_dict["maxFeePerGas"] = 0
-                txn_dict["maxPriorityFeePerGas"] = 0
             try:
                 txn_hash = self._web3.eth.send_transaction(txn_dict)  # type: ignore
             except ValueError as err:
