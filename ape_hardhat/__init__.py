@@ -7,7 +7,7 @@ from ape import plugins
 from ape.api.networks import LOCAL_NETWORK_NAME
 
 from .providers import (
-    HardhatMainnetForkProvider,
+    HardhatForkProvider,
     HardhatNetworkConfig,
     HardhatProvider,
     HardhatProviderError,
@@ -23,9 +23,9 @@ def config_class():
 @plugins.register(plugins.ProviderPlugin)
 def providers():
     yield "ethereum", LOCAL_NETWORK_NAME, HardhatProvider
-    yield "ethereum", "mainnet-fork", HardhatMainnetForkProvider
+    yield "ethereum", "mainnet-fork", HardhatForkProvider
     yield "fantom", LOCAL_NETWORK_NAME, HardhatProvider
-    yield "fantom", "opera-fork", HardhatMainnetForkProvider
+    yield "fantom", "opera-fork", HardhatForkProvider
 
 
 __all__ = [

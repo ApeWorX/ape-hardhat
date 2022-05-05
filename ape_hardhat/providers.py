@@ -104,7 +104,7 @@ class HardhatNetworkConfig(PluginConfig):
     process_attempts: int = HARDHAT_START_PROCESS_ATTEMPTS
 
     # For setting the values in --fork and --fork-block-number command arguments.
-    # Used only in HardhatMainnetForkProvider.
+    # Used only in HardhatForkProvider.
     # Mapping of ecosystem_name => network_name => HardhatForkConfig
     fork: Dict[str, Dict[str, HardhatForkConfig]] = {}
 
@@ -385,7 +385,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             yield TraceFrame(**log)
 
 
-class HardhatMainnetForkProvider(HardhatProvider):
+class HardhatForkProvider(HardhatProvider):
     """
     A Hardhat provider that uses ``--fork``, like:
     ``npx hardhat node --fork <upstream-provider-url>``.
