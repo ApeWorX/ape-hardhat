@@ -64,8 +64,6 @@ class HardhatConfigJS:
     A class representing the actual ``hardhat.config.js`` file.
     """
 
-    FILE_NAME = "hardhat.config.js"
-
     def __init__(
         self,
         project_path: Path,
@@ -86,7 +84,7 @@ class HardhatConfigJS:
 
     @property
     def _path(self) -> Path:
-        return self._base_path / self.FILE_NAME
+        return self._base_path / HARDHAT_CONFIG_FILE_NAME
 
     def write_if_not_exists(self):
         if not self._path.is_file():
