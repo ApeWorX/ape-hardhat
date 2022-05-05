@@ -36,7 +36,6 @@ from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatS
 # from ape import providers
 
 
-
 EPHEMERAL_PORTS_START = 49152
 EPHEMERAL_PORTS_END = 60999
 HARDHAT_START_NETWORK_RETRIES = [0.1, 0.2, 0.3, 0.5, 1.0]  # seconds between network retries
