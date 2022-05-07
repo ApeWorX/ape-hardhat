@@ -137,8 +137,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def chain_id(self) -> int:
-        if hasattr(self._web3, "eth"):
-            return self._web3.eth.chain_id
+        if hasattr(self.web3, "eth"):
+            return self.web3.eth.chain_id
         else:
             return HARDHAT_CHAIN_ID
 
@@ -399,10 +399,10 @@ class HardhatMainnetForkProvider(HardhatProvider):
 
     @property
     def fork_url(self) -> str:
-        return self._upstream_provider.connection_str
+        return self._upstream_provider.connection_str  # type: ignore
 
     @property
-    def fork_block_number(self) -> int:
+    def fork_block_number(self) -> Optional[int]:
         return self._fork_config.block_number
 
     @property
