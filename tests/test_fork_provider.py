@@ -21,7 +21,7 @@ def in_tests_dir(config):
         yield
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def mainnet_fork_provider(networks):
     network_api = networks.ecosystems["ethereum"]["mainnet-fork"]
     provider = HardhatForkProvider(
@@ -31,7 +31,7 @@ def mainnet_fork_provider(networks):
         data_folder=Path("."),
         provider_settings={},
     )
-    provider.port = 9001
+    provider.port = 9002
     provider.connect()
     yield provider
     provider.disconnect()
@@ -72,3 +72,11 @@ def test_impersonate(networks, test_accounts, upstream, port):
 
     provider.disconnect()
     networks.active_provider = orig_provider
+
+
+def test_reset_fork(networks, mainnet_fork_provider):
+    mainnet_fork_provider.mine()
+    prev_block_num = mainnet_fork_provider.get_block("latest").number
+    mainnet_fork_provider.reset_fork()
+    block_num_after_reset = mainnet_fork_provider.get_block("latest").number
+    assert block_num_after_reset < prev_block_num

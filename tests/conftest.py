@@ -64,11 +64,11 @@ def hardhat_disconnected(local_network_api):
 
 
 @pytest.fixture(scope="session")
-def hardhat_connected(local_network_api):
+def hardhat_connected(networks, local_network_api):
     provider = get_hardhat_provider(local_network_api)
     provider.port = "auto"  # For better multi-processing support
     provider.connect()
-    ape.networks.active_provider = provider
+    networks.active_provider = provider
     try:
         yield provider
     finally:
