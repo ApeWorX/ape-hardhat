@@ -64,8 +64,6 @@ class HardhatConfigJS:
     A class representing the actual ``hardhat.config.js`` file.
     """
 
-    FILE_NAME = "hardhat.config.js"
-
     def __init__(
         self,
         project_path: Path,
@@ -86,7 +84,7 @@ class HardhatConfigJS:
 
     @property
     def _path(self) -> Path:
-        return self._base_path / self.FILE_NAME
+        return self._base_path / HARDHAT_CONFIG_FILE_NAME
 
     def write_if_not_exists(self):
         if not self._path.is_file():
@@ -446,12 +444,10 @@ class HardhatMainnetForkProvider(HardhatProvider):
         upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
         self._upstream_provider.disconnect()
         if self.get_block(0).hash != upstream_genesis_block_hash:
-            # self.disconnect()
             logger.warning(
                 "Upstream network has mismatching genesis block. "
                 "This could be an issue with hardhat."
             )
-            # raise HardhatProviderError(f"Upstream network is not {self._upstream_network_name}")
 
     def build_command(self) -> List[str]:
         if not isinstance(self._upstream_provider, UpstreamProvider):
