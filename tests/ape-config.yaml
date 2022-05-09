@@ -1,5 +1,7 @@
 hardhat:
+  request_timeout: 29
   fork:
     ethereum:
       mainnet:
         upstream_provider: alchemy
+        request_timeout: 360

@@ -151,3 +151,9 @@ def test_get_transaction_trace(hardhat_connected, sender, receiver):
     logs = hardhat_connected.get_transaction_trace(transfer.txn_hash)
     for log in logs:
         assert isinstance(log, TraceFrame)
+
+
+def test_request_timeout(hardhat_connected):
+    actual = hardhat_connected.web3.provider._request_kwargs["timeout"]  # type: ignore
+    expected = 29  # Value set in `ape-config.yaml`
+    assert actual == expected
