@@ -229,7 +229,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if not self.port:
             return
 
-        self._web3 = Web3(HTTPProvider(self.uri))
+        self._web3 = Web3(HTTPProvider(self.uri, request_kwargs={"timeout": 300}))
         if not self._web3.isConnected():
             self._web3 = None
             return
