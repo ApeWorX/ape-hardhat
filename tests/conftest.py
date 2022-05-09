@@ -1,7 +1,7 @@
 from pathlib import Path
 
+import ape
 import pytest  # type: ignore
-from ape import Project, accounts, networks
 from ape.api.networks import LOCAL_NETWORK_NAME, NetworkAPI
 from ape.managers.project import ProjectManager
 
@@ -9,7 +9,7 @@ from ape_hardhat import HardhatProvider
 
 
 def get_project() -> ProjectManager:
-    return Project(Path(__file__).parent)
+    return ape.Project(Path(__file__).parent)
 
 
 def get_hardhat_provider(network_api: NetworkAPI):
@@ -24,7 +24,7 @@ def get_hardhat_provider(network_api: NetworkAPI):
 
 @pytest.fixture(scope="session")
 def test_accounts():
-    return accounts.test_accounts
+    return ape.accounts.test_accounts
 
 
 @pytest.fixture(scope="session")
@@ -48,7 +48,12 @@ def project():
 
 
 @pytest.fixture(scope="session")
-def network_api():
+def networks():
+    return ape.networks
+
+
+@pytest.fixture(scope="session")
+def network_api(networks):
     return networks.ecosystems["ethereum"][LOCAL_NETWORK_NAME]
 
 
@@ -59,7 +64,7 @@ def hardhat_disconnected(network_api):
 
 
 @pytest.fixture(scope="session")
-def hardhat_connected(network_api):
+def hardhat_connected(networks, network_api):
     provider = get_hardhat_provider(network_api)
     provider.port = "auto"  # For better multi-processing support
     provider.connect()

@@ -64,8 +64,6 @@ class HardhatConfigJS:
     A class representing the actual ``hardhat.config.js`` file.
     """
 
-    FILE_NAME = "hardhat.config.js"
-
     def __init__(
         self,
         project_path: Path,
@@ -86,7 +84,7 @@ class HardhatConfigJS:
 
     @property
     def _path(self) -> Path:
-        return self._base_path / self.FILE_NAME
+        return self._base_path / HARDHAT_CONFIG_FILE_NAME
 
     def write_if_not_exists(self):
         if not self._path.is_file():
@@ -289,7 +287,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         ]
 
     def _make_request(self, rpc: str, args: list) -> Any:
-        return self._web3.manager.request_blocking(rpc, args)  # type: ignore
+        return self.web3.manager.request_blocking(rpc, args)  # type: ignore
 
     def set_block_gas_limit(self, gas_limit: int) -> bool:
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)])
@@ -399,6 +397,14 @@ class HardhatMainnetForkProvider(HardhatProvider):
     """
 
     @property
+    def fork_url(self) -> str:
+        return self._upstream_provider.connection_str  # type: ignore
+
+    @property
+    def fork_block_number(self) -> Optional[int]:
+        return self._fork_config.block_number
+
+    @property
     def _upstream_network_name(self) -> str:
         return self.network.name.replace("-fork", "")
 
@@ -439,12 +445,10 @@ class HardhatMainnetForkProvider(HardhatProvider):
         upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
         self._upstream_provider.disconnect()
         if self.get_block(0).hash != upstream_genesis_block_hash:
-            # self.disconnect()
             logger.warning(
                 "Upstream network has mismatching genesis block. "
                 "This could be an issue with hardhat."
             )
-            # raise HardhatProviderError(f"Upstream network is not {self._upstream_network_name}")
 
     def build_command(self) -> List[str]:
         if not isinstance(self._upstream_provider, UpstreamProvider):
@@ -452,22 +456,25 @@ class HardhatMainnetForkProvider(HardhatProvider):
                 f"Provider '{self._upstream_provider.name}' is not an upstream provider."
             )
 
-        fork_url = self._upstream_provider.connection_str
-        if not fork_url:
+        if not self.fork_url:
             raise HardhatProviderError("Upstream provider does not have a ``connection_str``.")
 
-        if fork_url.replace("localhost", "127.0.0.1") == self.uri:
+        if self.fork_url.replace("localhost", "127.0.0.1") == self.uri:
             raise HardhatProviderError(
                 "Invalid upstream-fork URL. Can't be same as local Hardhat node."
             )
 
         cmd = super().build_command()
-        cmd.extend(("--fork", fork_url))
-        fork_block_number = self._fork_config.block_number
-        if fork_block_number is not None:
-            cmd.extend(("--fork-block-number", str(fork_block_number)))
+        cmd.extend(("--fork", self.fork_url))
+        if self.fork_block_number is not None:
+            cmd.extend(("--fork-block-number", str(self.fork_block_number)))
 
         return cmd
+
+    def reset_fork(self):
+        self._make_request(
+            "hardhat_reset", [{"jsonRpcUrl": self.fork_url, "blockNumber": self.fork_block_number}]
+        )
 
 
 def _get_vm_error(web3_value_error: ValueError) -> TransactionError:

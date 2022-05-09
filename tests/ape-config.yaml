@@ -1,0 +1,5 @@
+hardhat:
+  fork:
+    ethereum:
+      mainnet:
+        upstream_provider: alchemy
