@@ -103,7 +103,7 @@ class HardhatNetworkConfig(PluginConfig):
     network_retries: List[float] = HARDHAT_START_NETWORK_RETRIES
     process_attempts: int = HARDHAT_START_PROCESS_ATTEMPTS
     request_timeout: int = 30
-    fork_request_timeout: int = 30
+    fork_request_timeout: int = 300
 
     # For setting the values in --fork and --fork-block-number command arguments.
     # Used only in HardhatMainnetForkProvider.
