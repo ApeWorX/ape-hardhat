@@ -5,6 +5,7 @@ import pytest
 from ape_hardhat.providers import HardhatMainnetForkProvider
 
 TESTS_DIRECTORY = Path(__file__).parent
+alchemy_xfail = pytest.mark.xfail(strict=False, reason="Fails to establish connection with Alchemy")
 
 
 def test_request_timeout(mainnet_fork_provider):
@@ -41,6 +42,7 @@ def create_fork_provider(network_api, port):
     return provider
 
 
+@alchemy_xfail
 def test_reset_fork(networks, mainnet_fork_provider):
     mainnet_fork_provider.mine()
     prev_block_num = mainnet_fork_provider.get_block("latest").number
