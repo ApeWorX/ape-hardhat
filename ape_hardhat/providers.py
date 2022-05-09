@@ -94,7 +94,6 @@ class HardhatConfigJS:
 class HardhatForkConfig(PluginConfig):
     upstream_provider: Optional[str] = None
     block_number: Optional[int] = None
-    request_timeout: int = 300
 
 
 class HardhatNetworkConfig(PluginConfig):
@@ -104,6 +103,7 @@ class HardhatNetworkConfig(PluginConfig):
     network_retries: List[float] = HARDHAT_START_NETWORK_RETRIES
     process_attempts: int = HARDHAT_START_PROCESS_ATTEMPTS
     request_timeout: int = 30
+    fork_request_timeout: int = 30
 
     # For setting the values in --fork and --fork-block-number command arguments.
     # Used only in HardhatMainnetForkProvider.
@@ -137,7 +137,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def timeout(self) -> int:
-        return self.config.request_timeout
+        return self.config.request_timeout  # type: ignore
 
     @property
     def chain_id(self) -> int:
@@ -411,7 +411,7 @@ class HardhatMainnetForkProvider(HardhatProvider):
 
     @property
     def timeout(self) -> int:
-        return self._fork_config.request_timeout
+        return self.config.fork_request_timeout  # type: ignore
 
     @property
     def _upstream_network_name(self) -> str:
