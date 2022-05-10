@@ -75,9 +75,11 @@ RAW_CONTRACT_TYPE = {
     "devdoc": {},
 }
 
+
 @pytest.fixture(scope="session")
 def raw_contract_type():
     return RAW_CONTRACT_TYPE
+
 
 @pytest.fixture(scope="session")
 def test_accounts():

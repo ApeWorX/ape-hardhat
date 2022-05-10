@@ -54,7 +54,7 @@ def contract_container(contract_type) -> ContractContainer:
 def contract_instance(owner, contract_container, mainnet_fork_provider) -> ContractInstance:
     return owner.deploy(contract_container)
 
-@pytest.fixture()
+
 def create_fork_provider(network_api, port):
     provider = HardhatMainnetForkProvider(
         name="hardhat",
@@ -75,7 +75,9 @@ def test_reset_fork(networks, mainnet_fork_provider):
     assert block_num_after_reset < prev_block_num
 
 
-def test_transaction_contract_as_sender(contract_instance, mainnet_fork_provider):
+def test_transaction_contract_as_sender(networks, contract_instance, mainnet_fork_provider):
+    orig_provider = networks.active_provider
+    networks.active_provider = mainnet_fork_provider
     assert contract_instance
     # contract_instance.set_number(10, sender=contract_instance)
     # assert contract_instance.my_number() == 10
