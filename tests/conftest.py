@@ -23,6 +23,17 @@ def get_hardhat_provider(network_api: NetworkAPI):
 
 
 @pytest.fixture(scope="session")
+def config():
+    return ape.config
+
+
+@pytest.fixture(scope="session", autouse=True)
+def in_tests_dir(config):
+    with config.using_project(Path(__file__).parent):
+        yield
+
+
+@pytest.fixture(scope="session")
 def test_accounts():
     return ape.accounts.test_accounts
 
@@ -66,7 +77,6 @@ def hardhat_disconnected(network_api):
 @pytest.fixture(scope="session")
 def hardhat_connected(networks, network_api):
     provider = get_hardhat_provider(network_api)
-    provider.port = "auto"  # For better multi-processing support
     provider.connect()
     networks.active_provider = provider
     try:
