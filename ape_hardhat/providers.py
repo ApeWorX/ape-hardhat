@@ -102,6 +102,8 @@ class HardhatNetworkConfig(PluginConfig):
     # Retry strategy configs, try increasing these if you're getting HardhatSubprocessError
     network_retries: List[float] = HARDHAT_START_NETWORK_RETRIES
     process_attempts: int = HARDHAT_START_PROCESS_ATTEMPTS
+    request_timeout: int = 30
+    fork_request_timeout: int = 300
 
     # For setting the values in --fork and --fork-block-number command arguments.
     # Used only in HardhatMainnetForkProvider.
@@ -134,7 +136,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return "Hardhat node"
 
     @property
-    def chain_id(self) -> int:  # type: ignore
+    def timeout(self) -> int:
+        return self.config.request_timeout  # type: ignore
+
+    @property
+    def chain_id(self) -> int:
         if hasattr(self.web3, "eth"):
             return self.web3.eth.chain_id
         else:
@@ -229,7 +235,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if not self.port:
             return
 
-        self._web3 = Web3(HTTPProvider(self.uri))
+        self._web3 = Web3(HTTPProvider(self.uri, request_kwargs={"timeout": self.timeout}))
         if not self._web3.isConnected():
             self._web3 = None
             return
@@ -403,6 +409,10 @@ class HardhatMainnetForkProvider(HardhatProvider):
     @property
     def fork_block_number(self) -> Optional[int]:
         return self._fork_config.block_number
+
+    @property
+    def timeout(self) -> int:
+        return self.config.fork_request_timeout  # type: ignore
 
     @property
     def _upstream_network_name(self) -> str:

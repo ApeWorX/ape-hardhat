@@ -1,4 +1,10 @@
 hardhat:
+
+  port: auto
+
+  request_timeout: 29
+  fork_request_timeout: 360
+
   fork:
     ethereum:
       mainnet:
