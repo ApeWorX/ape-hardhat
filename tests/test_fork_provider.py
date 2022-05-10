@@ -1,3 +1,4 @@
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -8,26 +9,37 @@ TESTS_DIRECTORY = Path(__file__).parent
 alchemy_xfail = pytest.mark.xfail(strict=False, reason="Fails to establish connection with Alchemy")
 
 
-def test_request_timeout(mainnet_fork_provider):
-    actual = mainnet_fork_provider.web3.provider._request_kwargs["timeout"]  # type: ignore
-    expected = 360  # Value set in `ape-config.yaml`
-    assert actual == expected
-
-
 @pytest.fixture
 def mainnet_fork_provider(networks):
     network_api = networks.ecosystems["ethereum"]["mainnet-fork"]
-    provider = HardhatMainnetForkProvider(
+    provider = create_mainnet_fork_provider(network_api)
+    provider.port = 9001
+    provider.connect()
+    yield provider
+    provider.disconnect()
+
+
+def create_mainnet_fork_provider(network_api):
+    return HardhatMainnetForkProvider(
         name="hardhat",
         network=network_api,
         request_header={},
         data_folder=Path("."),
         provider_settings={},
     )
-    provider.port = 9001
-    provider.connect()
-    yield provider
-    provider.disconnect()
+
+
+def test_request_timeout(mainnet_fork_provider, config, network_api):
+    actual = mainnet_fork_provider.web3.provider._request_kwargs["timeout"]  # type: ignore
+    expected = 360  # Value set in `ape-config.yaml`
+    assert actual == expected
+
+    # Test default behavior
+    with tempfile.TemporaryDirectory() as temp_dir_str:
+        temp_dir = Path(temp_dir_str)
+        with config.using_project(temp_dir):
+            provider = create_mainnet_fork_provider(network_api)
+            assert provider.timeout == 300
 
 
 def create_fork_provider(network_api, port):
