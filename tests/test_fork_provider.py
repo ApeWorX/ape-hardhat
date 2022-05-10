@@ -2,10 +2,7 @@ from pathlib import Path
 
 import ape
 import pytest
-from ape import networks
-from ape.api.networks import LOCAL_NETWORK_NAME
 from ape.contracts import ContractContainer, ContractInstance
-from ape.exceptions import SignatureError
 from ethpm_types import ContractType
 
 from ape_hardhat.providers import HardhatMainnetForkProvider
@@ -76,7 +73,7 @@ def test_reset_fork(networks, mainnet_fork_provider):
 
 
 def test_transaction_contract_as_sender(networks, contract_instance, mainnet_fork_provider):
-    orig_provider = networks.active_provider
+    # orig_provider = networks.active_provider
     networks.active_provider = mainnet_fork_provider
     assert contract_instance
     # contract_instance.set_number(10, sender=contract_instance)
