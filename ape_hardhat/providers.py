@@ -356,6 +356,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         if sender in self.unlocked_accounts:
             # Allow for an unsigned transaction
+            txn = self.prepare_transaction(txn)
             txn_dict = txn.dict()
 
             try:
