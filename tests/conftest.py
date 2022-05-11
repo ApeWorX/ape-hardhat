@@ -3,7 +3,9 @@ from pathlib import Path
 import ape
 import pytest  # type: ignore
 from ape.api.networks import LOCAL_NETWORK_NAME, NetworkAPI
+from ape.contracts import ContractContainer
 from ape.managers.project import ProjectManager
+from ethpm_types import ContractType
 
 from ape_hardhat import HardhatProvider
 
@@ -79,6 +81,21 @@ RAW_CONTRACT_TYPE = {
 @pytest.fixture(scope="session")
 def raw_contract_type():
     return RAW_CONTRACT_TYPE
+
+
+@pytest.fixture(scope="session")
+def contract_type(raw_contract_type) -> ContractType:
+    return ContractType.parse_obj(raw_contract_type)
+
+
+@pytest.fixture(scope="session")
+def contract_container(contract_type) -> ContractContainer:
+    return ContractContainer(contract_type=contract_type)
+
+
+@pytest.fixture(scope="session")
+def contract_instance(owner, contract_container, hardhat_connected):
+    return owner.deploy(contract_container)
 
 
 @pytest.fixture(scope="session")

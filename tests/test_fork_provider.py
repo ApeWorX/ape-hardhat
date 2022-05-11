@@ -2,9 +2,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from ape.contracts import ContractContainer, ContractInstance
 from ape.exceptions import ContractLogicError
-from ethpm_types import ContractType
 
 from ape_hardhat.providers import HardhatMainnetForkProvider
 
@@ -32,21 +30,6 @@ def create_mainnet_fork_provider(network_api):
         data_folder=Path("."),
         provider_settings={},
     )
-
-
-@pytest.fixture(scope="module")
-def contract_type(raw_contract_type) -> ContractType:
-    return ContractType.parse_obj(raw_contract_type)
-
-
-@pytest.fixture(scope="module")
-def contract_container(contract_type) -> ContractContainer:
-    return ContractContainer(contract_type=contract_type)
-
-
-@pytest.fixture(scope="module")
-def contract_instance(owner, contract_container, mainnet_fork_provider) -> ContractInstance:
-    return owner.deploy(contract_container)
 
 
 def create_fork_provider(network_api, port):
