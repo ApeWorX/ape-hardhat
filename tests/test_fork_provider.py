@@ -30,7 +30,7 @@ def create_mainnet_fork_provider(network_api):
         provider_settings={},
     )
 
-
+@alchemy_xfail
 def test_request_timeout(mainnet_fork_provider, config, network_api):
     actual = mainnet_fork_provider.web3.provider._request_kwargs["timeout"]  # type: ignore
     expected = 360  # Value set in `ape-config.yaml`
@@ -58,7 +58,7 @@ def contract_container(contract_type) -> ContractContainer:
 def contract_instance(owner, contract_container, mainnet_fork_provider) -> ContractInstance:
     return owner.deploy(contract_container)
 
-
+@alchemy_xfail
 def create_fork_provider(network_api, port):
     provider = HardhatMainnetForkProvider(
         name="hardhat",
@@ -80,9 +80,10 @@ def test_reset_fork(networks, mainnet_fork_provider):
     assert block_num_after_reset < prev_block_num
 
 
-def test_transaction_contract_as_sender(networks, contract_instance, mainnet_fork_provider):
-    # orig_provider = networks.active_provider
-    networks.active_provider = mainnet_fork_provider
+def test_transaction_contract_as_sender(network_api, contract_instance, provider):
+    provider = get_hardhat_provider(network_api)
+    provider.connect()
+    networks.active_provider = provider
     assert contract_instance
     # contract_instance.set_number(10, sender=contract_instance)
     # assert contract_instance.my_number() == 10
