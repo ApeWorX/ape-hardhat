@@ -68,7 +68,40 @@ def test_reset_fork(networks, mainnet_fork_provider):
 
 
 @alchemy_xfail
-def test_transaction_contract_as_sender(networks, network_api, contract_instance):
+def test_transaction(owner, contract_instance):
+    receipt = contract_instance.setNumber(6, sender=owner)
+    assert receipt.sender == owner
+
+    value = contract_instance.myNumber()
+    assert value == 6
+
+
+@alchemy_xfail
+def test_revert(sender, contract_instance):
+    # 'sender' is not the owner so it will revert (with a message)
+    with pytest.raises(ContractLogicError) as err:
+        contract_instance.setNumber(6, sender=sender)
+
+    assert str(err.value) == "!authorized"
+
+
+@alchemy_xfail
+def test_contract_revert_no_message(owner, contract_instance):
+    # The Contract raises empty revert when setting number to 5.
+    with pytest.raises(ContractLogicError) as err:
+        contract_instance.setNumber(5, sender=owner)
+
+    assert str(err.value) == "Transaction failed."  # Default message
+
+
+@alchemy_xfail
+def test_transaction_contract_as_sender(contract_instance, mainnet_fork_provider):
     with pytest.raises(ContractLogicError):
         # Task failed successfully
-        contract_instance.set_number(10, sender=contract_instance)
+        contract_instance.setNumber(10, sender=contract_instance)
+
+
+@alchemy_xfail
+def test_transaction_unknown_contract_as_sender(accounts, mainnet_fork_provider):
+    multi_sig = accounts["0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52"]
+    multi_sig.transfer(accounts[0], "100 gwei")
