@@ -334,7 +334,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         try:
             return super().estimate_gas_cost(txn)
         except ValueError as err:
-            tx_error = _get_vm_error(err)
+            tx_error = self.get_virtual_machine_error(err)
 
             # If this is the cause of a would-be revert,
             # raise ContractLogicError so that we can confirm tx-reverts.
@@ -362,7 +362,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             try:
                 txn_hash = self._web3.eth.send_transaction(txn_dict)  # type: ignore
             except ValueError as err:
-                raise _get_vm_error(err) from err
+                raise self.get_virtual_machine_error(err) from err
 
             receipt = self.get_transaction(
                 txn_hash.hex(), required_confirmations=txn.required_confirmations or 0
@@ -372,7 +372,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             try:
                 receipt = super().send_transaction(txn)
             except ValueError as err:
-                raise _get_vm_error(err) from err
+                raise self.get_virtual_machine_error(err) from err
 
         receipt.raise_for_status()
         return receipt
@@ -390,6 +390,36 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         logs = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
         for log in logs:
             yield TraceFrame(**log)
+
+    def get_virtual_machine_error(self, exception: Exception) -> VirtualMachineError:
+        if not len(exception.args):
+            return VirtualMachineError(base_err=exception)
+
+        err_data = exception.args[0]
+        no_revert_reason_message = "Transaction reverted without a reason string"
+
+        if isinstance(err_data, dict):
+            message = str(err_data.get("message"))
+            if not message:
+                return VirtualMachineError(base_err=exception)
+
+            # Handle `ContactLogicError` similarly to other providers in `ape`.
+            # by stripping off the unnecessary prefix that hardhat has on reverts.
+            hardhat_prefix = (
+                "Error: VM Exception while processing transaction: reverted with reason string "
+            )
+            if message.startswith(hardhat_prefix):
+                message = message.replace(hardhat_prefix, "").strip("'")
+                return ContractLogicError(revert_message=message)
+            elif no_revert_reason_message in message:
+                return ContractLogicError()
+
+            elif message == "Transaction ran out of gas":
+                return OutOfGasError()
+
+            return VirtualMachineError(message=message)
+
+        return VirtualMachineError(base_err=exception)
 
 
 class HardhatMainnetForkProvider(HardhatProvider):
@@ -486,41 +516,13 @@ class HardhatMainnetForkProvider(HardhatProvider):
             "hardhat_reset", [{"jsonRpcUrl": self.fork_url, "blockNumber": self.fork_block_number}]
         )
 
+    def get_virtual_machine_error(self, exception: Exception) -> VirtualMachineError:
+        if not len(exception.args):
+            return VirtualMachineError(base_err=exception)
 
-def _get_vm_error(web3_value_error: ValueError) -> TransactionError:
-    if not len(web3_value_error.args):
-        return VirtualMachineError(base_err=web3_value_error)
+        elif isinstance(exception.args[0], dict):
+            return super().get_virtual_machine_error(exception)
 
-    err_data = web3_value_error.args[0]
-    no_revert_reason_message = "Transaction reverted without a reason string"
-
-    if isinstance(err_data, dict):
-        message = str(err_data.get("message"))
-        if not message:
-            return VirtualMachineError(base_err=web3_value_error)
-
-        # Handle `ContactLogicError` similarly to other providers in `ape`.
-        # by stripping off the unnecessary prefix that hardhat has on reverts.
-        hardhat_prefix = (
-            "Error: VM Exception while processing transaction: reverted with reason string "
-        )
-        if message.startswith(hardhat_prefix):
-            message = message.replace(hardhat_prefix, "").strip("'")
-            return ContractLogicError(revert_message=message)
-        elif no_revert_reason_message in message:
-            return ContractLogicError()
-
-        elif message == "Transaction ran out of gas":
-            return OutOfGasError()
-
-        return VirtualMachineError(message=message)
-
-    elif isinstance(err_data, str) and err_data.startswith("execution reverted: "):
-        # Sometimes, hardhat returns a str-formatted error message.
-        message = err_data.replace("execution reverted: ", "")
-        if no_revert_reason_message in message:
-            return ContractLogicError()
-
-        return ContractLogicError(revert_message=message)
-
-    return VirtualMachineError(base_err=web3_value_error)
+        elif isinstance(exception.args[0], str):
+            # Likely from upstream-provider
+            return self._upstream_provider.get_virtual_machine_error(exception)
