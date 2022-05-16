@@ -415,7 +415,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                 return ContractLogicError()
 
             elif message == "Transaction ran out of gas":
-                return OutOfGasError()
+                return OutOfGasError()  # type: ignore
 
             return VirtualMachineError(message=message)
 
@@ -526,3 +526,5 @@ class HardhatMainnetForkProvider(HardhatProvider):
         elif isinstance(exception.args[0], str):
             # Likely from upstream-provider
             return self._upstream_provider.get_virtual_machine_error(exception)
+
+        return VirtualMachineError(base_err=exception)
