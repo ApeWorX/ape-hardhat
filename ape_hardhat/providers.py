@@ -103,6 +103,8 @@ class HardhatNetworkConfig(PluginConfig):
     # Retry strategy configs, try increasing these if you're getting HardhatSubprocessError
     network_retries: List[float] = HARDHAT_START_NETWORK_RETRIES
     process_attempts: int = HARDHAT_START_PROCESS_ATTEMPTS
+    request_timeout: int = 30
+    fork_request_timeout: int = 300
 
     # For setting the values in --fork and --fork-block-number command arguments.
     # Used only in HardhatForkProvider.
@@ -133,6 +135,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     @property
     def process_name(self) -> str:
         return "Hardhat node"
+
+    @property
+    def timeout(self) -> int:
+        return self.config.request_timeout  # type: ignore
 
     @property
     def chain_id(self) -> int:
@@ -230,7 +236,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if not self.port:
             return
 
-        self._web3 = Web3(HTTPProvider(self.uri))
+        self._web3 = Web3(HTTPProvider(self.uri, request_kwargs={"timeout": self.timeout}))
         if not self._web3.isConnected():
             self._web3 = None
             return
@@ -351,6 +357,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         if sender in self.unlocked_accounts:
             # Allow for an unsigned transaction
+            txn = self.prepare_transaction(txn)
             txn_dict = txn.dict()
 
             try:
@@ -403,6 +410,10 @@ class HardhatForkProvider(HardhatProvider):
     @property
     def fork_block_number(self) -> Optional[int]:
         return self._fork_config.block_number
+
+    @property
+    def timeout(self) -> int:
+        return self.config.fork_request_timeout  # type: ignore
 
     @property
     def _upstream_network_name(self) -> str:
@@ -488,25 +499,35 @@ def _get_vm_error(web3_value_error: ValueError) -> TransactionError:
         return VirtualMachineError(base_err=web3_value_error)
 
     err_data = web3_value_error.args[0]
-    if not isinstance(err_data, dict):
-        return VirtualMachineError(base_err=web3_value_error)
+    no_revert_reason_message = "Transaction reverted without a reason string"
 
-    message = str(err_data.get("message"))
-    if not message:
-        return VirtualMachineError(base_err=web3_value_error)
+    if isinstance(err_data, dict):
+        message = str(err_data.get("message"))
+        if not message:
+            return VirtualMachineError(base_err=web3_value_error)
 
-    # Handle `ContactLogicError` similarly to other providers in `ape`.
-    # by stripping off the unnecessary prefix that hardhat has on reverts.
-    hardhat_prefix = (
-        "Error: VM Exception while processing transaction: reverted with reason string "
-    )
-    if message.startswith(hardhat_prefix):
-        message = message.replace(hardhat_prefix, "").strip("'")
+        # Handle `ContactLogicError` similarly to other providers in `ape`.
+        # by stripping off the unnecessary prefix that hardhat has on reverts.
+        hardhat_prefix = (
+            "Error: VM Exception while processing transaction: reverted with reason string "
+        )
+        if message.startswith(hardhat_prefix):
+            message = message.replace(hardhat_prefix, "").strip("'")
+            return ContractLogicError(revert_message=message)
+        elif no_revert_reason_message in message:
+            return ContractLogicError()
+
+        elif message == "Transaction ran out of gas":
+            return OutOfGasError()
+
+        return VirtualMachineError(message=message)
+
+    elif isinstance(err_data, str) and err_data.startswith("execution reverted: "):
+        # Sometimes, hardhat returns a str-formatted error message.
+        message = err_data.replace("execution reverted: ", "")
+        if no_revert_reason_message in message:
+            return ContractLogicError()
+
         return ContractLogicError(revert_message=message)
-    elif "Transaction reverted without a reason string" in message:
-        return ContractLogicError()
 
-    elif message == "Transaction ran out of gas":
-        return OutOfGasError()
-
-    return VirtualMachineError(message=message)
+    return VirtualMachineError(base_err=web3_value_error)

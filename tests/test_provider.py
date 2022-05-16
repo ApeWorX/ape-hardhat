@@ -1,3 +1,4 @@
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -151,3 +152,16 @@ def test_get_transaction_trace(hardhat_connected, sender, receiver):
     logs = hardhat_connected.get_transaction_trace(transfer.txn_hash)
     for log in logs:
         assert isinstance(log, TraceFrame)
+
+
+def test_request_timeout(hardhat_connected, config, network_api):
+    actual = hardhat_connected.web3.provider._request_kwargs["timeout"]  # type: ignore
+    expected = 29  # Value set in `ape-config.yaml`
+    assert actual == expected
+
+    # Test default behavior
+    with tempfile.TemporaryDirectory() as temp_dir_str:
+        temp_dir = Path(temp_dir_str)
+        with config.using_project(temp_dir):
+            provider = get_hardhat_provider(network_api)
+            assert provider.timeout == 30
