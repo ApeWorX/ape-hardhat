@@ -105,8 +105,8 @@ def hardhat_disconnected(local_network_api):
 def hardhat_connected(networks, local_network_api):
     provider = get_hardhat_provider(local_network_api)
     provider.connect()
+    original_provider = networks.active_provider
     networks.active_provider = provider
-    try:
-        yield provider
-    finally:
-        provider.disconnect()
+    yield provider
+    provider.disconnect()
+    networks.active_provider = original_provider
