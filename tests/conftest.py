@@ -31,10 +31,9 @@ BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts"
 
 def pytest_runtest_makereport(item, call):
     tr = orig_pytest_runtest_makereport(item, call)
-    if call.excinfo is not None:
-        if "too many requests" in str(call.excinfo):
-            tr.outcome = "skipped"
-            tr.wasxfail = "reason: Alchemy requests overloaded (likely in CI)"
+    if call.excinfo is not None and "too many requests" in str(call.excinfo).lower():
+        tr.outcome = "skipped"
+        tr.wasxfail = "reason: Alchemy requests overloaded (likely in CI)"
 
     return tr
 
