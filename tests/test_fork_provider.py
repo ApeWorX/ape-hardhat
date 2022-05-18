@@ -57,6 +57,7 @@ def test_fork_config(config, network):
     assert network_config["upstream_provider"] == "alchemy", "config not registered"
 
 
+@alchemy_xfail
 @pytest.mark.parametrize("upstream,port", [("mainnet", 8998), ("rinkeby", 8999)])
 def test_impersonate(networks, accounts, upstream, port):
     network_api = networks.ecosystems["ethereum"][f"{upstream}-fork"]
