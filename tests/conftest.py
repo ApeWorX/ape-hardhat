@@ -3,6 +3,7 @@ from pathlib import Path
 
 import ape
 import pytest  # type: ignore
+from _pytest.runner import pytest_runtest_makereport as orig_pytest_runtest_makereport
 from ape.api.networks import LOCAL_NETWORK_NAME, NetworkAPI
 from ape.contracts import ContractContainer
 from ape.managers.project import ProjectManager
@@ -26,6 +27,16 @@ def get_hardhat_provider(network_api: NetworkAPI):
 
 
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts"
+
+
+def pytest_runtest_makereport(item, call):
+    tr = orig_pytest_runtest_makereport(item, call)
+    if call.excinfo is not None:
+        if "too many requests" in str(call.excinfo):
+            tr.outcome = "skipped"
+            tr.wasxfail = "reason: Alchemy requests overloaded (likely in CI)"
+
+    return tr
 
 
 @pytest.fixture(scope="session", params=("solidity", "vyper"))
