@@ -37,6 +37,18 @@ def fork_contract_instance(owner, contract_container, connected_mainnet_fork_pro
     return owner.deploy(contract_container)
 
 
+@pytest.fixture(scope="module", autouse=True)
+def xfail_from_alchemy():
+    try:
+        yield
+    except ValueError as err:
+        if "too many requests" in str(err).lower():
+            pytest.xfail("Alchemy requests overloaded (likely in CI)")
+        else:
+            # Fail test as normal
+            raise
+
+
 def create_fork_provider(network_api, port=9001):
     provider = HardhatForkProvider(
         name="hardhat",
