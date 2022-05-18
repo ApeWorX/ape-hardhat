@@ -9,7 +9,6 @@ from ape_hardhat.providers import HardhatForkProvider
 
 TESTS_DIRECTORY = Path(__file__).parent
 TEST_ADDRESS = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
-alchemy_xfail = pytest.mark.xfail(strict=False, reason="Fails to establish connection with Alchemy")
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -25,7 +24,7 @@ def mainnet_fork_network_api(networks):
 
 @pytest.fixture(scope="module")
 def connected_mainnet_fork_provider(networks, mainnet_fork_network_api):
-    provider = create_fork_provider(mainnet_fork_network_api, 9001)
+    provider = create_fork_provider(mainnet_fork_network_api)
     provider.connect()
     networks.active_provider = provider
     yield provider
@@ -57,7 +56,7 @@ def test_fork_config(config, network):
     assert network_config["upstream_provider"] == "alchemy", "config not registered"
 
 
-@alchemy_xfail
+@pytest.mark.fork
 @pytest.mark.parametrize("upstream,port", [("mainnet", 8998), ("rinkeby", 8999)])
 def test_impersonate(networks, accounts, upstream, port):
     network_api = networks.ecosystems["ethereum"][f"{upstream}-fork"]
@@ -76,7 +75,7 @@ def test_impersonate(networks, accounts, upstream, port):
     networks.active_provider = orig_provider
 
 
-@alchemy_xfail
+@pytest.mark.fork
 def test_request_timeout(networks, config, mainnet_fork_network_api):
     provider = create_fork_provider(mainnet_fork_network_api, 9008)
     provider.connect()
@@ -93,7 +92,7 @@ def test_request_timeout(networks, config, mainnet_fork_network_api):
             assert provider.timeout == 300
 
 
-@alchemy_xfail
+@pytest.mark.fork
 def test_reset_fork(networks, mainnet_fork_network_api):
     provider = create_fork_provider(mainnet_fork_network_api, 9010)
     provider.connect()
@@ -105,7 +104,7 @@ def test_reset_fork(networks, mainnet_fork_network_api):
     provider.disconnect()
 
 
-@alchemy_xfail
+@pytest.mark.fork
 def test_transaction(owner, fork_contract_instance):
     receipt = fork_contract_instance.setNumber(6, sender=owner)
     assert receipt.sender == owner
@@ -114,7 +113,7 @@ def test_transaction(owner, fork_contract_instance):
     assert value == 6
 
 
-@alchemy_xfail
+@pytest.mark.fork
 def test_revert(sender, fork_contract_instance):
     # 'sender' is not the owner so it will revert (with a message)
     with pytest.raises(ContractLogicError) as err:
@@ -123,7 +122,7 @@ def test_revert(sender, fork_contract_instance):
     assert str(err.value) == "!authorized"
 
 
-@alchemy_xfail
+@pytest.mark.fork
 def test_contract_revert_no_message(owner, fork_contract_instance):
     # The Contract raises empty revert when setting number to 5.
     with pytest.raises(ContractLogicError) as err:
@@ -132,14 +131,14 @@ def test_contract_revert_no_message(owner, fork_contract_instance):
     assert str(err.value) == "Transaction failed."  # Default message
 
 
-@alchemy_xfail
+@pytest.mark.fork
 def test_transaction_contract_as_sender(fork_contract_instance):
     with pytest.raises(ContractLogicError):
         # Task failed successfully
         fork_contract_instance.setNumber(10, sender=fork_contract_instance)
 
 
-@alchemy_xfail
+@pytest.mark.fork
 def test_transaction_unknown_contract_as_sender(accounts, networks, mainnet_fork_network_api):
     provider = create_fork_provider(mainnet_fork_network_api, 9012)
     provider.connect()

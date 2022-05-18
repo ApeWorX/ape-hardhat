@@ -71,7 +71,10 @@ jobs:
           run: npm install --save-dev hardhat
 
         - name: Run Tests
-          run: pytest -m "not fuzzing"
+          run: pytest -n auto -m "not fuzzing" -m "not fork"
+
+        - name: Run Fork Tests
+          run: pytest -m fork
           env:
             WEB3_ALCHEMY_PROJECT_ID: ${{ secrets.WEB3_ALCHEMY_PROJECT_ID }}
 
