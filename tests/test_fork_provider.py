@@ -41,7 +41,7 @@ def fork_contract_instance(owner, contract_container, connected_mainnet_fork_pro
 def xfail_from_alchemy():
     try:
         yield
-    except ValueError as err:
+    except Exception as err:
         if "too many requests" in str(err).lower():
             pytest.xfail("Alchemy requests overloaded (likely in CI)")
         else:
