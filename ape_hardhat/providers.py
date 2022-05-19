@@ -499,35 +499,25 @@ def _get_vm_error(web3_value_error: ValueError) -> TransactionError:
         return VirtualMachineError(base_err=web3_value_error)
 
     err_data = web3_value_error.args[0]
-    no_revert_reason_message = "Transaction reverted without a reason string"
+    if not isinstance(err_data, dict):
+        return VirtualMachineError(base_err=web3_value_error)
 
-    if isinstance(err_data, dict):
-        message = str(err_data.get("message"))
-        if not message:
-            return VirtualMachineError(base_err=web3_value_error)
+    message = str(err_data.get("message"))
+    if not message:
+        return VirtualMachineError(base_err=web3_value_error)
 
-        # Handle `ContactLogicError` similarly to other providers in `ape`.
-        # by stripping off the unnecessary prefix that hardhat has on reverts.
-        hardhat_prefix = (
-            "Error: VM Exception while processing transaction: reverted with reason string "
-        )
-        if message.startswith(hardhat_prefix):
-            message = message.replace(hardhat_prefix, "").strip("'")
-            return ContractLogicError(revert_message=message)
-        elif no_revert_reason_message in message:
-            return ContractLogicError()
-
-        elif message == "Transaction ran out of gas":
-            return OutOfGasError()
-
-        return VirtualMachineError(message=message)
-
-    elif isinstance(err_data, str) and err_data.startswith("execution reverted: "):
-        # Sometimes, hardhat returns a str-formatted error message.
-        message = err_data.replace("execution reverted: ", "")
-        if no_revert_reason_message in message:
-            return ContractLogicError()
-
+    # Handle `ContactLogicError` similarly to other providers in `ape`.
+    # by stripping off the unnecessary prefix that hardhat has on reverts.
+    hardhat_prefix = (
+        "Error: VM Exception while processing transaction: reverted with reason string "
+    )
+    if message.startswith(hardhat_prefix):
+        message = message.replace(hardhat_prefix, "").strip("'")
         return ContractLogicError(revert_message=message)
+    elif "Transaction reverted without a reason string" in message:
+        return ContractLogicError()
 
-    return VirtualMachineError(base_err=web3_value_error)
+    elif message == "Transaction ran out of gas":
+        return OutOfGasError()
+
+    return VirtualMachineError(message=message)
