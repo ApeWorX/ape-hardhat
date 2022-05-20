@@ -398,28 +398,29 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         err_data = exception.args[0]
         no_revert_reason_message = "Transaction reverted without a reason string"
 
-        if isinstance(err_data, dict):
-            message = str(err_data.get("message"))
-            if not message:
-                return VirtualMachineError(base_err=exception)
+        if not isinstance(err_data, dict):
+            # Try 'geth'-like format from base class.
+            return super().get_virtual_machine_error(exception)
 
-            # Handle `ContactLogicError` similarly to other providers in `ape`.
-            # by stripping off the unnecessary prefix that hardhat has on reverts.
-            hardhat_prefix = (
-                "Error: VM Exception while processing transaction: reverted with reason string "
-            )
-            if message.startswith(hardhat_prefix):
-                message = message.replace(hardhat_prefix, "").strip("'")
-                return ContractLogicError(revert_message=message)
-            elif no_revert_reason_message in message:
-                return ContractLogicError()
+        message = str(err_data.get("message"))
+        if not message:
+            return VirtualMachineError(base_err=exception)
 
-            elif message == "Transaction ran out of gas":
-                return OutOfGasError()  # type: ignore
+        # Handle `ContactLogicError` similarly to other providers in `ape`.
+        # by stripping off the unnecessary prefix that hardhat has on reverts.
+        hardhat_prefix = (
+            "Error: VM Exception while processing transaction: reverted with reason string "
+        )
+        if message.startswith(hardhat_prefix):
+            message = message.replace(hardhat_prefix, "").strip("'")
+            return ContractLogicError(revert_message=message)
+        elif no_revert_reason_message in message:
+            return ContractLogicError()
 
-            return VirtualMachineError(message=message)
+        elif message == "Transaction ran out of gas":
+            return OutOfGasError()  # type: ignore
 
-        return VirtualMachineError(base_err=exception)
+        return VirtualMachineError(message=message)
 
 
 class HardhatMainnetForkProvider(HardhatProvider):
@@ -520,11 +521,8 @@ class HardhatMainnetForkProvider(HardhatProvider):
         if not len(exception.args):
             return VirtualMachineError(base_err=exception)
 
-        elif isinstance(exception.args[0], dict):
-            return super().get_virtual_machine_error(exception)
-
         elif isinstance(exception.args[0], str):
             # Likely from upstream-provider
             return self._upstream_provider.get_virtual_machine_error(exception)
 
-        return VirtualMachineError(base_err=exception)
+        return super().get_virtual_machine_error(exception)
