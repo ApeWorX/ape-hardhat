@@ -15,7 +15,7 @@ extras_require = {
     "lint": [
         "black>=22.3.0,<23.0",  # auto-formatter and linter
         "mypy>=0.950,<1.0",  # Static type analyzer
-        "flake8>=3.9.2,<4.0",  # Style linter
+        "flake8>=4.0.1,<5.0",  # Style linter
         "isort>=5.10.1,<6.0",  # Import sorting linter
         "types-requests",  # NOTE: Needed due to mypy typeshed
     ],
@@ -68,7 +68,7 @@ setup(
     url="https://github.com/ApeWorX/ape-hardhat",
     include_package_data=True,
     install_requires=[
-        "eth-ape>=0.2.6,<0.3.0",
+        "eth-ape>=0.2.7,<0.3.0",
         "importlib-metadata ; python_version<'3.8'",
         "evm-trace>=0.1.0.a3",
     ],  # NOTE: Add 3rd party libraries here
