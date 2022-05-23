@@ -116,8 +116,10 @@ def test_transaction(owner, fork_contract_instance):
 @pytest.mark.fork
 def test_revert(sender, fork_contract_instance):
     # 'sender' is not the owner so it will revert (with a message)
-    with pytest.raises(ContractLogicError):
+    with pytest.raises(ContractLogicError) as err:
         fork_contract_instance.setNumber(6, sender=sender)
+
+    assert str(err.value) == "!authorized"
 
 
 @pytest.mark.fork
@@ -131,9 +133,11 @@ def test_contract_revert_no_message(owner, fork_contract_instance):
 
 @pytest.mark.fork
 def test_transaction_contract_as_sender(fork_contract_instance):
-    with pytest.raises(ContractLogicError):
+    with pytest.raises(ContractLogicError) as err:
         # Task failed successfully
         fork_contract_instance.setNumber(10, sender=fork_contract_instance)
+
+    assert str(err.value) == "!authorized"
 
 
 @pytest.mark.fork

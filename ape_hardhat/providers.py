@@ -58,6 +58,10 @@ module.exports = {{
 }};
 """
 HARDHAT_CONFIG_FILE_NAME = "hardhat.config.js"
+_NO_REASON_REVERT_MESSAGE = "Transaction reverted without a reason string"
+_REVERT_REASON_PREFIX = (
+    "Error: VM Exception while processing transaction: reverted with reason string "
+)
 
 
 class HardhatConfigJS:
@@ -397,25 +401,18 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             return VirtualMachineError(base_err=exception)
 
         err_data = exception.args[0]
-        no_revert_reason_message = "Transaction reverted without a reason string"
 
-        if not isinstance(err_data, dict):
-            # Try 'geth'-like format from base class.
-            return super().get_virtual_machine_error(exception)
-
-        message = str(err_data.get("message"))
+        message = err_data if isinstance(err_data, str) else str(err_data.get("message"))
         if not message:
             return VirtualMachineError(base_err=exception)
+        elif message.startswith("execution reverted: "):
+            message = message.replace("execution reverted: ", "")
 
-        # Handle `ContactLogicError` similarly to other providers in `ape`.
-        # by stripping off the unnecessary prefix that hardhat has on reverts.
-        hardhat_prefix = (
-            "Error: VM Exception while processing transaction: reverted with reason string "
-        )
-        if message.startswith(hardhat_prefix):
-            message = message.replace(hardhat_prefix, "").strip("'")
+        if message.startswith(_REVERT_REASON_PREFIX):
+            message = message.replace(_REVERT_REASON_PREFIX, "").strip("'")
             return ContractLogicError(revert_message=message)
-        elif no_revert_reason_message in message:
+
+        elif _NO_REASON_REVERT_MESSAGE in message:
             return ContractLogicError()
 
         elif message == "Transaction ran out of gas":
@@ -523,13 +520,3 @@ class HardhatForkProvider(HardhatProvider):
         self._make_request(
             "hardhat_reset", [{"jsonRpcUrl": self.fork_url, "blockNumber": self.fork_block_number}]
         )
-
-    def get_virtual_machine_error(self, exception: Exception) -> VirtualMachineError:
-        if not len(exception.args):
-            return VirtualMachineError(base_err=exception)
-
-        elif isinstance(exception.args[0], str):
-            # Likely from upstream-provider
-            return self._upstream_provider.get_virtual_machine_error(exception)
-
-        return super().get_virtual_machine_error(exception)
