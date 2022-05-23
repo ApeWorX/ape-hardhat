@@ -126,7 +126,7 @@ def test_contract_revert_no_message(owner, fork_contract_instance):
     with pytest.raises(ContractLogicError) as err:
         fork_contract_instance.setNumber(5, sender=owner)
 
-    assert str(err.value) == "Transaction failed."  # Default message
+    assert str(err.value) == "Transaction failed."
 
 
 @pytest.mark.fork
