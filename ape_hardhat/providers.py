@@ -38,7 +38,6 @@ EPHEMERAL_PORTS_START = 49152
 EPHEMERAL_PORTS_END = 60999
 HARDHAT_START_NETWORK_RETRIES = [0.1, 0.2, 0.3, 0.5, 1.0]  # seconds between network retries
 HARDHAT_START_PROCESS_ATTEMPTS = 3  # number of attempts to start subprocess before giving up
-DEFAULT_PORT = 8545
 HARDHAT_CHAIN_ID = 31337
 HARDHAT_CONFIG = """
 // See https://hardhat.org/config/ for config options.
@@ -102,7 +101,7 @@ class HardhatForkConfig(PluginConfig):
 
 
 class HardhatNetworkConfig(PluginConfig):
-    port: Optional[Union[int, Literal["auto"]]] = DEFAULT_PORT
+    port: Optional[Union[int, Literal["auto"]]] = None
 
     # Retry strategy configs, try increasing these if you're getting HardhatSubprocessError
     network_retries: List[float] = HARDHAT_START_NETWORK_RETRIES
@@ -127,6 +126,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     port: Optional[int] = None
     attempted_ports: List[int] = []
     unlocked_accounts: List[AddressType] = []
+    default_port = 8545
 
     @property
     def mnemonic(self) -> str:
@@ -205,7 +205,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         # NOTE: Must set port before calling 'super().connect()'.
         if not self.port:
-            self.port = self.config.port  # type: ignore
+            self.port = self.config.port or self.default_port
 
         if self.is_connected:
             # Connects to already running process
@@ -261,8 +261,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if use_random_port:
             self.port = None
 
-            if DEFAULT_PORT not in self.attempted_ports and not use_random_port:
-                self.port = DEFAULT_PORT
+            if self.default_port not in self.attempted_ports and not use_random_port:
+                self.port = self.default_port
             else:
                 port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
                 max_attempts = 25
@@ -430,6 +430,8 @@ class HardhatForkProvider(HardhatProvider):
     section of your ``ape-config.yaml` file to specify which provider
     to use as your archive node.
     """
+
+    default_port = 8555
 
     @property
     def fork_url(self) -> str:

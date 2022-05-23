@@ -119,12 +119,9 @@ dmypy.json
 version.py
 
 # Ape stuff
-tests/hardhat.config.js
+**/tests/hardhat.config.js
 
 # NPM
-package.json
-package-lock.json
-node_modules/
-
-# Ape stuff
-.build/
+**/package.json
+**/package-lock.json
+**/node_modules/

@@ -11,12 +11,14 @@ from ethpm_types import ContractType
 
 from ape_hardhat import HardhatProvider
 
+TESTS_DIRECTORY = Path(__file__).parent
+
 
 def get_project() -> ProjectManager:
     return ape.Project(Path(__file__).parent)
 
 
-def get_hardhat_provider(network_api: NetworkAPI):
+def create_hardhat_provider(network_api: NetworkAPI):
     return HardhatProvider(
         name="hardhat",
         network=network_api,
@@ -36,6 +38,12 @@ def pytest_runtest_makereport(item, call):
         tr.wasxfail = "reason: Alchemy requests overloaded (likely in CI)"
 
     return tr
+
+
+@pytest.fixture
+def no_config(config):
+    with config.using_project(Path(__file__).parent / "data" / "noconfig"):
+        yield
 
 
 @pytest.fixture(scope="session", params=("solidity", "vyper"))
@@ -107,13 +115,13 @@ def local_network_api(networks):
 
 @pytest.fixture(scope="session")
 def hardhat_disconnected(local_network_api):
-    provider = get_hardhat_provider(local_network_api)
+    provider = create_hardhat_provider(local_network_api)
     return provider
 
 
 @pytest.fixture(scope="session")
 def hardhat_connected(networks, local_network_api):
-    provider = get_hardhat_provider(local_network_api)
+    provider = create_hardhat_provider(local_network_api)
     provider.connect()
     original_provider = networks.active_provider
     networks.active_provider = provider
