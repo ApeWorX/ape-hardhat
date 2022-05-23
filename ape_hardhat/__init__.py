@@ -5,9 +5,10 @@ implementation written in Node.js).
 
 from ape import plugins
 from ape.api.networks import LOCAL_NETWORK_NAME
+from ape_ethereum.ecosystem import NETWORKS
 
 from .providers import (
-    HardhatMainnetForkProvider,
+    HardhatForkProvider,
     HardhatNetworkConfig,
     HardhatProvider,
     HardhatProviderError,
@@ -23,9 +24,12 @@ def config_class():
 @plugins.register(plugins.ProviderPlugin)
 def providers():
     yield "ethereum", LOCAL_NETWORK_NAME, HardhatProvider
-    yield "ethereum", "mainnet-fork", HardhatMainnetForkProvider
+
+    for network in NETWORKS:
+        yield "ethereum", f"{network}-fork", HardhatForkProvider
+
     yield "fantom", LOCAL_NETWORK_NAME, HardhatProvider
-    yield "fantom", "opera-fork", HardhatMainnetForkProvider
+    yield "fantom", "opera-fork", HardhatForkProvider
 
 
 __all__ = [

@@ -2,6 +2,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from ape.exceptions import ContractLogicError, SignatureError
 from ape.utils import DEFAULT_TEST_MNEMONIC
 from evm_trace import TraceFrame
 from hexbytes import HexBytes
@@ -17,10 +18,10 @@ def test_instantiation(hardhat_disconnected):
     assert hardhat_disconnected.name == "hardhat"
 
 
-def test_connect_and_disconnect(network_api):
+def test_connect_and_disconnect(local_network_api):
     # Use custom port to prevent connecting to a port used in another test.
 
-    hardhat = get_hardhat_provider(network_api)
+    hardhat = get_hardhat_provider(local_network_api)
     hardhat.port = 8555
     hardhat.connect()
 
@@ -69,15 +70,15 @@ def test_rpc_methods(hardhat_connected, method, args, expected):
     assert method(hardhat_connected, *args) == expected
 
 
-def test_multiple_hardhat_instances(network_api):
+def test_multiple_hardhat_instances(local_network_api):
     """
     Validate the somewhat tricky internal logic of running multiple Hardhat subprocesses
     under a single parent process.
     """
     # instantiate the providers (which will start the subprocesses) and validate the ports
-    provider_1 = get_hardhat_provider(network_api)
-    provider_2 = get_hardhat_provider(network_api)
-    provider_3 = get_hardhat_provider(network_api)
+    provider_1 = get_hardhat_provider(local_network_api)
+    provider_2 = get_hardhat_provider(local_network_api)
+    provider_3 = get_hardhat_provider(local_network_api)
     provider_1.port = 8556
     provider_2.port = 8557
     provider_3.port = 8558
@@ -154,7 +155,7 @@ def test_get_transaction_trace(hardhat_connected, sender, receiver):
         assert isinstance(log, TraceFrame)
 
 
-def test_request_timeout(hardhat_connected, config, network_api):
+def test_request_timeout(hardhat_connected, config, local_network_api):
     actual = hardhat_connected.web3.provider._request_kwargs["timeout"]  # type: ignore
     expected = 29  # Value set in `ape-config.yaml`
     assert actual == expected
@@ -163,5 +164,30 @@ def test_request_timeout(hardhat_connected, config, network_api):
     with tempfile.TemporaryDirectory() as temp_dir_str:
         temp_dir = Path(temp_dir_str)
         with config.using_project(temp_dir):
-            provider = get_hardhat_provider(network_api)
+            provider = get_hardhat_provider(local_network_api)
             assert provider.timeout == 30
+
+
+def test_send_transaction(contract_instance, owner, hardhat_connected):
+    contract_instance.setNumber(10, sender=owner)
+    assert contract_instance.myNumber() == 10
+
+    # Have to be in the same test because of X-dist complications
+    with pytest.raises(SignatureError):
+        contract_instance.setNumber(20)
+
+
+def test_contract_revert_no_message(owner, contract_instance):
+    # The Contract raises empty revert when setting number to 5.
+    with pytest.raises(ContractLogicError) as err:
+        contract_instance.setNumber(5, sender=owner)
+
+    assert str(err.value) == "Transaction failed."
+
+
+def test_transaction_contract_as_sender(contract_instance):
+    with pytest.raises(ContractLogicError) as err:
+        # Task failed successfully
+        contract_instance.setNumber(10, sender=contract_instance)
+
+    assert str(err.value) == "!authorized"

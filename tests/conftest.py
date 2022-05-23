@@ -3,6 +3,7 @@ from pathlib import Path
 
 import ape
 import pytest  # type: ignore
+from _pytest.runner import pytest_runtest_makereport as orig_pytest_runtest_makereport
 from ape.api.networks import LOCAL_NETWORK_NAME, NetworkAPI
 from ape.contracts import ContractContainer
 from ape.managers.project import ProjectManager
@@ -26,6 +27,15 @@ def get_hardhat_provider(network_api: NetworkAPI):
 
 
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts"
+
+
+def pytest_runtest_makereport(item, call):
+    tr = orig_pytest_runtest_makereport(item, call)
+    if call.excinfo is not None and "too many requests" in str(call.excinfo).lower():
+        tr.outcome = "skipped"
+        tr.wasxfail = "reason: Alchemy requests overloaded (likely in CI)"
+
+    return tr
 
 
 @pytest.fixture(scope="session", params=("solidity", "vyper"))
@@ -91,22 +101,22 @@ def networks():
 
 
 @pytest.fixture(scope="session")
-def network_api(networks):
+def local_network_api(networks):
     return networks.ecosystems["ethereum"][LOCAL_NETWORK_NAME]
 
 
 @pytest.fixture(scope="session")
-def hardhat_disconnected(network_api):
-    provider = get_hardhat_provider(network_api)
+def hardhat_disconnected(local_network_api):
+    provider = get_hardhat_provider(local_network_api)
     return provider
 
 
 @pytest.fixture(scope="session")
-def hardhat_connected(networks, network_api):
-    provider = get_hardhat_provider(network_api)
+def hardhat_connected(networks, local_network_api):
+    provider = get_hardhat_provider(local_network_api)
     provider.connect()
+    original_provider = networks.active_provider
     networks.active_provider = provider
-    try:
-        yield provider
-    finally:
-        provider.disconnect()
+    yield provider
+    provider.disconnect()
+    networks.active_provider = original_provider

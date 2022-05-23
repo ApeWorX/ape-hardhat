@@ -30,6 +30,7 @@ from ape_test import Config as TestConfig
 from evm_trace import TraceFrame
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
+from web3.middleware import geth_poa_middleware
 
 from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
 
@@ -57,6 +58,10 @@ module.exports = {{
 }};
 """
 HARDHAT_CONFIG_FILE_NAME = "hardhat.config.js"
+_NO_REASON_REVERT_MESSAGE = "Transaction reverted without a reason string"
+_REVERT_REASON_PREFIX = (
+    "Error: VM Exception while processing transaction: reverted with reason string "
+)
 
 
 class HardhatConfigJS:
@@ -106,7 +111,7 @@ class HardhatNetworkConfig(PluginConfig):
     fork_request_timeout: int = 300
 
     # For setting the values in --fork and --fork-block-number command arguments.
-    # Used only in HardhatMainnetForkProvider.
+    # Used only in HardhatForkProvider.
     # Mapping of ecosystem_name => network_name => HardhatForkConfig
     fork: Dict[str, Dict[str, HardhatForkConfig]] = {}
 
@@ -396,25 +401,18 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             return VirtualMachineError(base_err=exception)
 
         err_data = exception.args[0]
-        no_revert_reason_message = "Transaction reverted without a reason string"
 
-        if not isinstance(err_data, dict):
-            # Try 'geth'-like format from base class.
-            return super().get_virtual_machine_error(exception)
-
-        message = str(err_data.get("message"))
+        message = err_data if isinstance(err_data, str) else str(err_data.get("message"))
         if not message:
             return VirtualMachineError(base_err=exception)
+        elif message.startswith("execution reverted: "):
+            message = message.replace("execution reverted: ", "")
 
-        # Handle `ContactLogicError` similarly to other providers in `ape`.
-        # by stripping off the unnecessary prefix that hardhat has on reverts.
-        hardhat_prefix = (
-            "Error: VM Exception while processing transaction: reverted with reason string "
-        )
-        if message.startswith(hardhat_prefix):
-            message = message.replace(hardhat_prefix, "").strip("'")
+        if message.startswith(_REVERT_REASON_PREFIX):
+            message = message.replace(_REVERT_REASON_PREFIX, "").strip("'")
             return ContractLogicError(revert_message=message)
-        elif no_revert_reason_message in message:
+
+        elif _NO_REASON_REVERT_MESSAGE in message:
             return ContractLogicError()
 
         elif message == "Transaction ran out of gas":
@@ -423,7 +421,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return VirtualMachineError(message=message)
 
 
-class HardhatMainnetForkProvider(HardhatProvider):
+class HardhatForkProvider(HardhatProvider):
     """
     A Hardhat provider that uses ``--fork``, like:
     ``npx hardhat node --fork <upstream-provider-url>``.
@@ -483,8 +481,14 @@ class HardhatMainnetForkProvider(HardhatProvider):
 
         # Verify that we're connected to a Hardhat node with mainnet-fork mode.
         self._upstream_provider.connect()
+        upstream_chain_id = self._upstream_provider.chain_id
         upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
         self._upstream_provider.disconnect()
+
+        # If upstream network is rinkeby, goerli, or kovan (PoA test-nets)
+        if upstream_chain_id in (4, 5, 42):
+            self._web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+
         if self.get_block(0).hash != upstream_genesis_block_hash:
             logger.warning(
                 "Upstream network has mismatching genesis block. "
@@ -516,13 +520,3 @@ class HardhatMainnetForkProvider(HardhatProvider):
         self._make_request(
             "hardhat_reset", [{"jsonRpcUrl": self.fork_url, "blockNumber": self.fork_block_number}]
         )
-
-    def get_virtual_machine_error(self, exception: Exception) -> VirtualMachineError:
-        if not len(exception.args):
-            return VirtualMachineError(base_err=exception)
-
-        elif isinstance(exception.args[0], str):
-            # Likely from upstream-provider
-            return self._upstream_provider.get_virtual_machine_error(exception)
-
-        return super().get_virtual_machine_error(exception)
