@@ -1,5 +1,6 @@
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 import pytest
 from ape.exceptions import ContractLogicError
@@ -7,14 +8,7 @@ from ape_ethereum.ecosystem import NETWORKS
 
 from ape_hardhat.providers import HardhatForkProvider
 
-TESTS_DIRECTORY = Path(__file__).parent
 TEST_ADDRESS = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
-
-
-@pytest.fixture(autouse=True, scope="module")
-def in_tests_dir(config):
-    with config.using_project(TESTS_DIRECTORY):
-        yield
 
 
 @pytest.fixture(scope="module")
@@ -23,7 +17,7 @@ def mainnet_fork_network_api(networks):
 
 
 @pytest.fixture(scope="module")
-def connected_mainnet_fork_provider(networks, mainnet_fork_network_api):
+def hardhat_fork_connected(networks, mainnet_fork_network_api):
     provider = create_fork_provider(mainnet_fork_network_api)
     provider.connect()
     networks.active_provider = provider
@@ -33,11 +27,11 @@ def connected_mainnet_fork_provider(networks, mainnet_fork_network_api):
 
 
 @pytest.fixture(scope="module")
-def fork_contract_instance(owner, contract_container, connected_mainnet_fork_provider):
+def fork_contract_instance(owner, contract_container, hardhat_fork_connected):
     return owner.deploy(contract_container)
 
 
-def create_fork_provider(network_api, port=9001):
+def create_fork_provider(network_api, port: Optional[int] = 9001):
     provider = HardhatForkProvider(
         name="hardhat",
         network=network_api,
@@ -47,6 +41,13 @@ def create_fork_provider(network_api, port=9001):
     )
     provider.port = port
     return provider
+
+
+@pytest.mark.fork
+def test_connect_default_port(no_config, mainnet_fork_network_api):
+    hardhat = create_fork_provider(mainnet_fork_network_api, port=None)
+    hardhat.connect()
+    assert hardhat.port == 8555
 
 
 @pytest.mark.parametrize("network", [k for k in NETWORKS.keys()])
