@@ -177,7 +177,6 @@ def test_send_transaction(contract_instance, owner, hardhat_connected):
         contract_instance.setNumber(20)
 
 
-@pytest.mark.fork
 def test_contract_revert_no_message(owner, contract_instance):
     # The Contract raises empty revert when setting number to 5.
     with pytest.raises(ContractLogicError) as err:
@@ -186,7 +185,6 @@ def test_contract_revert_no_message(owner, contract_instance):
     assert str(err.value) == "Transaction failed."
 
 
-@pytest.mark.fork
 def test_transaction_contract_as_sender(contract_instance):
     with pytest.raises(ContractLogicError) as err:
         # Task failed successfully
