@@ -340,10 +340,23 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             sender = self.conversion_manager.convert(txn.sender, AddressType)
 
         if sender in self.unlocked_accounts:
+            # Allow for an unsigned transaction
             txn = self.prepare_transaction(txn)
+            txn_dict = txn.dict()
 
-        receipt = super().send_transaction(txn)
-        receipt.raise_for_status()
+            try:
+                txn_hash = self._web3.eth.send_transaction(txn_dict)  # type: ignore
+            except ValueError as err:
+                raise self.get_virtual_machine_error(err) from err
+
+            receipt = self.get_transaction(
+                txn_hash.hex(), required_confirmations=txn.required_confirmations or 0
+            )
+            receipt.raise_for_status()
+
+        else:
+            receipt = super().send_transaction(txn)
+
         return receipt
 
     def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
