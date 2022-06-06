@@ -6,14 +6,9 @@ import pytest  # type: ignore
 from _pytest.runner import pytest_runtest_makereport as orig_pytest_runtest_makereport
 from ape.api.networks import LOCAL_NETWORK_NAME
 from ape.contracts import ContractContainer
-from ape.managers.project import ProjectManager
 from ethpm_types import ContractType
 
 from ape_hardhat import HardhatProvider
-
-
-def get_project() -> ProjectManager:
-    return ape.Project(Path(__file__).parent)
 
 
 @pytest.fixture(scope="session")
@@ -42,6 +37,27 @@ def pytest_runtest_makereport(item, call):
     return tr
 
 
+@pytest.fixture(scope="session", autouse=True)
+def in_tests_dir(config):
+    with config.using_project(Path(__file__).parent):
+        yield
+
+
+@pytest.fixture(scope="session")
+def config():
+    return ape.config
+
+
+@pytest.fixture(scope="session")
+def accounts():
+    return ape.accounts.test_accounts
+
+
+@pytest.fixture(scope="session")
+def networks():
+    return ape.networks
+
+
 @pytest.fixture(scope="session", params=("solidity", "vyper"))
 def raw_contract_type(request):
     path = BASE_CONTRACTS_PATH / f"{request.param}_contract.json"
@@ -64,22 +80,6 @@ def contract_instance(owner, contract_container, hardhat_connected):
 
 
 @pytest.fixture(scope="session")
-def config():
-    return ape.config
-
-
-@pytest.fixture(scope="session", autouse=True)
-def in_tests_dir(config):
-    with config.using_project(Path(__file__).parent):
-        yield
-
-
-@pytest.fixture(scope="session")
-def accounts():
-    return ape.accounts.test_accounts
-
-
-@pytest.fixture(scope="session")
 def sender(accounts):
     return accounts[0]
 
@@ -92,16 +92,6 @@ def receiver(accounts):
 @pytest.fixture(scope="session")
 def owner(accounts):
     return accounts[2]
-
-
-@pytest.fixture(scope="session")
-def project():
-    return get_project()
-
-
-@pytest.fixture(scope="session")
-def networks():
-    return ape.networks
 
 
 @pytest.fixture(scope="session")
