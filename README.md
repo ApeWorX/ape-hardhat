@@ -36,7 +36,7 @@ cd your-ape-project
 npm install --save-dev hardhat
 ```
 
-After that, you can use the ``--network ethereum:development:hardhat`` command line flag to use the hardhat network (if it's not already configured as the default).
+After that, you can use the ``--network ethereum:local:hardhat`` command line flag to use the hardhat network (if it's not already configured as the default).
 
 This network provider takes additional Hardhat-specific configuration options. To use them, add these configs in your project's ``ape-config.yaml``:
 
