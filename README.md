@@ -59,6 +59,7 @@ You can also adjust the request timeout setting:
 ```yaml
 hardhat:
   request_timeout: 20  # Defaults to 30
+  fork_request_timeout: 600  # Defaults to 300
 ``````
 
 ## Mainnet Fork
@@ -79,7 +80,6 @@ hardhat:
     ethereum:
       mainnet:
         upstream_provider: alchemy
-        request_timeout: 600  # Defaults to 300
 ```
 
 Otherwise, it defaults to the default mainnet provider plugin. You can also specify a ``block_number``.
