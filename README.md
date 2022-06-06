@@ -60,7 +60,7 @@ You can also adjust the request timeout setting:
 hardhat:
   request_timeout: 20  # Defaults to 30
   fork_request_timeout: 600  # Defaults to 300
-``````
+```
 
 ## Mainnet Fork
 
