@@ -4,7 +4,7 @@ from pathlib import Path
 import ape
 import pytest  # type: ignore
 from _pytest.runner import pytest_runtest_makereport as orig_pytest_runtest_makereport
-from ape.api.networks import LOCAL_NETWORK_NAME, NetworkAPI
+from ape.api.networks import LOCAL_NETWORK_NAME
 from ape.contracts import ContractContainer
 from ape.managers.project import ProjectManager
 from ethpm_types import ContractType
@@ -16,14 +16,18 @@ def get_project() -> ProjectManager:
     return ape.Project(Path(__file__).parent)
 
 
-def get_hardhat_provider(network_api: NetworkAPI):
-    return HardhatProvider(
-        name="hardhat",
-        network=network_api,
-        request_header={},
-        data_folder=Path("."),
-        provider_settings={},
-    )
+@pytest.fixture(scope="session")
+def get_hardhat_provider(local_network_api):
+    def method():
+        return HardhatProvider(
+            name="hardhat",
+            network=local_network_api,
+            request_header={},
+            data_folder=Path("."),
+            provider_settings={},
+        )
+
+    return method
 
 
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts"
@@ -106,14 +110,13 @@ def local_network_api(networks):
 
 
 @pytest.fixture(scope="session")
-def hardhat_disconnected(local_network_api):
-    provider = get_hardhat_provider(local_network_api)
-    return provider
+def hardhat_disconnected(get_hardhat_provider):
+    return get_hardhat_provider()
 
 
 @pytest.fixture(scope="session")
-def hardhat_connected(networks, local_network_api):
-    provider = get_hardhat_provider(local_network_api)
+def hardhat_connected(networks, get_hardhat_provider):
+    provider = get_hardhat_provider()
     provider.connect()
     original_provider = networks.active_provider
     networks.active_provider = provider

@@ -9,7 +9,6 @@ from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
 from ape_hardhat.providers import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME, HardhatProvider
-from tests.conftest import get_hardhat_provider
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
 
@@ -18,10 +17,10 @@ def test_instantiation(hardhat_disconnected):
     assert hardhat_disconnected.name == "hardhat"
 
 
-def test_connect_and_disconnect(local_network_api):
+def test_connect_and_disconnect(get_hardhat_provider):
     # Use custom port to prevent connecting to a port used in another test.
 
-    hardhat = get_hardhat_provider(local_network_api)
+    hardhat = get_hardhat_provider()
     hardhat.port = 8555
     hardhat.connect()
 
@@ -70,15 +69,15 @@ def test_rpc_methods(hardhat_connected, method, args, expected):
     assert method(hardhat_connected, *args) == expected
 
 
-def test_multiple_hardhat_instances(local_network_api):
+def test_multiple_hardhat_instances(get_hardhat_provider):
     """
     Validate the somewhat tricky internal logic of running multiple Hardhat subprocesses
     under a single parent process.
     """
     # instantiate the providers (which will start the subprocesses) and validate the ports
-    provider_1 = get_hardhat_provider(local_network_api)
-    provider_2 = get_hardhat_provider(local_network_api)
-    provider_3 = get_hardhat_provider(local_network_api)
+    provider_1 = get_hardhat_provider()
+    provider_2 = get_hardhat_provider()
+    provider_3 = get_hardhat_provider()
     provider_1.port = 8556
     provider_2.port = 8557
     provider_3.port = 8558
@@ -155,7 +154,7 @@ def test_get_transaction_trace(hardhat_connected, sender, receiver):
         assert isinstance(log, TraceFrame)
 
 
-def test_request_timeout(hardhat_connected, config, local_network_api):
+def test_request_timeout(hardhat_connected, config, get_hardhat_provider):
     actual = hardhat_connected.web3.provider._request_kwargs["timeout"]  # type: ignore
     expected = 29  # Value set in `ape-config.yaml`
     assert actual == expected
@@ -164,7 +163,7 @@ def test_request_timeout(hardhat_connected, config, local_network_api):
     with tempfile.TemporaryDirectory() as temp_dir_str:
         temp_dir = Path(temp_dir_str)
         with config.using_project(temp_dir):
-            provider = get_hardhat_provider(local_network_api)
+            provider = get_hardhat_provider()
             assert provider.timeout == 30
 
 
