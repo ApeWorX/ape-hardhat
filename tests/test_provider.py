@@ -167,7 +167,7 @@ def test_request_timeout(hardhat_connected, config, get_hardhat_provider):
             assert provider.timeout == 30
 
 
-def test_send_transaction(contract_instance, owner, hardhat_connected):
+def test_send_transaction(contract_instance, owner):
     contract_instance.setNumber(10, sender=owner)
     assert contract_instance.myNumber() == 10
 
