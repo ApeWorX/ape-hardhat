@@ -149,9 +149,9 @@ def test_unlock_account(hardhat_connected):
 
 def test_get_transaction_trace(hardhat_connected, sender, receiver):
     transfer = sender.transfer(receiver, 1)
-    logs = hardhat_connected.get_transaction_trace(transfer.txn_hash)
-    for log in logs:
-        assert isinstance(log, TraceFrame)
+    frame_data = hardhat_connected.get_transaction_trace(transfer.txn_hash)
+    for frame in frame_data:
+        assert isinstance(frame, TraceFrame)
 
 
 def test_request_timeout(hardhat_connected, config, get_hardhat_provider):
