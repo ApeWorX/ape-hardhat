@@ -10,21 +10,6 @@ from ethpm_types import ContractType
 
 from ape_hardhat import HardhatProvider
 
-
-@pytest.fixture(scope="session")
-def get_hardhat_provider(local_network_api):
-    def method():
-        return HardhatProvider(
-            name="hardhat",
-            network=local_network_api,
-            request_header={},
-            data_folder=Path("."),
-            provider_settings={},
-        )
-
-    return method
-
-
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts"
 
 
@@ -56,6 +41,20 @@ def accounts():
 @pytest.fixture(scope="session")
 def networks():
     return ape.networks
+
+
+@pytest.fixture(scope="session")
+def get_hardhat_provider(local_network_api):
+    def method():
+        return HardhatProvider(
+            name="hardhat",
+            network=local_network_api,
+            request_header={},
+            data_folder=Path("."),
+            provider_settings={},
+        )
+
+    return method
 
 
 @pytest.fixture(scope="session", params=("solidity", "vyper"))
