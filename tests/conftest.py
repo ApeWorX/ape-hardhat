@@ -103,11 +103,6 @@ def hardhat_disconnected(get_hardhat_provider):
 
 
 @pytest.fixture(scope="session")
-def hardhat_connected(networks, get_hardhat_provider):
-    provider = get_hardhat_provider()
-    provider.connect()
-    original_provider = networks.active_provider
-    networks.active_provider = provider
-    yield provider
-    provider.disconnect()
-    networks.active_provider = original_provider
+def hardhat_connected(networks):
+    with networks.parse_network_choice("ethereum:local:hardhat") as provider:
+        yield provider

@@ -23,13 +23,9 @@ def mainnet_fork_network_api(networks):
 
 
 @pytest.fixture(scope="module")
-def connected_mainnet_fork_provider(networks, mainnet_fork_network_api):
-    provider = create_fork_provider(mainnet_fork_network_api)
-    provider.connect()
-    networks.active_provider = provider
-    yield provider
-    provider.disconnect()
-    networks.active_provider = None
+def connected_mainnet_fork_provider(networks):
+    with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
+        yield provider
 
 
 @pytest.fixture(scope="module")
