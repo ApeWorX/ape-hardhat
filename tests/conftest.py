@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 import ape
@@ -60,12 +59,12 @@ def get_hardhat_provider(local_network_api):
 @pytest.fixture(scope="session", params=("solidity", "vyper"))
 def raw_contract_type(request):
     path = BASE_CONTRACTS_PATH / f"{request.param}_contract.json"
-    return json.loads(path.read_text())
+    return path.read_text()
 
 
 @pytest.fixture(scope="session")
 def contract_type(raw_contract_type) -> ContractType:
-    return ContractType.parse_obj(raw_contract_type)
+    return ContractType.parse_raw(raw_contract_type)
 
 
 @pytest.fixture(scope="session")
