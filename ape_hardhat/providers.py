@@ -369,9 +369,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         Returns:
             Iterator(TraceFrame): Transaction execution trace object.
         """
-        logs = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
-        for log in logs:
-            yield TraceFrame(**log)
+        frames = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
+        for frame in frames:
+            yield TraceFrame(**frame)
 
     def get_virtual_machine_error(self, exception: Exception) -> VirtualMachineError:
         if not len(exception.args):
