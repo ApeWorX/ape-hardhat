@@ -1,5 +1,6 @@
 from pathlib import Path
 from tempfile import mkdtemp
+from typing import List, Optional
 
 import ape
 import pytest  # type: ignore
@@ -145,6 +146,22 @@ def request_manager(networks):
     return networks.provider.web3.manager
 
 
+class RPCSpy:
+    def __init__(self, spy):
+        self.spy = spy
+
+    def assert_rpc_called(self, name: str, args: List, num_times: Optional[int] = None):
+        calls = [c for c in self.spy.call_args_list if c[0][0] == name]
+
+        if num_times is not None:
+            assert len(calls) == num_times
+
+        for call in calls:
+            actual_args = calls[0][0][1]
+            assert actual_args == args
+
+
 @pytest.fixture
 def rpc_spy(mocker, request_manager):
-    return mocker.spy(request_manager, "request_blocking")
+    spy = mocker.spy(request_manager, "request_blocking")
+    return RPCSpy(spy)

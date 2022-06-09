@@ -75,7 +75,7 @@ def test_local_transaction_traces(local_receipt, trace_capture, rpc_spy):
     assert all([x in LOCAL_TRACE for x in trace_capture()])
 
     # Verify only a single RPC was made.
-    assert rpc_spy.call_count == 1
+    rpc_spy.assert_rpc_called("debug_traceTransaction", [local_receipt.txn_hash], num_times=1)
 
 
 @pytest.mark.fork

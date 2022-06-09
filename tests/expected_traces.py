@@ -1,41 +1,41 @@
 LOCAL_TRACE = """
-Call trace for '0xd15e59e4cca4aaf3ac57be8b71d35bb53549ec3ec1833da183d3fa5f4f609b83'
-tx.origin=0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C
-ContractA.methodWithoutArguments() -> 0x00..7a9c [411973 gas]
-├── ContractB.methodB1(lolol="ice-cream", dynamo=36) [401601 gas]
+Call trace for '0xbf6c0da1aaf504d3d1a6dcfa37d30bae25a05931eef142994225c313fcc28cd8'
+txn.origin=0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7
+ContractA.goodbye() [31011 gas]
+├── SYMBOL.methodB1(lolol="ice-cream", dynamo=36) [401697 gas]
 │   ├── ContractC.getSomeList() -> [
 │   │     3425311345134513461345134534531452345,
 │   │     111344445534535353,
 │   │     993453434534534534534977788884443333
-│   │   ] [369688 gas]
-│   └── ContractC.methodC1(windows95="simpler", jamaica=36, cardinal=ContractA) [363455 gas]
-├── ContractB.callMe(blue=tx.origin) -> tx.origin [233011 gas]
-├── ContractB.methodB2(trombone=tx.origin) [231443 gas]
-│   ├── ContractC.paperwork(ContractA) -> (os="simpler", country=36, wings=ContractA) [226904 gas]
-│   ├── ContractC.methodC1(windows95="simpler", jamaica=0, cardinal=ContractC) [221807 gas]
-│   ├── ContractC.methodC2() [146780 gas]
-│   └── ContractC.methodC2() [121561 gas]
-├── ContractC.addressToValue(tx.origin) -> 0 [99841 gas]
-├── ContractB.bandPractice(tx.origin) -> 0 [93806 gas]
-├── ContractB.methodB1(lolol="lemondrop", dynamo=0) [91836 gas]
+│   │   ] [369738 gas]
+│   └── ContractC.methodC1(windows95="simpler", jamaica=36, cardinal=ContractA) [363505 gas]
+├── SYMBOL.callMe(blue=0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C) -> 0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C [233062 gas]
+├── SYMBOL.methodB2(trombone=0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C) [231581 gas]
+│   ├── ContractC.paperwork(ContractA) -> (os="simpler", country=36, wings=ContractA) [226996 gas]
+│   ├── ContractC.methodC1(windows95="simpler", jamaica=0, cardinal=ContractC) [221899 gas]
+│   ├── ContractC.methodC2() [146872 gas]
+│   └── ContractC.methodC2() [121652 gas]
+├── ContractC.addressToValue(0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C) -> 0 [99935 gas]
+├── SYMBOL.bandPractice(0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C) -> 0 [93900 gas]
+├── SYMBOL.methodB1(lolol="lemondrop", dynamo=0) [91930 gas]
 │   ├── ContractC.getSomeList() -> [
 │   │     3425311345134513461345134534531452345,
 │   │     111344445534535353,
 │   │     993453434534534534534977788884443333
-│   │   ] [86068 gas]
-│   └── ContractC.methodC1(windows95="simpler", jamaica=0, cardinal=ContractA) [82296 gas]
-└── ContractB.methodB1(lolol="snitches_get_stiches", dynamo=111) [54812 gas]
+│   │   ] [86116 gas]
+│   └── ContractC.methodC1(windows95="simpler", jamaica=0, cardinal=ContractA) [82344 gas]
+└── SYMBOL.methodB1(lolol="snitches_get_stiches", dynamo=111) [54861 gas]
     ├── ContractC.getSomeList() -> [
     │     3425311345134513461345134534531452345,
     │     111344445534535353,
     │     993453434534534534534977788884443333
-    │   ] [51690 gas]
-    └── ContractC.methodC1(windows95="simpler", jamaica=111, cardinal=ContractA) [47917 gas]
+    │   ] [51694 gas]
+    └── ContractC.methodC1(windows95="simpler", jamaica=111, cardinal=ContractA) [47921 gas]
 """
 FAIL_TRACE = """
 Call trace for '0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d'
 🚫 reverted with message: "UNIV3R: min return"
-tx.origin=0xd2f91C13e2D7ABbA4408Cd3D86285b7835524ad7
+txn.origin=0xd2f91C13e2D7ABbA4408Cd3D86285b7835524ad7
 AggregationRouterV4.uniswapV3Swap(
   amount=12851675475480000000000,
   minReturn=4205588148,
@@ -45,8 +45,8 @@ AggregationRouterV4.uniswapV3Swap(
   ]
 ) [208466 gas]
 ├── CALL: 0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5.<0x128acb08> [235702 gas]
-│   ├── WETH9.transfer(dst=AggregationRouterV4, wad=2098831888913057968) -> True [198998 gas]
-│   ├── FixedToken.balanceOf(account=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5) -> 1300692354907962674610343 [166172 gas]
+│   ├── WETH.transfer(dst=AggregationRouterV4, wad=2098831888913057968) -> True [198998 gas]
+│   ├── XDEFI.balanceOf(account=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5) -> 1300692354907962674610343 [166172 gas]
 │   │   └── FixedToken.balanceOf(account=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5) -> 1300692354907962674610343 [161021 gas]
 │   ├── AggregationRouterV4.uniswapV3SwapCallback(
 │   │     amount0Delta=12851675475480000000000,
@@ -56,7 +56,7 @@ AggregationRouterV4.uniswapV3Swap(
 │   │   ├── STATICCALL: 0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5.<0x0dfe1681> [154703 gas]
 │   │   ├── STATICCALL: 0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5.<0xd21220a7> [154293 gas]
 │   │   ├── STATICCALL: 0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5.<0xddca3f43> [153845 gas]
-│   │   └── FixedToken.transferFrom(
+│   │   └── XDEFI.transferFrom(
 │   │         sender=tx.origin,
 │   │         recipient=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5,
 │   │         amount=12851675475480000000000
@@ -66,12 +66,12 @@ AggregationRouterV4.uniswapV3Swap(
 │   │             recipient=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5,
 │   │             amount=12851675475480000000000
 │   │           ) -> True [149572 gas]
-│   └── FixedToken.balanceOf(account=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5) -> 1313544030383442674610343 [135118 gas]
+│   └── XDEFI.balanceOf(account=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5) -> 1313544030383442674610343 [135118 gas]
 │       └── FixedToken.balanceOf(account=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5) -> 1313544030383442674610343 [132875 gas]
 └── CALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640.<0x128acb08> [130650 gas]
     ├── CALL: FiatTokenProxy.<0xa9059cbb> [102998 gas]
     │   └── FiatTokenV2_1.transfer(to=tx.origin, value=4192051335) -> True [94297 gas]
-    ├── WETH9.balanceOf(0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640) -> 68357784800426962457000 [73171 gas]
+    ├── WETH.balanceOf(0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640) -> 68357784800426962457000 [73171 gas]
     ├── AggregationRouterV4.uniswapV3SwapCallback(
     │     amount0Delta=-4192051335,
     │     amount1Delta=2098831888913057968,
@@ -80,11 +80,11 @@ AggregationRouterV4.uniswapV3Swap(
     │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640.<0x0dfe1681> [68120 gas]
     │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640.<0xd21220a7> [67710 gas]
     │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640.<0xddca3f43> [67262 gas]
-    │   └── WETH9.transfer(
+    │   └── WETH.transfer(
     │         dst=0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640,
     │         wad=2098831888913057968
     │       ) -> True [65595 gas]
-    └── WETH9.balanceOf(0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640) -> 68359883632315875514968 [59578 gas]
+    └── WETH.balanceOf(0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640) -> 68359883632315875514968 [59578 gas]
 """
 INTERNAL_TRANSFERS_TXN_0_TRACE = """
 Call trace for '0xb7d7f1d5ce7743e821d3026647df486f517946ef1342a1ae93c96e4a8016eab7'
