@@ -5,8 +5,6 @@ import pytest
 from ape.exceptions import ContractLogicError
 from ape_ethereum.ecosystem import NETWORKS
 
-from ape_hardhat.providers import HardhatForkProvider
-
 TESTS_DIRECTORY = Path(__file__).parent
 TEST_ADDRESS = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
 
@@ -18,35 +16,8 @@ def in_tests_dir(config):
 
 
 @pytest.fixture(scope="module")
-def mainnet_fork_network_api(networks):
-    return networks.ecosystems["ethereum"]["mainnet-fork"]
-
-
-@pytest.fixture(scope="module")
-def connected_mainnet_fork_provider(networks, mainnet_fork_network_api):
-    provider = create_fork_provider(mainnet_fork_network_api)
-    provider.connect()
-    networks.active_provider = provider
-    yield provider
-    provider.disconnect()
-    networks.active_provider = None
-
-
-@pytest.fixture(scope="module")
 def fork_contract_instance(owner, contract_container, connected_mainnet_fork_provider):
     return owner.deploy(contract_container)
-
-
-def create_fork_provider(network_api, port=9001):
-    provider = HardhatForkProvider(
-        name="hardhat",
-        network=network_api,
-        request_header={},
-        data_folder=Path("."),
-        provider_settings={},
-    )
-    provider.port = port
-    return provider
 
 
 @pytest.mark.parametrize("network", [k for k in NETWORKS.keys()])
@@ -57,10 +28,9 @@ def test_fork_config(config, network):
 
 
 @pytest.mark.fork
-@pytest.mark.parametrize("upstream,port", [("mainnet", 8998), ("rinkeby", 8999)])
-def test_impersonate(networks, accounts, upstream, port):
-    network_api = networks.ecosystems["ethereum"][f"{upstream}-fork"]
-    provider = create_fork_provider(network_api, port)
+@pytest.mark.parametrize("upstream_network,port", [("mainnet", 8998), ("rinkeby", 8999)])
+def test_impersonate(networks, accounts, upstream_network, port, create_fork_provider):
+    provider = create_fork_provider(port=port, network=upstream_network)
     provider.connect()
     orig_provider = networks.active_provider
     networks.active_provider = provider
@@ -76,8 +46,8 @@ def test_impersonate(networks, accounts, upstream, port):
 
 
 @pytest.mark.fork
-def test_request_timeout(networks, config, mainnet_fork_network_api):
-    provider = create_fork_provider(mainnet_fork_network_api, 9008)
+def test_request_timeout(networks, config, create_fork_provider):
+    provider = create_fork_provider(9008)
     provider.connect()
     actual = provider.web3.provider._request_kwargs["timeout"]  # type: ignore
     expected = 360  # Value set in `ape-config.yaml`
@@ -88,13 +58,13 @@ def test_request_timeout(networks, config, mainnet_fork_network_api):
     with tempfile.TemporaryDirectory() as temp_dir_str:
         temp_dir = Path(temp_dir_str)
         with config.using_project(temp_dir):
-            provider = create_fork_provider(mainnet_fork_network_api, 9011)
+            provider = create_fork_provider(9011)
             assert provider.timeout == 300
 
 
 @pytest.mark.fork
-def test_reset_fork(networks, mainnet_fork_network_api):
-    provider = create_fork_provider(mainnet_fork_network_api, 9010)
+def test_reset_fork(networks, create_fork_provider):
+    provider = create_fork_provider(9010)
     provider.connect()
     provider.mine()
     prev_block_num = provider.get_block("latest").number
@@ -141,8 +111,8 @@ def test_transaction_contract_as_sender(fork_contract_instance):
 
 
 @pytest.mark.fork
-def test_transaction_unknown_contract_as_sender(accounts, networks, mainnet_fork_network_api):
-    provider = create_fork_provider(mainnet_fork_network_api, 9012)
+def test_transaction_unknown_contract_as_sender(accounts, networks, create_fork_provider):
+    provider = create_fork_provider(9012)
     provider.connect()
     init_provider = networks.active_provider
     networks.active_provider = provider
