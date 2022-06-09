@@ -1,6 +1,6 @@
 LOCAL_TRACE = """
 Call trace for '0xd15e59e4cca4aaf3ac57be8b71d35bb53549ec3ec1833da183d3fa5f4f609b83'
-Sender=0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C
+tx.origin=0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C
 ContractA.methodWithoutArguments() -> 0x00..7a9c [411973 gas]
 ├── ContractB.methodB1(lolol="ice-cream", dynamo=36) [401601 gas]
 │   ├── ContractC.getSomeList() -> [
@@ -9,14 +9,14 @@ ContractA.methodWithoutArguments() -> 0x00..7a9c [411973 gas]
 │   │     993453434534534534534977788884443333
 │   │   ] [369688 gas]
 │   └── ContractC.methodC1(windows95="simpler", jamaica=36, cardinal=ContractA) [363455 gas]
-├── ContractB.callMe(blue=Sender) -> Sender [233011 gas]
-├── ContractB.methodB2(trombone=Sender) [231443 gas]
+├── ContractB.callMe(blue=tx.origin) -> tx.origin [233011 gas]
+├── ContractB.methodB2(trombone=tx.origin) [231443 gas]
 │   ├── ContractC.paperwork(ContractA) -> (os="simpler", country=36, wings=ContractA) [226904 gas]
 │   ├── ContractC.methodC1(windows95="simpler", jamaica=0, cardinal=ContractC) [221807 gas]
 │   ├── ContractC.methodC2() [146780 gas]
 │   └── ContractC.methodC2() [121561 gas]
-├── ContractC.addressToValue(Sender) -> 0 [99841 gas]
-├── ContractB.bandPractice(Sender) -> 0 [93806 gas]
+├── ContractC.addressToValue(tx.origin) -> 0 [99841 gas]
+├── ContractB.bandPractice(tx.origin) -> 0 [93806 gas]
 ├── ContractB.methodB1(lolol="lemondrop", dynamo=0) [91836 gas]
 │   ├── ContractC.getSomeList() -> [
 │   │     3425311345134513461345134534531452345,
@@ -35,7 +35,7 @@ ContractA.methodWithoutArguments() -> 0x00..7a9c [411973 gas]
 FAIL_TRACE = """
 Call trace for '0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d'
 🚫 reverted with message: "UNIV3R: min return"
-Sender=0xd2f91C13e2D7ABbA4408Cd3D86285b7835524ad7
+tx.origin=0xd2f91C13e2D7ABbA4408Cd3D86285b7835524ad7
 AggregationRouterV4.uniswapV3Swap(
   amount=12851675475480000000000,
   minReturn=4205588148,
@@ -57,12 +57,12 @@ AggregationRouterV4.uniswapV3Swap(
 │   │   ├── STATICCALL: 0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5.<0xd21220a7> [154293 gas]
 │   │   ├── STATICCALL: 0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5.<0xddca3f43> [153845 gas]
 │   │   └── FixedToken.transferFrom(
-│   │         sender=Sender,
+│   │         sender=tx.origin,
 │   │         recipient=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5,
 │   │         amount=12851675475480000000000
 │   │       ) -> True [152092 gas]
 │   │       └── FixedToken.transferFrom(
-│   │             sender=Sender,
+│   │             sender=tx.origin,
 │   │             recipient=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5,
 │   │             amount=12851675475480000000000
 │   │           ) -> True [149572 gas]
@@ -70,7 +70,7 @@ AggregationRouterV4.uniswapV3Swap(
 │       └── FixedToken.balanceOf(account=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5) -> 1313544030383442674610343 [132875 gas]
 └── CALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640.<0x128acb08> [130650 gas]
     ├── CALL: FiatTokenProxy.<0xa9059cbb> [102998 gas]
-    │   └── FiatTokenV2_1.transfer(to=Sender, value=4192051335) -> True [94297 gas]
+    │   └── FiatTokenV2_1.transfer(to=tx.origin, value=4192051335) -> True [94297 gas]
     ├── WETH9.balanceOf(0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640) -> 68357784800426962457000 [73171 gas]
     ├── AggregationRouterV4.uniswapV3SwapCallback(
     │     amount0Delta=-4192051335,
@@ -88,7 +88,7 @@ AggregationRouterV4.uniswapV3Swap(
 """
 INTERNAL_TRANSFERS_TXN_0_TRACE = """
 Call trace for '0xb7d7f1d5ce7743e821d3026647df486f517946ef1342a1ae93c96e4a8016eab7'
-Sender=0x5668EAd1eDB8E2a4d724C8fb9cB5fFEabEB422dc
+tx.origin=0x5668EAd1eDB8E2a4d724C8fb9cB5fFEabEB422dc
 DSProxy.execute(_target=LoanShifterTaker, _data=0x35..0000) -> '' [1275643 gas]
 └── LoanShifterTaker.moveLoan(
       _exchangeData=[
@@ -174,7 +174,7 @@ DSProxy.execute(_target=LoanShifterTaker, _data=0x35..0000) -> '' [1275643 gas]
     │       │   │         _collateral=322647834938052117610
     │       │   │       ) [1263595 gas]
     │       │   │       ├── DssCdpManager.owns(11598) -> DSProxy [1241823 gas]
-    │       │   │       ├── DSProxy.owner() -> Sender [1238873 gas]
+    │       │   │       ├── DSProxy.owner() -> tx.origin [1238873 gas]
     │       │   │       ├── DssCdpManager.ilks(11598) -> 'ETH-A' [1235815 gas]
     │       │   │       ├── DssCdpManager.vat() -> Vat [1232928 gas]
     │       │   │       ├── DssCdpManager.urns(11598) -> UrnHandler [1230064 gas]
@@ -379,14 +379,14 @@ DSProxy.execute(_target=LoanShifterTaker, _data=0x35..0000) -> '' [1275643 gas]
     ├── DSGuard.forbid(src=LoanShifterReceiver, dst=DSProxy, sig=0x1c..0000) [182344 gas]
     └── DefisaverLogger.Log(
           _contract=DSProxy,
-          _caller=Sender,
+          _caller=tx.origin,
           _logName="LoanShifter",
           _data=0x00..0000
         ) [174327 gas]
 """
 INTERNAL_TRANSFERS_TXN_1_TRACE = """
 Call trace for '0x0537316f37627655b7fe5e50e23f71cd835b377d1cde4226443c94723d036e32'
-Sender=0x5668EAd1eDB8E2a4d724C8fb9cB5fFEabEB422dc
+tx.origin=0x5668EAd1eDB8E2a4d724C8fb9cB5fFEabEB422dc
 DSProxy.execute(_target=CompoundFlashLoanTaker, _data=0xf7..0000) -> <?> [1045273 gas]
 └── CompoundFlashLoanTaker.boostWithLoan(
       _exData=[
@@ -453,7 +453,7 @@ DSProxy.execute(_target=CompoundFlashLoanTaker, _data=0xf7..0000) -> <?> [104527
     ├── TetherToken.balanceOf(who=InitializableAdminUpgradeabilityProxy) -> 7334120405865 [1112844 gas]
     ├── CALL: Unitroller.<0xc2998238> [1108001 gas]
     │   └── Comptroller.enterMarkets(cTokens=['CEther', 'CErc20Delegator']) -> [0, 0] [1088912 gas]
-    ├── DSProxy.owner() -> Sender [1098515 gas]
+    ├── DSProxy.owner() -> tx.origin [1098515 gas]
     ├── STATICCALL: Unitroller.<0x5ec88c79> [1095429 gas]
     │   └── Comptroller.getAccountLiquidity(account=DSProxy) -> [0, 100215845790739835644076, 0] [1076551 gas]
     │       ├── CEther.getAccountSnapshot(account=DSProxy) -> [
@@ -552,9 +552,9 @@ DSProxy.execute(_target=CompoundFlashLoanTaker, _data=0xf7..0000) -> <?> [104527
     │                 borrowAmount=22000000000
     │               ) [655327 gas]
     ├── CErc20Delegator.underlying() -> TetherToken [691250 gas]
-    ├── BotRegistry.botList(Sender) -> False [688173 gas]
+    ├── BotRegistry.botList(tx.origin) -> False [688173 gas]
     ├── CErc20Delegator.underlying() -> TetherToken [685289 gas]
-    ├── Discount.isCustomFeeSet(_user=Sender) -> False [682335 gas]
+    ├── Discount.isCustomFeeSet(_user=tx.origin) -> False [682335 gas]
     ├── TetherToken.transfer(
     │     _to=0x322d58b9E75a6918f7e7849AEe0fF09369977e08,
     │     _value=55000000
@@ -651,7 +651,7 @@ DSProxy.execute(_target=CompoundFlashLoanTaker, _data=0xf7..0000) -> <?> [104527
         └── CALL: 0x5668EAd1eDB8E2a4d724C8fb9cB5fFEabEB422dc [9700 gas]
             └── DefisaverLogger.Log(
                   _contract=DSProxy,
-                  _caller=Sender,
+                  _caller=tx.origin,
                   _logName="CompoundBoost",
                   _data=0x00..1ec7
                 ) [271885 gas]
