@@ -11,11 +11,7 @@ ContractA.methodWithoutArguments() -> 0x00..7a9c [411973 gas]
 │   └── ContractC.methodC1(windows95="simpler", jamaica=36, cardinal=ContractA) [363455 gas]
 ├── ContractB.callMe(blue=Sender) -> Sender [233011 gas]
 ├── ContractB.methodB2(trombone=Sender) [231443 gas]
-│   ├── ContractC.paperwork(ContractA) -> (
-│   │     os=simpler,
-│   │     country=36,
-│   │     wings=0xF2Df0b975c0C9eFa2f8CA0491C2d1685104d2488
-│   │   ) [226904 gas]
+│   ├── ContractC.paperwork(ContractA) -> (os="simpler", country=36, wings=ContractA) [226904 gas]
 │   ├── ContractC.methodC1(windows95="simpler", jamaica=0, cardinal=ContractC) [221807 gas]
 │   ├── ContractC.methodC2() [146780 gas]
 │   └── ContractC.methodC2() [121561 gas]
