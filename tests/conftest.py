@@ -47,7 +47,7 @@ def networks():
 
 
 @pytest.fixture(scope="session")
-def get_hardhat_provider(local_network_api):
+def create_provider(local_network_api):
     def method():
         return HardhatProvider(
             name="hardhat",
@@ -102,8 +102,8 @@ def local_network_api(networks):
 
 
 @pytest.fixture(scope="session")
-def hardhat_disconnected(get_hardhat_provider):
-    return get_hardhat_provider()
+def hardhat_disconnected(create_provider):
+    return create_provider()
 
 
 @pytest.fixture(scope="session")
@@ -138,3 +138,13 @@ def mainnet_fork_network_api(networks):
 def connected_mainnet_fork_provider(networks):
     with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
         yield provider
+
+
+@pytest.fixture
+def request_manager(networks):
+    return networks.provider.web3.manager
+
+
+@pytest.fixture
+def rpc_spy(mocker, request_manager):
+    return mocker.spy(request_manager, "request_blocking")

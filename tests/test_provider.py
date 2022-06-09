@@ -17,10 +17,10 @@ def test_instantiation(hardhat_disconnected):
     assert hardhat_disconnected.name == "hardhat"
 
 
-def test_connect_and_disconnect(get_hardhat_provider):
+def test_connect_and_disconnect(create_provider):
     # Use custom port to prevent connecting to a port used in another test.
 
-    hardhat = get_hardhat_provider()
+    hardhat = create_provider()
     hardhat.port = 8555
     hardhat.connect()
 
@@ -69,15 +69,15 @@ def test_rpc_methods(hardhat_connected, method, args, expected):
     assert method(hardhat_connected, *args) == expected
 
 
-def test_multiple_hardhat_instances(get_hardhat_provider):
+def test_multiple_hardhat_instances(create_provider):
     """
     Validate the somewhat tricky internal logic of running multiple Hardhat subprocesses
     under a single parent process.
     """
     # instantiate the providers (which will start the subprocesses) and validate the ports
-    provider_1 = get_hardhat_provider()
-    provider_2 = get_hardhat_provider()
-    provider_3 = get_hardhat_provider()
+    provider_1 = create_provider()
+    provider_2 = create_provider()
+    provider_3 = create_provider()
     provider_1.port = 8556
     provider_2.port = 8557
     provider_3.port = 8558
@@ -154,7 +154,7 @@ def test_get_transaction_trace(hardhat_connected, sender, receiver):
         assert isinstance(frame, TraceFrame)
 
 
-def test_request_timeout(hardhat_connected, config, get_hardhat_provider):
+def test_request_timeout(hardhat_connected, config, create_provider):
     actual = hardhat_connected.web3.provider._request_kwargs["timeout"]  # type: ignore
     expected = 29  # Value set in `ape-config.yaml`
     assert actual == expected
@@ -163,7 +163,7 @@ def test_request_timeout(hardhat_connected, config, get_hardhat_provider):
     with tempfile.TemporaryDirectory() as temp_dir_str:
         temp_dir = Path(temp_dir_str)
         with config.using_project(temp_dir):
-            provider = get_hardhat_provider()
+            provider = create_provider()
             assert provider.timeout == 30
 
 

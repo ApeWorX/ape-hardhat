@@ -66,9 +66,16 @@ def trace_capture(capsys):
     return get
 
 
-def test_local_transaction_traces(local_receipt, trace_capture):
+def test_local_transaction_traces(local_receipt, trace_capture, rpc_spy):
     local_receipt.show_trace()
     assert all([x in LOCAL_TRACE for x in trace_capture()])
+
+    # Verify can happen more than once.
+    local_receipt.show_trace()
+    assert all([x in LOCAL_TRACE for x in trace_capture()])
+
+    # Verify only a single RPC was made.
+    assert rpc_spy.call_count == 1
 
 
 @pytest.mark.fork
