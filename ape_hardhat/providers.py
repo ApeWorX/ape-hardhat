@@ -20,12 +20,11 @@ from ape.exceptions import (
     OutOfGasError,
     ProviderError,
     SubprocessError,
-    TransactionError,
     VirtualMachineError,
 )
 from ape.logging import logger
 from ape.types import AddressType, SnapshotID
-from ape.utils import cached_property, gas_estimation_error_message
+from ape.utils import cached_property
 from ape_test import Config as TestConfig
 from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_trace
 from web3 import HTTPProvider, Web3
@@ -330,25 +329,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         return result
 
-    def estimate_gas_cost(self, txn: TransactionAPI) -> int:
-        """
-        Generates and returns an estimate of how much gas is necessary
-        to allow the transaction to complete.
-        The transaction will not be added to the blockchain.
-        """
-        try:
-            return super().estimate_gas_cost(txn)
-        except ValueError as err:
-            tx_error = self.get_virtual_machine_error(err)
-
-            # If this is the cause of a would-be revert,
-            # raise ContractLogicError so that we can confirm tx-reverts.
-            if isinstance(tx_error, ContractLogicError):
-                raise tx_error from err
-
-            message = gas_estimation_error_message(tx_error)
-            raise TransactionError(base_err=tx_error, message=message) from err
-
     def send_transaction(self, txn: TransactionAPI) -> ReceiptAPI:
         """
         Creates a new message call transaction or a contract creation
@@ -372,14 +352,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             receipt = self.get_transaction(
                 txn_hash.hex(), required_confirmations=txn.required_confirmations or 0
             )
+            receipt.raise_for_status()
 
         else:
-            try:
-                receipt = super().send_transaction(txn)
-            except ValueError as err:
-                raise self.get_virtual_machine_error(err) from err
+            receipt = super().send_transaction(txn)
 
-        receipt.raise_for_status()
         return receipt
 
     def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
@@ -392,9 +369,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         Returns:
             Iterator(TraceFrame): Transaction execution trace object.
         """
-        logs = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
-        for log in logs:
-            yield TraceFrame(**log)
+        frames = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
+        for frame in frames:
+            yield TraceFrame(**frame)
 
     def get_call_tree(self, txn_hash: str) -> CallTreeNode:
         receipt = self.get_transaction(txn_hash)
