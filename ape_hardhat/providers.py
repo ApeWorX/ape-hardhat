@@ -27,7 +27,7 @@ from ape.logging import logger
 from ape.types import AddressType, SnapshotID
 from ape.utils import cached_property, gas_estimation_error_message
 from ape_test import Config as TestConfig
-from evm_trace import TraceFrame
+from evm_trace import CallTreeNode, TraceFrame
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from web3.middleware import geth_poa_middleware
@@ -395,6 +395,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         logs = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
         for log in logs:
             yield TraceFrame(**log)
+
+    def get_call_tree(self, txn_hash: str) -> Iterator[CallTreeNode]:
+        pass
 
     def get_virtual_machine_error(self, exception: Exception) -> VirtualMachineError:
         if not len(exception.args):
