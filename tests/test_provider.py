@@ -155,6 +155,15 @@ def test_get_transaction_trace(hardhat_connected, sender, receiver):
         assert isinstance(log, TraceFrame)
 
 
+def test_get_call_tree(hardhat_connected, contract_instance, owner):
+    receipt = contract_instance.setNumber(10, sender=owner)
+    call_tree = hardhat_connected.get_call_tree(receipt.txn_hash)
+    assert (
+        str(call_tree)
+        == "CALL: 0xF7F78379391C5dF2Db5B66616d18fF92edB82022.<0x3fb5c1cb> [50151 gas]"
+    )
+
+
 def test_request_timeout(hardhat_connected, config, local_network_api):
     actual = hardhat_connected.web3.provider._request_kwargs["timeout"]  # type: ignore
     expected = 29  # Value set in `ape-config.yaml`
