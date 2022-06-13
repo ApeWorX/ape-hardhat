@@ -58,8 +58,6 @@ def create_provider(local_network_api):
             provider_settings={},
         )
 
-    return method
-
 
 @pytest.fixture(scope="session", params=("solidity", "vyper"))
 def raw_contract_type(request):
@@ -103,14 +101,14 @@ def local_network_api(networks):
 
 
 @pytest.fixture(scope="session")
-def hardhat_disconnected(create_provider):
-    return create_provider()
-
-
-@pytest.fixture(scope="session")
 def hardhat_connected(networks, local_network_api):
     with networks.parse_network_choice("ethereum:local:hardhat") as provider:
         yield provider
+
+
+@pytest.fixture(scope="session")
+def hardhat_disconnected(create_provider):
+    return create_provider()
 
 
 @pytest.fixture(scope="session")
@@ -139,6 +137,11 @@ def mainnet_fork_network_api(networks):
 def connected_mainnet_fork_provider(networks):
     with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
         yield provider
+
+
+@pytest.fixture(scope="module")
+def fork_contract_instance(owner, contract_container, connected_mainnet_fork_provider):
+    return owner.deploy(contract_container)
 
 
 @pytest.fixture

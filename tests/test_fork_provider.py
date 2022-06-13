@@ -9,17 +9,6 @@ TESTS_DIRECTORY = Path(__file__).parent
 TEST_ADDRESS = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
 
 
-@pytest.fixture(autouse=True, scope="module")
-def in_tests_dir(config):
-    with config.using_project(TESTS_DIRECTORY):
-        yield
-
-
-@pytest.fixture(scope="module")
-def fork_contract_instance(owner, contract_container, connected_mainnet_fork_provider):
-    return owner.deploy(contract_container)
-
-
 @pytest.mark.parametrize("network", [k for k in NETWORKS.keys()])
 def test_fork_config(config, network):
     plugin_config = config.get_config("hardhat")
