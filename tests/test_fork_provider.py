@@ -91,7 +91,12 @@ def test_contract_revert_no_message(owner, fork_contract_instance):
 
 
 @pytest.mark.fork
-def test_transaction_contract_as_sender(fork_contract_instance):
+def test_transaction_contract_as_sender(
+    fork_contract_instance, connected_mainnet_fork_provider, convert
+):
+    amount = convert("1000 ETH", int)
+    connected_mainnet_fork_provider.set_balance(fork_contract_instance.address, amount)
+
     with pytest.raises(ContractLogicError) as err:
         # Task failed successfully
         fork_contract_instance.setNumber(10, sender=fork_contract_instance)

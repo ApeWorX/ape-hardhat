@@ -190,3 +190,9 @@ def test_transaction_contract_as_sender(contract_instance):
         contract_instance.setNumber(10, sender=contract_instance)
 
     assert str(err.value) == "!authorized"
+
+
+def test_set_account_balance(connected_provider, owner, convert):
+    fifty_eth = convert("50 ETH", int)
+    connected_provider.set_balance(owner.address, fifty_eth)
+    assert owner.balance == fifty_eth
