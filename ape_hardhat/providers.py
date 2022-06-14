@@ -26,6 +26,7 @@ from ape.logging import logger
 from ape.types import AddressType, SnapshotID
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
+from eth_utils import is_0x_prefixed, to_hex
 from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
@@ -270,7 +271,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                     port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
                     attempts += 1
                     if attempts == max_attempts:
-                        ports_str = ", ".join(self.attempted_ports)
+                        ports_str = ", ".join([str(p) for p in self.attempted_ports])
                         raise HardhatProviderError(
                             f"Unable to find an available port. Ports tried: {ports_str}"
                         )
@@ -376,6 +377,25 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             "failed": receipt.failed,
         }
         return get_calltree_from_geth_trace(receipt.trace, **root_node_kwargs)
+
+    def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
+        is_str = isinstance(amount, str)
+        is_hex = False if not is_str else is_0x_prefixed(str(amount))
+        is_key_word = is_str and len(str(amount).split(" ")) > 1
+        if is_key_word:
+            # This allows values such as "1000 ETH".
+            amount = self.conversion_manager.convert(amount, int)
+            is_str = False
+
+        amount_hex_str = str(amount)
+
+        # Convert to hex str
+        if is_str and not is_hex:
+            amount_hex_str = to_hex(int(amount))
+        elif isinstance(amount, int) or isinstance(amount, bytes):
+            amount_hex_str = to_hex(amount)
+
+        self._make_request("hardhat_setBalance", [account, amount_hex_str])
 
     def get_virtual_machine_error(self, exception: Exception) -> VirtualMachineError:
         if not len(exception.args):
