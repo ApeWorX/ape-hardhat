@@ -360,15 +360,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return receipt
 
     def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
-        """
-        Provide a detailed description of opcodes.
-
-        Args:
-            txn_hash (str): The hash of a transaction to trace.
-
-        Returns:
-            Iterator(TraceFrame): Transaction execution trace object.
-        """
         frames = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
         for frame in frames:
             yield TraceFrame(**frame)
