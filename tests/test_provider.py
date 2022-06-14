@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from ape.exceptions import ContractLogicError, SignatureError
 from ape.utils import DEFAULT_TEST_MNEMONIC
-from evm_trace import TraceFrame
+from evm_trace import CallTreeNode, CallType, TraceFrame
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
@@ -152,6 +152,13 @@ def test_get_transaction_trace(hardhat_connected, sender, receiver):
     frame_data = hardhat_connected.get_transaction_trace(transfer.txn_hash)
     for frame in frame_data:
         assert isinstance(frame, TraceFrame)
+
+
+def test_get_call_tree(hardhat_connected, sender, receiver):
+    transfer = sender.transfer(receiver, 1)
+    call_tree = hardhat_connected.get_call_tree(transfer.txn_hash)
+    assert isinstance(call_tree, CallTreeNode)
+    assert call_tree.call_type == CallType.CALL
 
 
 def test_request_timeout(hardhat_connected, config, get_hardhat_provider):
