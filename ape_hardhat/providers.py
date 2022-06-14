@@ -26,6 +26,7 @@ from ape.logging import logger
 from ape.types import AddressType, SnapshotID
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
+from eth_utils import add_0x_prefix, is_0x_prefixed, to_hex
 from evm_trace import TraceFrame
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
@@ -372,6 +373,24 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         frames = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
         for frame in frames:
             yield TraceFrame(**frame)
+
+    def set_balance(self, account: AddressType, amount: Union[int, str, bytes]):
+        is_str = isinstance(amount, str)
+        is_hex = False if not is_str else is_0x_prefixed(amount)
+        is_key_word = is_str and len(str(amount).split(" ")) > 1
+        if is_key_word:
+            # This allows values such as "1000 ETH".
+            amount = self.conversion_manager.convert(amount, int)
+
+        # Convert to hex str
+        if is_str and not is_hex:
+            amount_hex_str = add_0x_prefix(amount)
+        elif isinstance(amount, int) or isinstance(amount, bytes):
+            amount_hex_str = to_hex(amount)
+        elif is_str:
+            amount_hex_str = amount
+
+        self._make_request("hardhat_setBalance", [account, amount_hex_str])
 
     def get_virtual_machine_error(self, exception: Exception) -> VirtualMachineError:
         if not len(exception.args):
