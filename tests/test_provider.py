@@ -159,6 +159,7 @@ def test_get_call_tree(hardhat_connected, sender, receiver):
     call_tree = hardhat_connected.get_call_tree(transfer.txn_hash)
     assert isinstance(call_tree, CallTreeNode)
     assert call_tree.call_type == CallType.CALL
+    assert repr(call_tree) == "CALL: 0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7 [21000 gas]"
 
 
 def test_request_timeout(hardhat_connected, config, get_hardhat_provider):
