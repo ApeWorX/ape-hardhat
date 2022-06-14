@@ -62,6 +62,8 @@ def create_provider(local_network_api):
             provider_settings={},
         )
 
+    return method
+
 
 @pytest.fixture(scope="session", params=("solidity", "vyper"))
 def raw_contract_type(request):

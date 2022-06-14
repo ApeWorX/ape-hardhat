@@ -376,20 +376,20 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
         is_str = isinstance(amount, str)
-        is_hex = False if not is_str else is_0x_prefixed(amount)
+        is_hex = False if not is_str else is_0x_prefixed(str(amount))
         is_key_word = is_str and len(str(amount).split(" ")) > 1
         if is_key_word:
             # This allows values such as "1000 ETH".
             amount = self.conversion_manager.convert(amount, int)
             is_str = False
 
+        amount_hex_str = str(amount)
+
         # Convert to hex str
         if is_str and not is_hex:
             amount_hex_str = to_hex(int(amount))
         elif isinstance(amount, int) or isinstance(amount, bytes):
             amount_hex_str = to_hex(amount)
-        elif is_str:
-            amount_hex_str = amount
 
         self._make_request("hardhat_setBalance", [account, amount_hex_str])
 
