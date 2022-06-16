@@ -5,20 +5,13 @@ import pytest
 from ape.contracts import ContractContainer
 from ethpm_types import ContractType
 
-from .expected_traces import (
-    FAIL_TRACE,
-    INTERNAL_TRANSFERS_TXN_0_TRACE,
-    INTERNAL_TRANSFERS_TXN_1_TRACE,
-    LOCAL_TRACE,
-)
+from .expected_traces import LOCAL_TRACE, MAINNET_FAIL_TRACE, MAINNET_TRACE
 
-FAILED_TXN_HASH = "0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d"
-INTERNAL_TRANSFERS_TXN_HASH_0 = "0xb7d7f1d5ce7743e821d3026647df486f517946ef1342a1ae93c96e4a8016eab7"
-INTERNAL_TRANSFERS_TXN_HASH_1 = "0x0537316f37627655b7fe5e50e23f71cd835b377d1cde4226443c94723d036e32"
+MAINNET_FAIL_TXN_HASH = "0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d"
+MAINNET_TXN_HASH = "0xb7d7f1d5ce7743e821d3026647df486f517946ef1342a1ae93c96e4a8016eab7"
 EXPECTED_MAP = {
-    FAILED_TXN_HASH: FAIL_TRACE,
-    INTERNAL_TRANSFERS_TXN_HASH_0: INTERNAL_TRANSFERS_TXN_0_TRACE,
-    INTERNAL_TRANSFERS_TXN_HASH_1: INTERNAL_TRANSFERS_TXN_1_TRACE,
+    MAINNET_TXN_HASH: MAINNET_TRACE,
+    MAINNET_FAIL_TXN_HASH: MAINNET_FAIL_TRACE,
 }
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts" / "ethereum"
 
@@ -30,7 +23,7 @@ def full_contracts_cache(config):
 
 
 @pytest.fixture(
-    params=(FAILED_TXN_HASH, INTERNAL_TRANSFERS_TXN_HASH_0, INTERNAL_TRANSFERS_TXN_HASH_1),
+    params=(MAINNET_TXN_HASH, MAINNET_FAIL_TXN_HASH),
     scope="module",
 )
 def mainnet_receipt(request, connected_mainnet_fork_provider):
@@ -38,7 +31,7 @@ def mainnet_receipt(request, connected_mainnet_fork_provider):
 
 
 @pytest.fixture(scope="session")
-def contract_a(owner, hardhat_connected):
+def contract_a(owner, connected_provider):
     base_path = BASE_CONTRACTS_PATH / "local"
 
     def get_contract_type(suffix: str) -> ContractType:
@@ -78,7 +71,7 @@ def test_local_transaction_traces(local_receipt, trace_capture, rpc_spy):
     rpc_spy.assert_rpc_called("debug_traceTransaction", [local_receipt.txn_hash], num_times=1)
 
 
-@pytest.mark.fork
+@pytest.mark.manual
 def test_mainnet_transaction_traces(mainnet_receipt, trace_capture):
     mainnet_receipt.show_trace()
     assert all([x in EXPECTED_MAP[mainnet_receipt.txn_hash] for x in trace_capture()])

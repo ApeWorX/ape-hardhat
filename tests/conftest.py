@@ -144,7 +144,7 @@ def connected_mainnet_fork_provider(networks):
         yield provider
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def fork_contract_instance(owner, contract_container, connected_mainnet_fork_provider):
     return owner.deploy(contract_container)
 
