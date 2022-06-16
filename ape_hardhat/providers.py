@@ -26,7 +26,7 @@ from ape.logging import logger
 from ape.types import AddressType, SnapshotID
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
-from eth_utils import add_0x_prefix, is_0x_prefixed, to_hex
+from eth_utils import is_0x_prefixed, to_hex
 from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
@@ -387,21 +387,22 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         }
         return get_calltree_from_geth_trace(receipt.trace, **root_node_kwargs)
 
-    def set_balance(self, account: AddressType, amount: Union[int, str, bytes]):
+    def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
         is_str = isinstance(amount, str)
-        is_hex = False if not is_str else is_0x_prefixed(amount)
+        is_hex = False if not is_str else is_0x_prefixed(str(amount))
         is_key_word = is_str and len(str(amount).split(" ")) > 1
         if is_key_word:
             # This allows values such as "1000 ETH".
             amount = self.conversion_manager.convert(amount, int)
+            is_str = False
+
+        amount_hex_str = str(amount)
 
         # Convert to hex str
         if is_str and not is_hex:
-            amount_hex_str = add_0x_prefix(amount)
+            amount_hex_str = to_hex(int(amount))
         elif isinstance(amount, int) or isinstance(amount, bytes):
             amount_hex_str = to_hex(amount)
-        elif is_str:
-            amount_hex_str = amount
 
         self._make_request("hardhat_setBalance", [account, amount_hex_str])
 

@@ -40,8 +40,8 @@ def test_connect_and_disconnect(create_provider):
     assert hardhat.process is None
 
 
-def test_gas_price(hardhat_connected):
-    gas_price = hardhat_connected.gas_price
+def test_gas_price(connected_provider):
+    gas_price = connected_provider.gas_price
     assert gas_price > 1
 
 
@@ -52,9 +52,9 @@ def test_uri_disconnected(hardhat_disconnected):
     assert "Can't build URI before `connect()` is called." in str(err.value)
 
 
-def test_uri(hardhat_connected):
-    expected_uri = f"http://127.0.0.1:{hardhat_connected.port}"
-    assert expected_uri in hardhat_connected.uri
+def test_uri(connected_provider):
+    expected_uri = f"http://127.0.0.1:{connected_provider.port}"
+    assert expected_uri in connected_provider.uri
 
 
 @pytest.mark.parametrize(
@@ -65,8 +65,8 @@ def test_uri(hardhat_connected):
         (HardhatProvider.get_code, [TEST_WALLET_ADDRESS], HexBytes("")),
     ],
 )
-def test_rpc_methods(hardhat_connected, method, args, expected):
-    assert method(hardhat_connected, *args) == expected
+def test_rpc_methods(connected_provider, method, args, expected):
+    assert method(connected_provider, *args) == expected
 
 
 def test_multiple_hardhat_instances(create_provider):
@@ -102,60 +102,60 @@ def test_multiple_hardhat_instances(create_provider):
     assert hash_1 != hash_2 != hash_3
 
 
-def test_set_block_gas_limit(hardhat_connected):
-    gas_limit = hardhat_connected.get_block("latest").gas_data.gas_limit
-    assert hardhat_connected.set_block_gas_limit(gas_limit) is True
+def test_set_block_gas_limit(connected_provider):
+    gas_limit = connected_provider.get_block("latest").gas_limit
+    assert connected_provider.set_block_gas_limit(gas_limit) is True
 
 
-def test_set_timestamp(hardhat_connected):
-    start_time = hardhat_connected.get_block("pending").timestamp
-    hardhat_connected.set_timestamp(start_time + 5)  # Increase by 5 seconds
-    new_time = hardhat_connected.get_block("pending").timestamp
+def test_set_timestamp(connected_provider):
+    start_time = connected_provider.get_block("pending").timestamp
+    connected_provider.set_timestamp(start_time + 5)  # Increase by 5 seconds
+    new_time = connected_provider.get_block("pending").timestamp
 
     # Adding 5 seconds but seconds can be weird so give it a 1 second margin.
     assert 4 <= new_time - start_time <= 6
 
 
-def test_mine(hardhat_connected):
-    block_num = hardhat_connected.get_block("latest").number
-    hardhat_connected.mine()
-    next_block_num = hardhat_connected.get_block("latest").number
+def test_mine(connected_provider):
+    block_num = connected_provider.get_block("latest").number
+    connected_provider.mine()
+    next_block_num = connected_provider.get_block("latest").number
     assert next_block_num > block_num
 
 
-def test_revert_failure(hardhat_connected):
-    assert hardhat_connected.revert(0xFFFF) is False
+def test_revert_failure(connected_provider):
+    assert connected_provider.revert(0xFFFF) is False
 
 
-def test_snapshot_and_revert(hardhat_connected):
-    snap = hardhat_connected.snapshot()
+def test_snapshot_and_revert(connected_provider):
+    snap = connected_provider.snapshot()
 
-    block_1 = hardhat_connected.get_block("latest")
-    hardhat_connected.mine()
-    block_2 = hardhat_connected.get_block("latest")
+    block_1 = connected_provider.get_block("latest")
+    connected_provider.mine()
+    block_2 = connected_provider.get_block("latest")
     assert block_2.number > block_1.number
     assert block_1.hash != block_2.hash
 
-    hardhat_connected.revert(snap)
-    block_3 = hardhat_connected.get_block("latest")
+    connected_provider.revert(snap)
+    block_3 = connected_provider.get_block("latest")
     assert block_1.number == block_3.number
     assert block_1.hash == block_3.hash
 
 
-def test_unlock_account(hardhat_connected):
-    assert hardhat_connected.unlock_account(TEST_WALLET_ADDRESS) is True
-    assert TEST_WALLET_ADDRESS in hardhat_connected.unlocked_accounts
+def test_unlock_account(connected_provider):
+    assert connected_provider.unlock_account(TEST_WALLET_ADDRESS) is True
+    assert TEST_WALLET_ADDRESS in connected_provider.unlocked_accounts
 
 
-def test_get_transaction_trace(hardhat_connected, sender, receiver):
+def test_get_transaction_trace(connected_provider, sender, receiver):
     transfer = sender.transfer(receiver, 1)
-    frame_data = hardhat_connected.get_transaction_trace(transfer.txn_hash)
+    frame_data = connected_provider.get_transaction_trace(transfer.txn_hash)
     for frame in frame_data:
         assert isinstance(frame, TraceFrame)
 
 
-def test_request_timeout(hardhat_connected, config, create_provider):
-    actual = hardhat_connected.web3.provider._request_kwargs["timeout"]  # type: ignore
+def test_request_timeout(connected_provider, config, create_provider):
+    actual = connected_provider.web3.provider._request_kwargs["timeout"]  # type: ignore
     expected = 29  # Value set in `ape-config.yaml`
     assert actual == expected
 
@@ -184,7 +184,10 @@ def test_contract_revert_no_message(owner, contract_instance):
     assert str(err.value) == "Transaction failed."
 
 
-def test_transaction_contract_as_sender(contract_instance):
+def test_transaction_contract_as_sender(contract_instance, connected_provider):
+    # Set balance so test wouldn't normally fail from lack of funds
+    connected_provider.set_balance(contract_instance.address, "1000 ETH")
+
     with pytest.raises(ContractLogicError) as err:
         # Task failed successfully
         contract_instance.setNumber(10, sender=contract_instance)
@@ -192,7 +195,9 @@ def test_transaction_contract_as_sender(contract_instance):
     assert str(err.value) == "!authorized"
 
 
-def test_set_account_balance(connected_provider, owner, convert):
-    fifty_eth = convert("50 ETH", int)
-    connected_provider.set_balance(owner.address, fifty_eth)
-    assert owner.balance == fifty_eth
+@pytest.mark.parametrize(
+    "amount", ("50 ETH", int(50e18), "0x2b5e3af16b1880000", "50000000000000000000")
+)
+def test_set_account_balance(connected_provider, owner, convert, amount):
+    connected_provider.set_balance(owner.address, amount)
+    assert owner.balance == convert("50 ETH", int)

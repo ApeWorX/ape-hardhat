@@ -82,7 +82,10 @@ def test_revert(sender, fork_contract_instance):
 
 
 @pytest.mark.fork
-def test_contract_revert_no_message(owner, fork_contract_instance):
+def test_contract_revert_no_message(owner, fork_contract_instance, connected_mainnet_fork_provider):
+    # Set balance so test wouldn't normally fail from lack of funds
+    connected_mainnet_fork_provider.set_balance(fork_contract_instance.address, "1000 ETH")
+
     # The Contract raises empty revert when setting number to 5.
     with pytest.raises(ContractLogicError) as err:
         fork_contract_instance.setNumber(5, sender=owner)
@@ -94,8 +97,8 @@ def test_contract_revert_no_message(owner, fork_contract_instance):
 def test_transaction_contract_as_sender(
     fork_contract_instance, connected_mainnet_fork_provider, convert
 ):
-    amount = convert("1000 ETH", int)
-    connected_mainnet_fork_provider.set_balance(fork_contract_instance.address, amount)
+    # Set balance so test wouldn't normally fail from lack of funds
+    connected_mainnet_fork_provider.set_balance(fork_contract_instance.address, "1000 ETH")
 
     with pytest.raises(ContractLogicError) as err:
         # Task failed successfully
@@ -108,8 +111,9 @@ def test_transaction_contract_as_sender(
 def test_transaction_unknown_contract_as_sender(accounts, networks, create_fork_provider):
     provider = create_fork_provider(9012)
     provider.connect()
+    account = "0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52"
     init_provider = networks.active_provider
     networks.active_provider = provider
-    multi_sig = accounts["0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52"]
+    multi_sig = accounts[account]
     multi_sig.transfer(accounts[0], "100 gwei")
     networks.active_provider = init_provider

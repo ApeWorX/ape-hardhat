@@ -63,6 +63,8 @@ def create_provider(local_network_api):
             provider_settings={},
         )
 
+    return method
+
 
 @pytest.fixture(scope="session", params=("solidity", "vyper"))
 def raw_contract_type(request):
@@ -81,7 +83,7 @@ def contract_container(contract_type) -> ContractContainer:
 
 
 @pytest.fixture(scope="session")
-def contract_instance(owner, contract_container, hardhat_connected):
+def contract_instance(owner, contract_container, connected_provider):
     return owner.deploy(contract_container)
 
 
