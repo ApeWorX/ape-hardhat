@@ -11,7 +11,7 @@ extras_require = {
         "pytest-xdist",  # multi-process runner
         "pytest-cov",  # Coverage analyzer plugin
         "hypothesis>=6.2.0,<7.0",  # Strategy-based fuzzer
-        "ape-alchemy",  # Needed for forked-network tests
+        "ape-alchemy>=0.3.0",  # Needed for forked-network tests
         "rich",  # Needed for trace tests
     ],
     "lint": [
