@@ -71,7 +71,7 @@ jobs:
           run: npm install --save-dev hardhat
 
         - name: Run Tests
-          run: pytest -n auto -m "not fuzzing" -m "not fork"
+          run: pytest -n auto -m "not fuzzing" -m "not fork" -m "not manual"
 
         - name: Run Fork Tests
           run: pytest -m fork

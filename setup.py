@@ -7,10 +7,12 @@ from setuptools import find_packages, setup  # type: ignore
 extras_require = {
     "test": [  # `test` GitHub Action jobs uses this
         "pytest>=6.0,<7.0",  # Core testing package
+        "pytest-mock",  # For patching and mocking
         "pytest-xdist",  # multi-process runner
         "pytest-cov",  # Coverage analyzer plugin
         "hypothesis>=6.2.0,<7.0",  # Strategy-based fuzzer
-        "ape-alchemy",
+        "ape-alchemy",  # Needed for forked-network tests
+        "rich",  # Needed for trace tests
     ],
     "lint": [
         "black>=22.3.0,<23.0",  # auto-formatter and linter
@@ -68,9 +70,9 @@ setup(
     url="https://github.com/ApeWorX/ape-hardhat",
     include_package_data=True,
     install_requires=[
-        "eth-ape>=0.2.8,<0.3.0",
+        "eth-ape>=0.3.0,<0.4.0",
         "importlib-metadata ; python_version<'3.8'",
-        "evm-trace>=0.1.0.a5",
+        "evm-trace>=0.1.0.a6",
         "hexbytes",  # Use same as eth-ape
         "web3",  # Use same as eth-ape
     ],

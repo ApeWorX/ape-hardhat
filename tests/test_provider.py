@@ -103,7 +103,7 @@ def test_multiple_hardhat_instances(create_provider):
 
 
 def test_set_block_gas_limit(connected_provider):
-    gas_limit = connected_provider.get_block("latest").gas_data.gas_limit
+    gas_limit = connected_provider.get_block("latest").gas_limit
     assert connected_provider.set_block_gas_limit(gas_limit) is True
 
 
