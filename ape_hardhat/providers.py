@@ -27,7 +27,7 @@ from ape.types import AddressType, SnapshotID
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
 from eth_utils import is_0x_prefixed, to_hex
-from evm_trace import TraceFrame
+from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from web3.middleware import geth_poa_middleware
@@ -271,7 +271,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                     port = random.randint(EPHEMERAL_PORTS_START, EPHEMERAL_PORTS_END)
                     attempts += 1
                     if attempts == max_attempts:
-                        ports_str = ", ".join(self.attempted_ports)
+                        ports_str = ", ".join([str(p) for p in self.attempted_ports])
                         raise HardhatProviderError(
                             f"Unable to find an available port. Ports tried: {ports_str}"
                         )
@@ -361,18 +361,22 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return receipt
 
     def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
-        """
-        Provide a detailed description of opcodes.
-
-        Args:
-            txn_hash (str): The hash of a transaction to trace.
-
-        Returns:
-            Iterator(TraceFrame): Transaction execution trace object.
-        """
         frames = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
         for frame in frames:
             yield TraceFrame(**frame)
+
+    def get_call_tree(self, txn_hash: str) -> CallTreeNode:
+        receipt = self.get_transaction(txn_hash)
+        root_node_kwargs = {
+            "gas_cost": receipt.gas_used,
+            "gas_limit": receipt.gas_limit,
+            "address": receipt.receiver,
+            "calldata": receipt.data,
+            "value": receipt.value,
+            "call_type": CallType.CALL,
+            "failed": receipt.failed,
+        }
+        return get_calltree_from_geth_trace(receipt.trace, **root_node_kwargs)
 
     def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
         is_str = isinstance(amount, str)

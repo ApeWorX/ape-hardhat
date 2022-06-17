@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from ape.exceptions import ContractLogicError, SignatureError
 from ape.utils import DEFAULT_TEST_MNEMONIC
-from evm_trace import TraceFrame
+from evm_trace import CallTreeNode, CallType, TraceFrame
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
@@ -103,7 +103,7 @@ def test_multiple_hardhat_instances(create_provider):
 
 
 def test_set_block_gas_limit(connected_provider):
-    gas_limit = connected_provider.get_block("latest").gas_data.gas_limit
+    gas_limit = connected_provider.get_block("latest").gas_limit
     assert connected_provider.set_block_gas_limit(gas_limit) is True
 
 
@@ -152,6 +152,16 @@ def test_get_transaction_trace(connected_provider, sender, receiver):
     frame_data = connected_provider.get_transaction_trace(transfer.txn_hash)
     for frame in frame_data:
         assert isinstance(frame, TraceFrame)
+
+
+def test_get_call_tree(connected_provider, sender, receiver):
+    transfer = sender.transfer(receiver, 1)
+    call_tree = connected_provider.get_call_tree(transfer.txn_hash)
+    assert isinstance(call_tree, CallTreeNode)
+    assert call_tree.call_type == CallType.CALL
+    assert (
+        repr(call_tree) == "CALL: 0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7.<0x3078> [21000 gas]"
+    )
 
 
 def test_request_timeout(connected_provider, config, create_provider):
