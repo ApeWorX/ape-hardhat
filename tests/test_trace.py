@@ -46,7 +46,7 @@ def contract_a(owner, connected_provider):
     return contract_a
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def local_receipt(contract_a, owner):
     return contract_a.methodWithoutArguments(sender=owner)
 
@@ -60,16 +60,13 @@ def trace_capture(capsys):
     return get
 
 
-def test_local_transaction_traces(local_receipt, trace_capture, rpc_spy):
+def test_local_transaction_traces(local_receipt, trace_capture):
     local_receipt.show_trace()
     assert all([x in LOCAL_TRACE for x in trace_capture()])
 
     # Verify can happen more than once.
     local_receipt.show_trace()
     assert all([x in LOCAL_TRACE for x in trace_capture()])
-
-    # Verify only a single RPC was made.
-    rpc_spy.assert_rpc_called("debug_traceTransaction", [local_receipt.txn_hash], num_times=1)
 
 
 @pytest.mark.manual
