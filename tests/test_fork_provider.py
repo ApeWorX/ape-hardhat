@@ -1,12 +1,24 @@
 import tempfile
 from pathlib import Path
 
+import ape
 import pytest
 from ape.exceptions import ContractLogicError
 from ape_ethereum.ecosystem import NETWORKS
 
 TESTS_DIRECTORY = Path(__file__).parent
 TEST_ADDRESS = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
+
+
+@pytest.fixture(scope="module")
+def connected_mainnet_fork_provider():
+    with ape.networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
+        yield provider
+
+
+@pytest.fixture(scope="module")
+def fork_contract_instance(owner, contract_container, connected_mainnet_fork_provider):
+    return owner.deploy(contract_container)
 
 
 @pytest.mark.parametrize("network", [k for k in NETWORKS.keys()])

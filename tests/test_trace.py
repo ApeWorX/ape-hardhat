@@ -26,8 +26,9 @@ def full_contracts_cache(config):
     params=(MAINNET_TXN_HASH, MAINNET_FAIL_TXN_HASH),
     scope="module",
 )
-def mainnet_receipt(request, connected_mainnet_fork_provider):
-    yield connected_mainnet_fork_provider.get_transaction(request.param)
+def mainnet_receipt(request, networks):
+    with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
+        yield provider.connected_mainnet_fork_provider.get_transaction(request.param)
 
 
 @pytest.fixture(scope="session")

@@ -140,17 +140,6 @@ def mainnet_fork_network_api(networks):
     return networks.ecosystems["ethereum"]["mainnet-fork"]
 
 
-@pytest.fixture(scope="session")
-def connected_mainnet_fork_provider(networks):
-    with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
-        yield provider
-
-
-@pytest.fixture(scope="session")
-def fork_contract_instance(owner, contract_container, connected_mainnet_fork_provider):
-    return owner.deploy(contract_container)
-
-
 @pytest.fixture
 def request_manager(networks):
     return networks.provider.web3.manager
