@@ -120,7 +120,18 @@ def test_mine(connected_provider):
     block_num = connected_provider.get_block("latest").number
     connected_provider.mine()
     next_block_num = connected_provider.get_block("latest").number
-    assert next_block_num > block_num
+
+    # NOTE: Uses >= due to x-dist
+    assert next_block_num >= block_num + 1
+
+
+def test_mine_many_blocks(connected_provider):
+    block_num = connected_provider.get_block("latest").number
+    connected_provider.mine(12)
+    next_block_num = connected_provider.get_block("latest").number
+
+    # NOTE: Uses >= due to x-dist
+    assert next_block_num >= block_num + 12
 
 
 def test_revert_failure(connected_provider):
