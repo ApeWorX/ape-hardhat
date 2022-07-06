@@ -28,6 +28,7 @@ from ape.utils import cached_property
 from ape_test import Config as TestConfig
 from eth_utils import is_0x_prefixed, to_hex
 from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
+from hexbytes import HexBytes
 from web3 import HTTPProvider, Web3
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from web3.middleware import geth_poa_middleware
@@ -298,10 +299,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         ]
 
     def _make_request(self, rpc: str, args: list) -> Any:
-        return self.web3.manager.request_blocking(rpc, args)  # type: ignore
+        return self.web3.provider.make_request(rpc, args)  # type: ignore
 
     def set_block_gas_limit(self, gas_limit: int) -> bool:
-        return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)])
+        result = self._make_request("evm_setBlockGasLimit", [hex(gas_limit)])
+        return result.get("result") is True
 
     def set_timestamp(self, new_timestamp: int):
         pending_timestamp = self.get_block("pending").timestamp
@@ -309,18 +311,20 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         self._make_request("evm_increaseTime", [seconds_to_increase])
 
     def mine(self, num_blocks: int = 1):
-        for i in range(num_blocks):
-            self._make_request("evm_mine", [])
+        # NOTE: Request fails when given numbers with any left padded 0s.
+        num_blocks_arg = f"0x{HexBytes(num_blocks).hex().replace('0x', '').lstrip('0')}"
+        self._make_request("hardhat_mine", [num_blocks_arg])
 
     def snapshot(self) -> str:
         result = self._make_request("evm_snapshot", [])
-        return str(result)
+        return result["result"]
 
-    def revert(self, snapshot_id: SnapshotID):
-        if isinstance(snapshot_id, str) and snapshot_id.isnumeric():
-            snapshot_id = int(snapshot_id)  # type: ignore
+    def revert(self, snapshot_id: SnapshotID) -> bool:
+        if isinstance(snapshot_id, int):
+            snapshot_id = HexBytes(snapshot_id).hex()
 
-        return self._make_request("evm_revert", [snapshot_id])
+        result = self._make_request("evm_revert", [snapshot_id])
+        return result.get("result") is True
 
     def unlock_account(self, address: AddressType) -> bool:
         result = self._make_request("hardhat_impersonateAccount", [address])
@@ -328,7 +332,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if result:
             self.unlocked_accounts.append(address)
 
-        return result
+        return result.get("result") is True
 
     def send_transaction(self, txn: TransactionAPI) -> ReceiptAPI:
         """
@@ -361,7 +365,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return receipt
 
     def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
-        frames = self._make_request("debug_traceTransaction", [txn_hash]).structLogs
+        result = self._make_request("debug_traceTransaction", [txn_hash])
+        frames = result.get("structLogs", [])
         for frame in frames:
             yield TraceFrame(**frame)
 
