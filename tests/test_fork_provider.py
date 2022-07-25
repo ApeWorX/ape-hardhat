@@ -74,6 +74,19 @@ def test_reset_fork(networks, create_fork_provider):
     assert block_num_after_reset < prev_block_num
     provider.disconnect()
 
+    
+@pytest.mark.fork
+def test_reset_fork_specify_block_number(networks, create_fork_provider):
+    provider = create_fork_provider(9020)
+    provider.connect()
+    provider.mine()
+    prev_block_num = provider.get_block("latest").number
+    new_block_number = prev_block_num - 1
+    provider.reset_fork(block_number=new_block_number)
+    block_num_after_reset = provider.get_block("latest").number
+    assert block_num_after_reset == new_block_number 
+    provider.disconnect()    
+
 
 @pytest.mark.fork
 def test_transaction(owner, fork_contract_instance):
