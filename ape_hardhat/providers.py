@@ -522,7 +522,7 @@ class HardhatForkProvider(HardhatProvider):
 
         return cmd
 
-    def reset_fork(self, block_number: int=None):
+    def reset_fork(self, block_number: Optional[int]=None):
         if block_number is None:
             block_number = self.fork_block_number
         self._make_request(
