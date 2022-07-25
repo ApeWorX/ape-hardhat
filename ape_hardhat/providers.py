@@ -522,7 +522,7 @@ class HardhatForkProvider(HardhatProvider):
 
         return cmd
 
-    def reset_fork(self):
+    def reset_fork(self, new_block_number: int):
         self._make_request(
-            "hardhat_reset", [{"jsonRpcUrl": self.fork_url, "blockNumber": self.fork_block_number}]
+            "hardhat_reset", [{"forking":{"jsonRpcUrl": self.fork_url, "blockNumber": new_block_number}}]
         )
