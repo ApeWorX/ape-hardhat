@@ -222,3 +222,19 @@ def test_transaction_contract_as_sender(contract_instance, connected_provider):
 def test_set_account_balance(connected_provider, owner, convert, amount):
     connected_provider.set_balance(owner.address, amount)
     assert owner.balance == convert("50 ETH", int)
+
+
+def test_chain_id_connected(connected_provider):
+    assert connected_provider.chain_id == 31337
+
+
+def test_chain_id_disconnected(disconnected_provider):
+    assert disconnected_provider.chain_id == 31337
+
+
+def test_repr_connected(connected_provider):
+    assert repr(connected_provider) == "<hardhat>"
+
+
+def test_repr_disconnected(disconnected_provider):
+    assert repr(disconnected_provider) == "<hardhat>"

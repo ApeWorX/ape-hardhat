@@ -36,6 +36,7 @@ fuzzing: Run Hypothesis fuzz test suite
 fork: Run forked-network tests using Alchemy as the upstream provider
 manual: Tests you want to avoid running in automated CI/CD because of expense
 """
+asyncio_mode = "auto"
 
 [tool.isort]
 line_length = 100
