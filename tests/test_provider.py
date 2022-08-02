@@ -13,8 +13,8 @@ from ape_hardhat.providers import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME, Ha
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
 
 
-def test_instantiation(hardhat_disconnected):
-    assert hardhat_disconnected.name == "hardhat"
+def test_instantiation(disconnected_provider):
+    assert disconnected_provider.name == "hardhat"
 
 
 def test_connect_and_disconnect(create_provider):
@@ -45,9 +45,9 @@ def test_gas_price(connected_provider):
     assert gas_price > 1
 
 
-def test_uri_disconnected(hardhat_disconnected):
+def test_uri_disconnected(disconnected_provider):
     with pytest.raises(HardhatProviderError) as err:
-        _ = hardhat_disconnected.uri
+        _ = disconnected_provider.uri
 
     assert "Can't build URI before `connect()` is called." in str(err.value)
 
@@ -224,16 +224,8 @@ def test_set_account_balance(connected_provider, owner, convert, amount):
     assert owner.balance == convert("50 ETH", int)
 
 
-def test_chain_id_connected(connected_provider):
-    assert connected_provider.chain_id == 31337
-
-
-def test_chain_id_disconnected(disconnected_provider):
-    assert disconnected_provider.chain_id == 31337
-
-
 def test_repr_connected(connected_provider):
-    assert repr(connected_provider) == "<hardhat>"
+    assert repr(connected_provider) == f"<hardhat chain_id={HARDHAT_CHAIN_ID}>"
 
 
 def test_repr_disconnected(disconnected_provider):

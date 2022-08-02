@@ -113,7 +113,7 @@ def connected_provider(networks, local_network_api):
 
 
 @pytest.fixture(scope="session")
-def hardhat_disconnected(create_provider):
+def disconnected_provider(create_provider):
     return create_provider()
 
 
