@@ -439,7 +439,12 @@ class HardhatForkProvider(HardhatProvider):
 
     @property
     def fork_url(self) -> str:
-        return self._upstream_provider.connection_str  # type: ignore
+        if not isinstance(self._upstream_provider, UpstreamProvider):
+            raise HardhatProviderError(
+                f"Provider '{self._upstream_provider.name}' is not an upstream provider."
+            )
+
+        return self._upstream_provider.connection_str
 
     @property
     def fork_block_number(self) -> Optional[int]:
@@ -456,14 +461,6 @@ class HardhatForkProvider(HardhatProvider):
     @cached_property
     def _fork_config(self) -> HardhatForkConfig:
         config = cast(HardhatNetworkConfig, self.config)
-
-        # NOTE: Only for backwards compatibility
-        if "mainnet_fork" in config.dict():
-            logger.warning(
-                "Use of key `mainnet_fork` in `hardhat` config is deprecated. "
-                "Please use the `fork` key, with `ecosystem` and `network` subkeys."
-            )
-            return HardhatForkConfig.parse_obj(config.dict().get("mainnet_fork"))
 
         ecosystem_name = self.network.ecosystem.name
         if ecosystem_name not in config.fork:
@@ -502,11 +499,6 @@ class HardhatForkProvider(HardhatProvider):
             )
 
     def build_command(self) -> List[str]:
-        if not isinstance(self._upstream_provider, UpstreamProvider):
-            raise HardhatProviderError(
-                f"Provider '{self._upstream_provider.name}' is not an upstream provider."
-            )
-
         if not self.fork_url:
             raise HardhatProviderError("Upstream provider does not have a ``connection_str``.")
 

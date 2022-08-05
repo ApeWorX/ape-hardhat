@@ -4,7 +4,7 @@ Hardhat network provider plugin for Ape. Hardhat is a development framework writ
 
 ## Dependencies
 
-* [python3](https://www.python.org/downloads) version 3.7 or greater, python3-dev
+* [python3](https://www.python.org/downloads) version 3.7.2 or greater, python3-dev
 * Node.js, NPM, and Hardhat. See Hardhat's [Installation](https://hardhat.org/getting-started/#installation>) documentation for steps.
 
 ## Installation
