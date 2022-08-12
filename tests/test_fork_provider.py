@@ -25,7 +25,7 @@ def fork_contract_instance(owner, contract_container, connected_mainnet_fork_pro
 def test_fork_config(config, network):
     plugin_config = config.get_config("hardhat")
     network_config = plugin_config["fork"].get("ethereum", {}).get(network, {})
-    assert network_config["upstream_provider"] == "alchemy", "config not registered"
+    assert network_config.get("upstream_provider") == "alchemy", "config not registered"
 
 
 @pytest.mark.fork
