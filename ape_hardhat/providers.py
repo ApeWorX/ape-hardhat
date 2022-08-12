@@ -2,7 +2,7 @@ import random
 import shutil
 from pathlib import Path
 from subprocess import PIPE, call
-from typing import Any, Dict, Iterator, List, Optional, Union, cast
+from typing import Dict, Iterator, List, Optional, Union, cast
 
 from ape._compat import Literal
 from ape.api import (
@@ -298,12 +298,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             str(self.port),
         ]
 
-    def _make_request(self, rpc: str, args: list) -> Any:
-        return self.web3.provider.make_request(rpc, args)  # type: ignore
-
     def set_block_gas_limit(self, gas_limit: int) -> bool:
-        result = self._make_request("evm_setBlockGasLimit", [hex(gas_limit)])
-        return result.get("result") is True
+        return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)]) is True
 
     def set_timestamp(self, new_timestamp: int):
         pending_timestamp = self.get_block("pending").timestamp
@@ -316,23 +312,20 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         self._make_request("hardhat_mine", [num_blocks_arg])
 
     def snapshot(self) -> str:
-        result = self._make_request("evm_snapshot", [])
-        return result["result"]
+        return self._make_request("evm_snapshot", [])
 
     def revert(self, snapshot_id: SnapshotID) -> bool:
         if isinstance(snapshot_id, int):
             snapshot_id = HexBytes(snapshot_id).hex()
 
-        result = self._make_request("evm_revert", [snapshot_id])
-        return result.get("result") is True
+        return self._make_request("evm_revert", [snapshot_id]) is True
 
     def unlock_account(self, address: AddressType) -> bool:
         result = self._make_request("hardhat_impersonateAccount", [address])
-
         if result:
             self.unlocked_accounts.append(address)
 
-        return result.get("result") is True
+        return result is True
 
     def send_transaction(self, txn: TransactionAPI) -> ReceiptAPI:
         """
