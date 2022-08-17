@@ -64,14 +64,38 @@ def test_request_timeout(networks, config, create_fork_provider):
 
 
 @pytest.mark.fork
-def test_reset_fork(networks, create_fork_provider):
-    provider = create_fork_provider(9010)
+def test_reset_fork_no_fork_block_number(networks, create_fork_provider):
+    provider = create_fork_provider(port=9013, network="goerli")
     provider.connect()
-    provider.mine()
+    provider.mine(5)
     prev_block_num = provider.get_block("latest").number
     provider.reset_fork()
     block_num_after_reset = provider.get_block("latest").number
     assert block_num_after_reset < prev_block_num
+    provider.disconnect()
+
+
+@pytest.mark.fork
+def test_reset_fork_specify_block_number_via_argument(networks, create_fork_provider):
+    provider = create_fork_provider(port=9020, network="goerli")
+    provider.connect()
+    provider.mine(5)
+    prev_block_num = provider.get_block("latest").number
+    new_block_number = prev_block_num - 1
+    provider.reset_fork(block_number=new_block_number)
+    block_num_after_reset = provider.get_block("latest").number
+    assert block_num_after_reset == new_block_number
+    provider.disconnect()
+
+
+@pytest.mark.fork
+def test_reset_fork_specify_block_number_via_config(networks, create_fork_provider):
+    provider = create_fork_provider(port=9030)
+    provider.connect()
+    provider.mine(5)
+    provider.reset_fork()
+    block_num_after_reset = provider.get_block("latest").number
+    assert block_num_after_reset == 15000000  # Specified in ape-config.yaml
     provider.disconnect()
 
 
