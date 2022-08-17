@@ -9,8 +9,10 @@ hardhat:
     ethereum:
       mainnet:
         upstream_provider: alchemy
+        block_number: 15000000
       rinkeby:
         upstream_provider: alchemy
+        block_number: 11000000
       kovan:
         upstream_provider: alchemy
       ropsten:
