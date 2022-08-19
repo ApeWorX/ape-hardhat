@@ -109,11 +109,10 @@ def test_set_block_gas_limit(connected_provider):
 
 def test_set_timestamp(connected_provider):
     start_time = connected_provider.get_block("pending").timestamp
-    connected_provider.set_timestamp(start_time + 5)  # Increase by 5 seconds
+    expected_timestamp = start_time + 5
+    connected_provider.set_timestamp(expected_timestamp)
     new_time = connected_provider.get_block("pending").timestamp
-
-    # Adding 5 seconds but seconds can be weird so give it a 1 second margin.
-    assert 4 <= new_time - start_time <= 6
+    assert new_time == expected_timestamp
 
 
 def test_mine(connected_provider):
