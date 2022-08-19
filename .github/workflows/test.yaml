@@ -1,10 +1,10 @@
 on:
   pull_request:
     branches:
-      - 'main'
+      - "main"
   push:
     branches:
-      - 'main'
+      - "main"
 
 name: Test
 
@@ -81,7 +81,9 @@ jobs:
 
         - name: Run Fork Tests
           # Only run fork tests if not from a forked repo (Else it always fails)
-          if: github.event.pull_request.head.repo.full_name == github.repository || github.event.type == 'push'
+          if: |
+            github.event.pull_request.head.repo.full_name == github.repository
+            || github.event.type == "push"
           run: pytest -m fork
           env:
             WEB3_ALCHEMY_PROJECT_ID: ${{ secrets.WEB3_ALCHEMY_PROJECT_ID }}
