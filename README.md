@@ -1,10 +1,10 @@
-# ape-hardhat
+# Quick Start
 
 Hardhat network provider plugin for Ape. Hardhat is a development framework written in Node.js for Ethereum that includes a local network implementation.
 
 ## Dependencies
 
-* [python3](https://www.python.org/downloads) version 3.7.2 or greater, python3-dev
+* [python3](https://www.python.org/downloads) version 3.8 or greater, python3-dev
 * Node.js, NPM, and Hardhat. See Hardhat's [Installation](https://hardhat.org/getting-started/#installation>) documentation for steps.
 
 ## Installation
@@ -94,7 +94,3 @@ ape plugins install alchemy
 
 Please see the [contributing guide](CONTRIBUTING.md) to learn more how to contribute to this project.
 Comments, questions, criticisms and pull requests are welcomed.
-
-## License
-
-This project is licensed under the [Apache 2.0](LICENSE).
