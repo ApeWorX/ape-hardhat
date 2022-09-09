@@ -71,9 +71,9 @@ setup(
     include_package_data=True,
     install_requires=[
         "eth-ape>=0.5.0,<0.6.0",
-        "evm-trace>=0.1.0.a6",
-        "hexbytes",  # Use same as eth-ape
-        "web3",  # Use same as eth-ape
+        "evm-trace",  # Use same version as eth-ape
+        "hexbytes",  # Use same version as eth-ape
+        "web3",  # Use same version as eth-ape
     ],
     python_requires=">=3.8,<4",
     extras_require=extras_require,
