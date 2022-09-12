@@ -70,13 +70,12 @@ setup(
     url="https://github.com/ApeWorX/ape-hardhat",
     include_package_data=True,
     install_requires=[
-        "eth-ape>=0.4.3,<0.5.0",
-        "importlib-metadata ; python_version<'3.8'",
-        "evm-trace>=0.1.0.a6",
-        "hexbytes",  # Use same as eth-ape
-        "web3",  # Use same as eth-ape
+        "eth-ape>=0.5.0,<0.6",
+        "evm-trace",  # Use same version as eth-ape
+        "hexbytes",  # Use same version as eth-ape
+        "web3",  # Use same version as eth-ape
     ],
-    python_requires=">=3.7.2,<4",
+    python_requires=">=3.8,<4",
     extras_require=extras_require,
     py_modules=["ape_hardhat"],
     license="Apache-2.0",
@@ -92,7 +91,6 @@ setup(
         "Operating System :: MacOS",
         "Operating System :: POSIX",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
