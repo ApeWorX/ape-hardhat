@@ -109,11 +109,10 @@ def test_set_block_gas_limit(connected_provider):
 
 def test_set_timestamp(connected_provider):
     start_time = connected_provider.get_block("pending").timestamp
-    connected_provider.set_timestamp(start_time + 5)  # Increase by 5 seconds
+    expected_timestamp = start_time + 5
+    connected_provider.set_timestamp(expected_timestamp)
     new_time = connected_provider.get_block("pending").timestamp
-
-    # Adding 5 seconds but seconds can be weird so give it a 1 second margin.
-    assert 4 <= new_time - start_time <= 6
+    assert new_time == expected_timestamp
 
 
 def test_mine(connected_provider):
@@ -170,9 +169,7 @@ def test_get_call_tree(connected_provider, sender, receiver):
     call_tree = connected_provider.get_call_tree(transfer.txn_hash)
     assert isinstance(call_tree, CallTreeNode)
     assert call_tree.call_type == CallType.CALL
-    assert (
-        repr(call_tree) == "CALL: 0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7.<0x3078> [21000 gas]"
-    )
+    assert repr(call_tree) == "CALL: 0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7 [21000 gas]"
 
 
 def test_request_timeout(connected_provider, config, create_provider):
@@ -222,3 +219,8 @@ def test_transaction_contract_as_sender(contract_instance, connected_provider):
 def test_set_account_balance(connected_provider, owner, convert, amount):
     connected_provider.set_balance(owner.address, amount)
     assert owner.balance == convert("50 ETH", int)
+
+
+def test_return_value(connected_provider, contract_instance, owner):
+    receipt = contract_instance.setAddress(owner.address, sender=owner)
+    assert receipt.return_value == 123

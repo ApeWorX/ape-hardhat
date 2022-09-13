@@ -2,9 +2,8 @@ import random
 import shutil
 from pathlib import Path
 from subprocess import PIPE, call
-from typing import Dict, Iterator, List, Optional, Union, cast
+from typing import Dict, Iterator, List, Literal, Optional, Union, cast
 
-from ape._compat import Literal
 from ape.api import (
     PluginConfig,
     ProviderAPI,
@@ -302,9 +301,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)]) is True
 
     def set_timestamp(self, new_timestamp: int):
-        pending_timestamp = self.get_block("pending").timestamp
-        seconds_to_increase = new_timestamp - pending_timestamp
-        self._make_request("evm_increaseTime", [seconds_to_increase])
+        self._make_request("evm_setNextBlockTimestamp", [new_timestamp])
 
     def mine(self, num_blocks: int = 1):
         # NOTE: Request fails when given numbers with any left padded 0s.
@@ -347,7 +344,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             except ValueError as err:
                 raise self.get_virtual_machine_error(err) from err
 
-            receipt = self.get_transaction(
+            receipt = self.get_receipt(
                 txn_hash.hex(), required_confirmations=txn.required_confirmations or 0
             )
             receipt.raise_for_status()
@@ -364,7 +361,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             yield TraceFrame(**frame)
 
     def get_call_tree(self, txn_hash: str) -> CallTreeNode:
-        receipt = self.get_transaction(txn_hash)
+        receipt = self.get_receipt(txn_hash)
         root_node_kwargs = {
             "gas_cost": receipt.gas_used,
             "gas_limit": receipt.gas_limit,
