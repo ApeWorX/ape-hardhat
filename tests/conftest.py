@@ -2,7 +2,7 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 import ape
-import pytest  # type: ignore
+import pytest
 from _pytest.runner import pytest_runtest_makereport as orig_pytest_runtest_makereport
 from ape.api.networks import LOCAL_NETWORK_NAME
 from ape.contracts import ContractContainer

@@ -28,7 +28,7 @@ def full_contracts_cache(config):
 )
 def mainnet_receipt(request, networks):
     with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
-        yield provider.get_transaction(request.param)
+        yield provider.get_receipt(request.param)
 
 
 @pytest.fixture(scope="session")
