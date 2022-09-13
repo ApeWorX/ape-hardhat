@@ -75,7 +75,7 @@ setup(
         "hexbytes",  # Use same version as eth-ape
         "web3",  # Use same version as eth-ape
     ],
-    python_requires=">=3.8,<4",
+    python_requires=">=3.8,<3.11",
     extras_require=extras_require,
     py_modules=["ape_hardhat"],
     license="Apache-2.0",

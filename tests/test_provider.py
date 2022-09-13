@@ -219,3 +219,8 @@ def test_transaction_contract_as_sender(contract_instance, connected_provider):
 def test_set_account_balance(connected_provider, owner, convert, amount):
     connected_provider.set_balance(owner.address, amount)
     assert owner.balance == convert("50 ETH", int)
+
+
+def test_return_value(connected_provider, contract_instance, owner):
+    receipt = contract_instance.setAddress(owner.address, sender=owner)
+    assert receipt.return_value == 123
