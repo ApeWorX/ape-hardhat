@@ -1,12 +1,14 @@
 import shutil
+import sys
 from pathlib import Path
 from typing import List
 
 import pytest
+from ape.api import ReceiptAPI
 from ape.contracts import ContractContainer
 from ethpm_types import ContractType
 
-from .expected_traces import LOCAL_TRACE, MAINNET_FAIL_TRACE, MAINNET_TRACE, LOCAL_GAS_REPORT
+from .expected_traces import LOCAL_GAS_REPORT, LOCAL_TRACE, MAINNET_FAIL_TRACE, MAINNET_TRACE
 
 MAINNET_FAIL_TXN_HASH = "0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d"
 MAINNET_TXN_HASH = "0xb7d7f1d5ce7743e821d3026647df486f517946ef1342a1ae93c96e4a8016eab7"
@@ -15,12 +17,27 @@ EXPECTED_MAP = {
     MAINNET_FAIL_TXN_HASH: MAINNET_FAIL_TRACE,
 }
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts" / "ethereum"
+TEMP_FILE_NAME = "temp"
 
 
 @pytest.fixture(autouse=True, scope="module")
 def full_contracts_cache(config):
     destination = config.DATA_FOLDER / "ethereum"
     shutil.copytree(BASE_CONTRACTS_PATH, destination)
+
+
+@pytest.fixture
+def show_and_get_trace():
+    def f(receipt: ReceiptAPI) -> List[str]:
+        with open(TEMP_FILE_NAME, "w+") as temp_file:
+            receipt.show_trace(file=temp_file)
+
+        with open("temp", "r") as temp_file:
+            lines = temp_file.readlines()
+
+        return lines
+
+    return f
 
 
 @pytest.fixture(
@@ -53,37 +70,52 @@ def local_receipt(contract_a, owner):
 
 
 @pytest.fixture
-def trace_capture(capsys):
+def capture_stdout(capsys):
     def get():
-        output, errput = capsys.readouterr()
+        output, _ = capsys.readouterr()
         return [s.strip() for s in output.split("\n")]
 
     return get
 
 
-def test_local_transaction_traces(local_receipt, trace_capture):
-    local_receipt.show_trace()
-    raise ValueError(trace_capture())
-    assert_rich_output(trace_capture(), LOCAL_TRACE)
+@pytest.fixture(autouse=True)
+def clean_temp_file():
+    temp_path = Path(TEMP_FILE_NAME)
+    if temp_path.is_file():
+        temp_path.unlink()
+
+    yield
+
+    if temp_path.is_file():
+        temp_path.unlink()
+
+
+def test_local_transaction_traces(local_receipt, show_and_get_trace, clean_temp_file):
+    # NOTE: Strange bug in Rich where we can't use sys.stdout for testing tree output.
+    # And we have to write to a file, close it, and then re-open it to see output.
+    def run_test():
+        lines = show_and_get_trace(local_receipt)
+        assert_rich_output(lines, LOCAL_TRACE)
 
     # Verify can happen more than once.
-    local_receipt.show_trace()
-    assert_rich_output(trace_capture(), LOCAL_TRACE)
+    run_test()
+    run_test()
 
 
-def test_local_transaction_gas_report(local_receipt, trace_capture):
-    local_receipt.show_gas_report()
-    assert_rich_output(trace_capture(), LOCAL_GAS_REPORT)
+def test_local_transaction_gas_report(local_receipt, capture_stdout):
+    def run_test():
+        local_receipt.show_gas_report(file=sys.stdout)
+        assert_rich_output(capture_stdout(), LOCAL_GAS_REPORT)
 
     # Verify can happen more than once.
-    local_receipt.show_gas_report()
-    assert_rich_output(trace_capture(), LOCAL_GAS_REPORT)
+    run_test()
+    run_test()
 
 
 @pytest.mark.manual
-def test_mainnet_transaction_traces(mainnet_receipt, trace_capture):
-    mainnet_receipt.show_trace()
-    assert_rich_output(trace_capture(), EXPECTED_MAP[mainnet_receipt.txn_hash])
+def test_mainnet_transaction_traces(mainnet_receipt, show_and_get_trace):
+    lines = show_and_get_trace(mainnet_receipt)
+    assert_rich_output(lines, EXPECTED_MAP[mainnet_receipt.txn_hash])
 
 
 def assert_rich_output(rich_capture: List[str], expected: str):
