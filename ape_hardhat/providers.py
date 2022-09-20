@@ -324,7 +324,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         return result is True
 
-    def send_transaction(self, txn: TransactionAPI) -> ReceiptAPI:
+    def send_transaction(self, txn: TransactionAPI, raise_on_fail: bool = True) -> ReceiptAPI:
         """
         Creates a new message call transaction or a contract creation
         for signed transactions.
@@ -347,10 +347,12 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             receipt = self.get_receipt(
                 txn_hash.hex(), required_confirmations=txn.required_confirmations or 0
             )
-            receipt.raise_for_status()
+
+            if raise_on_fail:
+                receipt.raise_for_status()
 
         else:
-            receipt = super().send_transaction(txn)
+            receipt = super().send_transaction(txn, raise_on_fail=raise_on_fail)
 
         return receipt
 

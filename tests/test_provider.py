@@ -202,6 +202,18 @@ def test_contract_revert_no_message(owner, contract_instance):
     assert str(err.value) == "Transaction failed."
 
 
+def test_contract_revert_no_raise(owner, contract_instance):
+    # The Contract raises empty revert when setting number to 5.
+    receipt = contract_instance.setNumber(
+        5,
+        sender=owner,
+        gas_limit=100000,
+        raise_on_fail=False,
+    )
+
+    assert receipt.failed
+
+
 def test_transaction_contract_as_sender(contract_instance, connected_provider):
     # Set balance so test wouldn't normally fail from lack of funds
     connected_provider.set_balance(contract_instance.address, "1000 ETH")
