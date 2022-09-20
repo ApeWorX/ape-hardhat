@@ -1,5 +1,4 @@
 import shutil
-import sys
 from pathlib import Path
 from typing import List
 
@@ -28,9 +27,9 @@ def full_contracts_cache(config):
 
 @pytest.fixture
 def show_and_get_trace():
-    def f(receipt: ReceiptAPI) -> List[str]:
+    def f(receipt: ReceiptAPI, method="show_trace") -> List[str]:
         with open(TEMP_FILE_NAME, "w+") as temp_file:
-            receipt.show_trace(file=temp_file)
+            getattr(receipt, method)(file=temp_file)
 
         with open("temp", "r") as temp_file:
             lines = temp_file.readlines()
@@ -64,18 +63,9 @@ def contract_a(owner, connected_provider):
     return contract_a
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def local_receipt(contract_a, owner):
     return contract_a.methodWithoutArguments(sender=owner)
-
-
-@pytest.fixture
-def capture_stdout(capsys):
-    def get():
-        output, _ = capsys.readouterr()
-        return [s.strip() for s in output.split("\n")]
-
-    return get
 
 
 @pytest.fixture(autouse=True)
@@ -102,10 +92,10 @@ def test_local_transaction_traces(local_receipt, show_and_get_trace, clean_temp_
     run_test()
 
 
-def test_local_transaction_gas_report(local_receipt, capture_stdout):
+def test_local_transaction_gas_report(local_receipt, show_and_get_trace):
     def run_test():
-        local_receipt.show_gas_report(file=sys.stdout)
-        assert_rich_output(capture_stdout(), LOCAL_GAS_REPORT)
+        lines = show_and_get_trace(local_receipt, method="show_gas_report")
+        assert_rich_output(lines, LOCAL_GAS_REPORT)
 
     # Verify can happen more than once.
     run_test()
