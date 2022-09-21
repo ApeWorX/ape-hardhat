@@ -224,3 +224,11 @@ def test_set_account_balance(connected_provider, owner, convert, amount):
 def test_return_value(connected_provider, contract_instance, owner):
     receipt = contract_instance.setAddress(owner.address, sender=owner)
     assert receipt.return_value == 123
+
+
+def test_get_receipt(connected_provider, contract_instance, owner):
+    receipt = contract_instance.setAddress(owner.address, sender=owner)
+    actual = connected_provider.get_receipt(receipt.txn_hash)
+    assert receipt.txn_hash == actual.txn_hash
+    assert actual.receiver == contract_instance.address
+    assert actual.sender == receipt.sender
