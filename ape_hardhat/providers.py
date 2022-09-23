@@ -361,7 +361,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             yield TraceFrame(**frame)
 
     def get_call_tree(self, txn_hash: str) -> CallTreeNode:
-        receipt = self.get_receipt(txn_hash)
+        receipt = self.chain_manager.get_receipt(txn_hash)
         root_node_kwargs = {
             "gas_cost": receipt.gas_used,
             "gas_limit": receipt.gas_limit,
