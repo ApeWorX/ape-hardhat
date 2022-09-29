@@ -31,6 +31,9 @@ def show_and_get_trace():
         with open(TEMP_FILE_NAME, "w+") as temp_file:
             getattr(receipt, method)(file=temp_file)
 
+        if not Path("temp").is_file():
+            return []
+
         with open("temp", "r") as temp_file:
             lines = temp_file.readlines()
 
