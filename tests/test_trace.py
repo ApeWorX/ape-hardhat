@@ -66,7 +66,7 @@ def contract_a(owner, connected_provider):
     return contract_a
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def local_receipt(contract_a, owner):
     return contract_a.methodWithoutArguments(sender=owner)
 
@@ -83,7 +83,8 @@ def clean_temp_file():
         temp_path.unlink()
 
 
-def test_local_transaction_traces(local_receipt, show_and_get_trace, clean_temp_file):
+@pytest.mark.sync
+def test_local_transaction_traces(local_receipt, show_and_get_trace):
     # NOTE: Strange bug in Rich where we can't use sys.stdout for testing tree output.
     # And we have to write to a file, close it, and then re-open it to see output.
     def run_test():
@@ -95,6 +96,7 @@ def test_local_transaction_traces(local_receipt, show_and_get_trace, clean_temp_
     run_test()
 
 
+@pytest.mark.sync
 def test_local_transaction_gas_report(local_receipt, show_and_get_trace):
     def run_test():
         lines = show_and_get_trace(local_receipt, method="show_gas_report")
