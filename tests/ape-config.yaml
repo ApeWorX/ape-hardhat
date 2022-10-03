@@ -1,3 +1,9 @@
+contracts_folder: data/contracts/ethereum/local
+
+ethereum:
+  local:
+    default_provider: hardhat
+
 hardhat:
 
   port: auto
