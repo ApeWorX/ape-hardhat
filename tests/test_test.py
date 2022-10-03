@@ -75,20 +75,21 @@ def ape_pytester(project, pytester):
     return pytester
 
 
-# def test_gas_flag_in_tests(ape_pytester):
-#     result = ape_pytester.runpytest("--gas")
-#     result.assert_outcomes(passed=NUM_TESTS), "\n".join(result.outlines)
-#
-#     gas_header_line_index = None
-#     for index, line in enumerate(result.outlines):
-#         if "Gas Profile" in line:
-#             gas_header_line_index = index
-#
-#     assert gas_header_line_index is not None, "'Gas Profile' not in output."
-#     expected = EXPECTED_GAS_REPORT.split("\n")[1:]
-#     start_index = gas_header_line_index + 1
-#     end_index = start_index + len(expected)
-#     actual = [x.rstrip() for x in result.outlines[start_index:end_index]]
-#     assert len(actual) == len(expected)
-#     for actual_line, expected_line in zip(actual, expected):
-#         assert actual_line == expected_line
+def test_gas_flag_in_tests(ape_pytester):
+    result = ape_pytester.runpytest("--gas")
+    print("\n".join(result.outlines))
+    result.assert_outcomes(passed=NUM_TESTS), "\n".join(result.outlines)
+
+    gas_header_line_index = None
+    for index, line in enumerate(result.outlines):
+        if "Gas Profile" in line:
+            gas_header_line_index = index
+
+    assert gas_header_line_index is not None, "'Gas Profile' not in output."
+    expected = EXPECTED_GAS_REPORT.split("\n")[1:]
+    start_index = gas_header_line_index + 1
+    end_index = start_index + len(expected)
+    actual = [x.rstrip() for x in result.outlines[start_index:end_index]]
+    assert len(actual) == len(expected)
+    for actual_line, expected_line in zip(actual, expected):
+        assert actual_line == expected_line
