@@ -77,7 +77,6 @@ def ape_pytester(project, pytester):
 
 def test_gas_flag_in_tests(ape_pytester):
     result = ape_pytester.runpytest("--gas")
-    print("\n".join(result.outlines))
     result.assert_outcomes(passed=NUM_TESTS), "\n".join(result.outlines)
 
     gas_header_line_index = None
