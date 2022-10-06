@@ -7,14 +7,23 @@ import pytest
 @pytest.fixture(scope="session")
 def owner(accounts):
     return accounts[0]
+
+
+@pytest.fixture(scope="session")
+def contract(project, owner):
+    c = project.TestContractVy.deploy(sender=owner)
+
+    # Show that contract transactions in fixtures appear in gas report
+    c.setNumber(999, sender=owner)
+
+    return c
 """
 TEST_FILE = """
 def test_provider(networks):
     # The default gets set in `ape-config.yaml`
     assert networks.provider.name == "hardhat"
 
-def test_contract_interaction(owner, project):
-    contract = project.TestContractVy.deploy(sender=owner)
+def test_contract_interaction(owner, contract):
     contract.setNumber(123, sender=owner)
     assert contract.myNumber() == 123
 
@@ -46,7 +55,7 @@ EXPECTED_GAS_REPORT = r"""
 
   Method      Times called    Min.    Max.    Mean   Median
  ───────────────────────────────────────────────────────────
-  setNumber              2   51021   51021   51021    51021
+  setNumber              3   51021   53821   51958    51033
 
                     Transferring ETH Gas
 
