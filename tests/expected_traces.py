@@ -516,29 +516,29 @@ DSProxy.execute(_target=LoanShifterTaker, _data=0x35..0000) -> '' [1275643 gas]
           _data=0x00..0000
         ) [174327 gas]
 """
-LOCAL_GAS_REPORT = """
+LOCAL_GAS_REPORT = r"""
                               ContractA.sol Gas
 
   Method                   Times called     Min.     Max.     Mean   Median
  ───────────────────────────────────────────────────────────────────────────
-  methodWithoutArguments              1   412065   412065   412065   412065
+  methodWithoutArguments +1 +\d+ +\d+ +\d+ + \d+
 
                          ContractB.sol Gas
 
   Method         Times called     Min.     Max.     Mean   Median
  ─────────────────────────────────────────────────────────────────
-  methodB1                  3    54861   401697   182829    91930
-  callMe                    1   233062   233062   233062   233062
-  methodB2                  1   231581   231581   231581   231581
-  bandPractice              1    93900    93900    93900    93900
+  methodB1 +3 +\d+ +\d+ +\d+ + \d+
+  callMe +1 +\d+ +\d+ +\d+ + \d+
+  methodB2 +1 +\d+ +\d+ +\d+ + \d+
+  bandPractice +1 +\d+ +\d+ +\d+ + \d+
 
                           ContractC.sol Gas
 
   Method           Times called     Min.     Max.     Mean   Median
  ───────────────────────────────────────────────────────────────────
-  getSomeList                 3    51694   369738   169183    86116
-  methodC1                    4    47921   363505   178917   152122
-  paperwork                   1   226996   226996   226996   226996
-  methodC2                    2   121652   146872   134262   134262
-  addressToValue              1    99935    99935    99935    99935
+  getSomeList +3 +\d+ +\d+ +\d+ + \d+
+  methodC1 +4 +\d+ +\d+ +\d+ + \d+
+  paperwork +1 +\d+ +\d+ +\d+ + \d+
+  methodC2 +2 +\d+ +\d+ +\d+ + \d+
+  addressToValue +1 +\d+ +\d+ +\d+ + \d+
 """

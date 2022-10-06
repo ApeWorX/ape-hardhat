@@ -29,7 +29,7 @@ def test_fork_config(config, network):
 
 
 @pytest.mark.sync
-@pytest.mark.parametrize("upstream_network,port", [("mainnet", 8998), ("rinkeby", 8999)])
+@pytest.mark.parametrize("upstream_network,port", [("mainnet", 8998), ("goerli", 8999)])
 def test_impersonate(networks, accounts, upstream_network, port, create_fork_provider):
     provider = create_fork_provider(port=port, network=upstream_network)
     provider.connect()

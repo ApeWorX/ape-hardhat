@@ -1,3 +1,4 @@
+import re
 import shutil
 from pathlib import Path
 from typing import List
@@ -91,8 +92,9 @@ def test_local_transaction_traces(local_receipt, show_and_get_trace):
         lines = show_and_get_trace(local_receipt)
         assert_rich_output(lines, LOCAL_TRACE)
 
-    # Verify can happen more than once.
     run_test()
+
+    # Verify can happen more than once.
     run_test()
 
 
@@ -102,8 +104,9 @@ def test_local_transaction_gas_report(local_receipt, show_and_get_trace):
         lines = show_and_get_trace(local_receipt, method="show_gas_report")
         assert_rich_output(lines, LOCAL_GAS_REPORT)
 
-    # Verify can happen more than once.
     run_test()
+
+    # Verify can happen more than once.
     run_test()
 
 
@@ -119,7 +122,7 @@ def assert_rich_output(rich_capture: List[str], expected: str):
     assert actual_lines, "No output."
 
     for actual, expected in zip(actual_lines, expected_lines):
-        assert actual == expected
+        assert re.match(expected, actual), f"Pattern: {expected}, Line: {actual}"
 
     actual_len = len(actual_lines)
     expected_len = len(expected_lines)
