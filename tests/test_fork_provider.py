@@ -147,3 +147,12 @@ def test_transaction_unknown_contract_as_sender(accounts, networks, create_fork_
     multi_sig = accounts[account]
     multi_sig.transfer(accounts[0], "100 gwei")
     networks.active_provider = init_provider
+
+
+@pytest.mark.fork
+def test_get_receipt(connected_mainnet_fork_provider, fork_contract_instance, owner):
+    receipt = fork_contract_instance.setAddress(owner.address, sender=owner)
+    actual = connected_mainnet_fork_provider.get_receipt(receipt.txn_hash)
+    assert receipt.txn_hash == actual.txn_hash
+    assert actual.receiver == fork_contract_instance.address
+    assert actual.sender == receipt.sender
