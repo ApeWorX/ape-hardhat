@@ -70,11 +70,11 @@ jobs:
         - name: Install Node Dependencies
           run: npm install --save-dev hardhat
 
-        - name: Run Tests
+        - name: Run Async Tests
           run: pytest -n auto -m "not sync and not manual and not fuzzing"
 
-        - name: Run Fork Tests
-          # Only run fork tests if not from a forked repo (Else it always fails)
+        - name: Run Sync Tests
+          # Only run synchronous tests if not from a forked repo (Else it always fails)
           if: github.event.pull_request.head.repo.full_name == github.repository
           run: pytest -m sync
           env:
