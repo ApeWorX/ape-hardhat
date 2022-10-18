@@ -40,6 +40,7 @@ def ape_pytester(project, pytester):
     return pytester
 
 
+@pytest.mark.sync
 def test_gas_flag_in_tests(ape_pytester, project):
     result = ape_pytester.runpytest("--gas")
     result.assert_outcomes(passed=NUM_TESTS), "\n".join(result.outlines)
