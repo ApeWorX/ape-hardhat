@@ -95,7 +95,7 @@ def test_reset_fork_specify_block_number_via_config(networks, create_fork_provid
     provider.mine(5)
     provider.reset_fork()
     block_num_after_reset = provider.get_block("latest").number
-    assert block_num_after_reset == 15000000  # Specified in ape-config.yaml
+    assert block_num_after_reset == 15776634  # Specified in ape-config.yaml
     provider.disconnect()
 
 
