@@ -26,6 +26,12 @@ def full_contracts_cache(config):
     shutil.copytree(BASE_CONTRACTS_PATH, destination)
 
 
+@pytest.fixture(autouse=True, scope="module")
+def provider(networks):
+    with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
+        yield provider
+
+
 @pytest.fixture
 def show_and_get_trace():
     def f(receipt: ReceiptAPI, method="show_trace") -> List[str]:
@@ -47,13 +53,12 @@ def show_and_get_trace():
     params=(MAINNET_TXN_HASH, MAINNET_FAIL_TXN_HASH),
     scope="module",
 )
-def mainnet_receipt(request, networks):
-    with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
-        yield provider.get_receipt(request.param)
+def mainnet_receipt(request, provider):
+    yield provider.get_receipt(request.param)
 
 
-@pytest.fixture(scope="session")
-def contract_a(owner, connected_provider):
+@pytest.fixture(scope="module")
+def contract_a(owner, provider):
     base_path = BASE_CONTRACTS_PATH / "local"
 
     def get_contract_type(suffix: str) -> ContractType:
@@ -64,6 +69,7 @@ def contract_a(owner, connected_provider):
     contract_a = owner.deploy(
         ContractContainer(get_contract_type("a")), contract_b.address, contract_c.address
     )
+
     return contract_a
 
 

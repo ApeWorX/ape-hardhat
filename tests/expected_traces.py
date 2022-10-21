@@ -1,7 +1,7 @@
 LOCAL_TRACE = r"""
 Call trace for
-'0x34e08776aeda87f095a08d8c3f26ca6f6b1257dd9ac69d34bf36d8d18c5c6180'
-txn.origin=0x318b469BBa396AEc2C60342F9441be36A1945174
+'0x([A-Fa-f0-9]{64})'
+txn.origin=0x[a-fA-F0-9]{40}
 ContractA.methodWithoutArguments\(\) -> 0x00..5174 \[412065 gas\]
 ├── SYMBOL.methodB1\(lolol="ice-cream", dynamo=36\) \[401697 gas\]
 │   ├── ContractC.getSomeList\(\) -> \[
@@ -40,9 +40,9 @@ ContractA.methodWithoutArguments\(\) -> 0x00..5174 \[412065 gas\]
 """
 MAINNET_FAIL_TRACE = r"""
 Call trace for
-'0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d'
+'0x([A-Fa-f0-9]{64})'
 reverted with message: "UNIV3R: min return"
-txn.origin=0xd2f91C13e2D7ABbA4408Cd3D86285b7835524ad7
+txn.origin=0x[a-fA-F0-9]{40}
 AggregationRouterV4.uniswapV3Swap\(
   amount=12851675475480000000000,
   minReturn=4205588148,
@@ -52,7 +52,7 @@ AggregationRouterV4.uniswapV3Swap\(
 8
   \]
 \) \[208466 gas\]
-├── CALL: 0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5.<0x128acb08>  \[235702 gas\]
+├── CALL: 0x[a-fA-F0-9]{40}.<0x128acb08>  \[235702 gas\]
 │   ├── WETH.transfer\(dst=AggregationRouterV4, wad=2098831888913057968\) -> True
 │   │   \[198998 gas\]
 │   ├── XDEFI.balanceOf\(account=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5\) ->
@@ -65,55 +65,55 @@ AggregationRouterV4.uniswapV3Swap\(
 │   │     amount1Delta=-2098831888913057968,
 │   │     0x00..4ad7
 │   │   \) \[157874 gas\]
-│   │   ├── STATICCALL: 0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5.<0x0dfe1681>
+│   │   ├── STATICCALL: 0x[a-fA-F0-9]{40}.<0x0dfe1681>
 │   │   │   \[154703 gas\]
-│   │   ├── STATICCALL: 0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5.<0xd21220a7>
+│   │   ├── STATICCALL: 0x[a-fA-F0-9]{40}.<0xd21220a7>
 │   │   │   \[154293 gas\]
-│   │   ├── STATICCALL: 0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5.<0xddca3f43>
+│   │   ├── STATICCALL: 0x[a-fA-F0-9]{40}.<0xddca3f43>
 │   │   │   \[153845 gas\]
 │   │   └── XDEFI.transferFrom\(
 │   │         sender=tx.origin,
-│   │         recipient=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5,
+│   │         recipient=0x[a-fA-F0-9]{40},
 │   │         amount=12851675475480000000000
 │   │       \) -> True \[152092 gas\]
 │   │       └── \(delegate\) FixedToken.transferFrom\(
 │   │             sender=tx.origin,
-│   │             recipient=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5,
+│   │             recipient=0x[a-fA-F0-9]{40},
 │   │             amount=12851675475480000000000
 │   │           \) -> True \[149572 gas\]
-│   └── XDEFI.balanceOf\(account=0x77924185CF0cbB2Ae0b746A0086A065d6875b0a5\) ->
+│   └── XDEFI.balanceOf\(account=0x[a-fA-F0-9]{40}\) ->
 │       1313544030383442674610343 \[135118 gas\]
 │       └── \(delegate\)
-│           FixedToken.balanceOf\(account=0x77924185CF0cbB2Ae0b746A0086A065d6875b
+│           FixedToken.balanceOf\(account=0x[a-fA-F0-9]{40}
 │           0a5\) -> 1313544030383442674610343 \[132875 gas\]
-└── CALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640.<0x128acb08>  \[130650 gas\]
+└── CALL: 0x[a-fA-F0-9]{40}.<0x128acb08>  \[130650 gas\]
     ├── CALL: FiatTokenProxy.<0xa9059cbb>  \[102998 gas\]
     │   └── \(delegate\) FiatTokenV2_1.transfer\(to=tx.origin, value=4192051335\) ->
     │       True \[94297 gas\]
-    ├── WETH.balanceOf\(0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\) ->
+    ├── WETH.balanceOf\(0x[a-fA-F0-9]{40}\) ->
     │   68357784800426962457000 \[73171 gas\]
     ├── AggregationRouterV4.uniswapV3SwapCallback\(
     │     amount0Delta=-4192051335,
     │     amount1Delta=2098831888913057968,
     │     0x00..097d
     │   \) \[69917 gas\]
-    │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640.<0x0dfe1681>
+    │   ├── STATICCALL: 0x[a-fA-F0-9]{40}.<0x0dfe1681>
     │   │   \[68120 gas\]
-    │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640.<0xd21220a7>
+    │   ├── STATICCALL: 0x[a-fA-F0-9]{40}.<0xd21220a7>
     │   │   \[67710 gas\]
-    │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640.<0xddca3f43>
+    │   ├── STATICCALL: 0x[a-fA-F0-9]{40}.<0xddca3f43>
     │   │   \[67262 gas\]
     │   └── WETH.transfer\(
-    │         dst=0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640,
+    │         dst=0x[a-fA-F0-9]{40},
     │         wad=2098831888913057968
     │       \) -> True \[65595 gas\]
-    └── WETH.balanceOf\(0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\) ->
+    └── WETH.balanceOf\(0x[a-fA-F0-9]{40}\) ->
         68359883632315875514968 \[59578 gas\]
 """
 MAINNET_TRACE = r"""
 Call trace for
-'0xb7d7f1d5ce7743e821d3026647df486f517946ef1342a1ae93c96e4a8016eab7'
-txn.origin=0x5668EAd1eDB8E2a4d724C8fb9cB5fFEabEB422dc
+'0x([A-Fa-f0-9]{64})'
+txn.origin=0x[a-fA-F0-9]{40}
 DSProxy.execute\(_target=LoanShifterTaker, _data=0x35..0000\) -> '' \[1275643 gas\]
 └── \(delegate\) LoanShifterTaker.moveLoan\(
       _exchangeData=\[
@@ -517,13 +517,13 @@ DSProxy.execute\(_target=LoanShifterTaker, _data=0x35..0000\) -> '' \[1275643 ga
         \) \[174327 gas\]
 """
 LOCAL_GAS_REPORT = r"""
-                              ContractA.sol Gas
+                              contract_a.json Gas
 
   Method                   Times called     Min.     Max.     Mean   Median
  ───────────────────────────────────────────────────────────────────────────
   methodWithoutArguments +1 +\d+ +\d+ +\d+ + \d+
 
-                         ContractB.sol Gas
+                         contract_b.json Gas
 
   Method         Times called     Min.     Max.     Mean   Median
  ─────────────────────────────────────────────────────────────────
@@ -532,7 +532,7 @@ LOCAL_GAS_REPORT = r"""
   methodB2 +1 +\d+ +\d+ +\d+ + \d+
   bandPractice +1 +\d+ +\d+ +\d+ + \d+
 
-                          ContractC.sol Gas
+                        contract_c.json Gas
 
   Method           Times called     Min.     Max.     Mean   Median
  ───────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-def test_provider(networks):
+def test_provider(project, networks):
     # The default gets set in `ape-config.yaml`
     assert networks.provider.name == "hardhat"
 
