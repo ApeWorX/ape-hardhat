@@ -149,7 +149,7 @@ def test_transaction_unknown_contract_as_sender(accounts, networks, create_fork_
     networks.active_provider = init_provider
 
 
-@pytest.mark.fork
+@pytest.mark.sync
 def test_get_receipt(connected_mainnet_fork_provider, fork_contract_instance, owner):
     receipt = fork_contract_instance.setAddress(owner.address, sender=owner)
     actual = connected_mainnet_fork_provider.get_receipt(receipt.txn_hash)
