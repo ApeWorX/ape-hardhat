@@ -29,6 +29,7 @@ from eth_utils import is_0x_prefixed, to_hex
 from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
 from hexbytes import HexBytes
 from web3 import HTTPProvider, Web3
+from web3.eth import TxParams
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
 from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
@@ -339,7 +340,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             txn_dict = txn.dict()
 
             try:
-                txn_hash = self._web3.eth.send_transaction(txn_dict)  # type: ignore
+                txn_params = cast(TxParams, txn_dict)
+                txn_hash = self.web3.eth.send_transaction(txn_params)
             except ValueError as err:
                 raise self.get_virtual_machine_error(err) from err
 
@@ -360,7 +362,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             yield TraceFrame(**frame)
 
     def get_call_tree(self, txn_hash: str) -> CallTreeNode:
-        receipt = self.get_receipt(txn_hash)
+        receipt = self.chain_manager.get_receipt(txn_hash)
         root_node_kwargs = {
             "gas_cost": receipt.gas_used,
             "gas_limit": receipt.gas_limit,
