@@ -15,6 +15,9 @@ ape.config.DATA_FOLDER = Path(mkdtemp()).resolve()
 
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts"
 
+# Needed to test tracing support in core `ape test` command.
+pytest_plugins = ["pytester"]
+
 
 def pytest_runtest_makereport(item, call):
     tr = orig_pytest_runtest_makereport(item, call)
@@ -34,6 +37,11 @@ def in_tests_dir(config):
 @pytest.fixture(scope="session")
 def config():
     return ape.config
+
+
+@pytest.fixture(scope="session")
+def project():
+    return ape.project
 
 
 @pytest.fixture(scope="session")

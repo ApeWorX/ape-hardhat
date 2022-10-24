@@ -30,7 +30,10 @@ from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth
 from hexbytes import HexBytes
 from web3 import HTTPProvider, Web3
 from web3.eth import TxParams
+from web3.exceptions import ExtraDataLengthError
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
+from web3.middleware import geth_poa_middleware
+from web3.middleware.validation import MAX_EXTRADATA_LENGTH
 
 from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
 
@@ -241,6 +244,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             return
 
         self._web3 = Web3(HTTPProvider(self.uri, request_kwargs={"timeout": self.timeout}))
+
         if not self._web3.is_connected():
             self._web3 = None
             return
@@ -255,6 +259,22 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             raise ProviderError(
                 f"Port '{self.port}' already in use by another process that isn't a Hardhat node."
             )
+
+        # Handle if using PoA Hardhat
+
+        def is_likely_poa() -> bool:
+            try:
+                block = self.web3.eth.get_block("latest")
+            except ExtraDataLengthError:
+                return True
+
+            return (
+                "proofOfAuthorityData" in block
+                or len(block.get("extraData", "")) > MAX_EXTRADATA_LENGTH
+            )
+
+        if is_likely_poa():
+            self._web3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     def _start(self):
         use_random_port = self.port == "auto"
