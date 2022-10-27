@@ -320,8 +320,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def set_block_gas_limit(self, gas_limit: int) -> bool:
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)]) is True
 
-    def set_code(self, code):
-        return self._make_request("hardhat_setCode", code) is True
+    def set_code(self, address: AddressType, code) -> bool:
+        return self._make_request("hardhat_setCode", [address, code]) is True
 
     def set_timestamp(self, new_timestamp: int):
         self._make_request("evm_setNextBlockTimestamp", [new_timestamp])
