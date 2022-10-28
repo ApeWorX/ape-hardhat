@@ -38,3 +38,9 @@ def ape_pytester(project, pytester):
     pytester.makeconftest(CONFTEST)
     pytester.makepyfile(TEST_FILE)
     return pytester
+
+
+@pytest.mark.sync
+def test_gas_flag_in_tests(ape_pytester, project):
+    result = ape_pytester.runpytest("--gas", "-s")
+    result.assert_outcomes(passed=NUM_TESTS), "\n".join(result.outlines)

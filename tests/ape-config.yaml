@@ -16,4 +16,4 @@ hardhat:
         block_number: 15776634
       goerli:
         upstream_provider: alchemy
-        block_number: 3853585
+        block_number: 7849922
