@@ -17,3 +17,11 @@ hardhat:
       goerli:
         upstream_provider: alchemy
         block_number: 7849922
+
+test:
+  # Turn to `false` because running pytest within pytest.
+  disconnect_providers_after: false
+
+  gas:
+    exclude:
+      - method: setAdd*
