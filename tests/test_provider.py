@@ -217,7 +217,6 @@ def test_set_account_balance(connected_provider, owner, convert, amount):
     assert owner.balance == convert("50 ETH", int)
 
 
-@pytest.mark.sync
 def test_set_code(connected_provider, fork_contract_instance):
     provider = connected_provider
     code = provider.get_code(fork_contract_instance)
