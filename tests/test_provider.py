@@ -221,9 +221,9 @@ def test_set_code(connected_provider, contract_instance):
     provider = connected_provider
     code = provider.get_code(contract_instance.address)
     assert type(code) == HexBytes
-    provider.set_code(contract_instance.address, "0x00")
+    assert provider.set_code(contract_instance.address, "0x00") is True
     assert provider.get_code(contract_instance.address) != code
-    provider.set_code(contract_instance.address, code)
+    assert provider.set_code(contract_instance.address, code) is True
     assert provider.get_code(contract_instance.address) == code
 
 
