@@ -25,7 +25,7 @@ from ape.logging import logger
 from ape.types import AddressType, SnapshotID
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
-from eth_utils import is_0x_prefixed, to_hex
+from eth_utils import is_0x_prefixed, to_hex, is_hex
 from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
 from hexbytes import HexBytes
 from web3 import HTTPProvider, Web3
@@ -320,8 +320,14 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def set_block_gas_limit(self, gas_limit: int) -> bool:
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)]) is True
 
-    def set_code(self, address: AddressType, code) -> bool:
-        return self._make_request("hardhat_setCode", [address, code]) is True
+    def set_code(self, address: AddressType, code: Union[str, bytes, HexBytes]) -> bool:
+        if isinstance(code, bytes):
+            code = code.hex()
+
+        elif not is_hex(code):
+            raise ValueError(f"Value {code} is not convertible to hex")
+
+        return self._make_request("hardhat_setCode", [address, code])
 
     def set_timestamp(self, new_timestamp: int):
         self._make_request("evm_setNextBlockTimestamp", [new_timestamp])
