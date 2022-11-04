@@ -220,9 +220,10 @@ def test_set_account_balance(connected_provider, owner, convert, amount):
 def test_set_code(connected_provider, fork_contract_instance):
     provider = connected_provider
     code = provider.get_code(fork_contract_instance)
-    provider.set_code(fork_contract_instance.address, ["0x0"])
+    assert type(code) == HexBytes
+    provider.set_code(fork_contract_instance.address, "0x00")
     assert provider.get_code(fork_contract_instance.address) != code
-    provider.set_code(fork_contract_instance.address, [code])
+    provider.set_code(fork_contract_instance.address, code)
     assert provider.get_code(fork_contract_instance.address) == code
 
 
