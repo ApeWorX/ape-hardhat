@@ -100,16 +100,6 @@ def test_reset_fork_specify_block_number_via_config(networks, create_fork_provid
 
 
 @pytest.mark.sync
-def test_set_code(create_fork_provider, fork_contract_instance):
-    provider = create_fork_provider(port=9030, network="ethereum:mainnet-fork:hardhat")
-    code = provider.get_code(fork_contract_instance)
-    provider.set_code(fork_contract_instance.address, ["0x0"])
-    assert provider.get_code(fork_contract_instance.address) != code
-    provider.set_code(fork_contract_instance.address, [code])
-    assert provider.get_code(fork_contract_instance.address) == code
-
-
-@pytest.mark.sync
 def test_transaction(owner, fork_contract_instance):
     receipt = fork_contract_instance.setNumber(6, sender=owner)
     assert receipt.sender == owner
