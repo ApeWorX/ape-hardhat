@@ -262,9 +262,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         # Handle if using PoA Hardhat
 
-        def is_likely_poa() -> bool:
+        def began_poa() -> bool:
             try:
-                block = self.web3.eth.get_block("latest")
+                block = self.web3.eth.get_block(0)
             except ExtraDataLengthError:
                 return True
 
@@ -273,7 +273,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                 or len(block.get("extraData", "")) > MAX_EXTRADATA_LENGTH
             )
 
-        if is_likely_poa():
+        if began_poa():
             self._web3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     def _start(self):
@@ -504,7 +504,20 @@ class HardhatForkProvider(HardhatProvider):
 
         # Verify that we're connected to a Hardhat node with mainnet-fork mode.
         self._upstream_provider.connect()
-        upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
+
+        try:
+            upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
+        except ExtraDataLengthError as err:
+            if isinstance(self._upstream_provider, Web3Provider):
+                logger.error(
+                    f"Upstream provider '{self._upstream_provider.name}' "
+                    f"missing Geth PoA middleware."
+                )
+                self._upstream_provider.web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+                upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
+            else:
+                raise ProviderError(f"Unable to get genesis block: {err}.") from err
+
         self._upstream_provider.disconnect()
 
         if self.get_block(0).hash != upstream_genesis_block_hash:

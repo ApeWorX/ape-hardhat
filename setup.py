@@ -15,10 +15,10 @@ extras_require = {
         "rich",  # Needed for trace tests
     ],
     "lint": [
-        "black>=22.6.0",  # auto-formatter and linter
-        "mypy>=0.971",  # Static type analyzer
-        "flake8>=4.0.1,<5.0",  # Style linter
-        "isort>=5.10.1,<6.0",  # Import sorting linter
+        "black>=22.10.0",  # auto-formatter and linter
+        "mypy>=0.982",  # Static type analyzer
+        "flake8>=5.0.4",  # Style linter
+        "isort>=5.10.1",  # Import sorting linter
         "types-requests",  # NOTE: Needed due to mypy typeshed
     ],
     "doc": [
