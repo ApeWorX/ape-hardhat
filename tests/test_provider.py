@@ -217,6 +217,16 @@ def test_set_account_balance(connected_provider, owner, convert, amount):
     assert owner.balance == convert("50 ETH", int)
 
 
+def test_set_code(connected_provider, contract_instance):
+    provider = connected_provider
+    code = provider.get_code(contract_instance.address)
+    assert type(code) == HexBytes
+    assert provider.set_code(contract_instance.address, "0x00") is True
+    assert provider.get_code(contract_instance.address) != code
+    assert provider.set_code(contract_instance.address, code) is True
+    assert provider.get_code(contract_instance.address) == code
+
+
 def test_return_value(connected_provider, contract_instance, owner):
     receipt = contract_instance.setAddress(owner.address, sender=owner)
     assert receipt.return_value == 123
