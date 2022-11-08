@@ -2,7 +2,7 @@
 requires = ["setuptools>=51.1.1", "wheel", "setuptools_scm[toml]>=5.0"]
 
 [tool.mypy]
-exclude = "(build/)|(tests/functional/data)"
+exclude = ["build/", "tests/functional/data/"]
 
 [tool.setuptools_scm]
 write_to = "ape_hardhat/version.py"
@@ -18,6 +18,7 @@ target-version = ['py38', 'py39', 'py310']
 include = '\.pyi?$'
 
 [tool.pytest.ini_options]
+norecursedirs = "projects"
 addopts = """
     -p no:ape_test
     --cov-branch
@@ -30,7 +31,7 @@ python_files = "test_*.py"
 testpaths = "tests"
 markers = """
 fuzzing: Run Hypothesis fuzz test suite
-fork: Run forked-network tests using Alchemy as the upstream provider
+sync: Run without x-dist
 manual: Tests you want to avoid running in automated CI/CD because of expense
 """
 

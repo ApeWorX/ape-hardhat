@@ -25,12 +25,15 @@ from ape.logging import logger
 from ape.types import AddressType, SnapshotID
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
-from eth_utils import is_0x_prefixed, to_hex
+from eth_utils import is_0x_prefixed, is_hex, to_hex
 from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
 from hexbytes import HexBytes
 from web3 import HTTPProvider, Web3
 from web3.eth import TxParams
+from web3.exceptions import ExtraDataLengthError
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
+from web3.middleware import geth_poa_middleware
+from web3.middleware.validation import MAX_EXTRADATA_LENGTH
 
 from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
 
@@ -241,6 +244,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             return
 
         self._web3 = Web3(HTTPProvider(self.uri, request_kwargs={"timeout": self.timeout}))
+
         if not self._web3.is_connected():
             self._web3 = None
             return
@@ -255,6 +259,22 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             raise ProviderError(
                 f"Port '{self.port}' already in use by another process that isn't a Hardhat node."
             )
+
+        # Handle if using PoA Hardhat
+
+        def began_poa() -> bool:
+            try:
+                block = self.web3.eth.get_block(0)
+            except ExtraDataLengthError:
+                return True
+
+            return (
+                "proofOfAuthorityData" in block
+                or len(block.get("extraData", "")) > MAX_EXTRADATA_LENGTH
+            )
+
+        if began_poa():
+            self._web3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     def _start(self):
         use_random_port = self.port == "auto"
@@ -299,6 +319,15 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     def set_block_gas_limit(self, gas_limit: int) -> bool:
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)]) is True
+
+    def set_code(self, address: AddressType, code: Union[str, bytes, HexBytes]) -> bool:
+        if isinstance(code, bytes):
+            code = code.hex()
+
+        elif not is_hex(code):
+            raise ValueError(f"Value {code} is not convertible to hex")
+
+        return self._make_request("hardhat_setCode", [address, code])
 
     def set_timestamp(self, new_timestamp: int):
         self._make_request("evm_setNextBlockTimestamp", [new_timestamp])
@@ -475,7 +504,20 @@ class HardhatForkProvider(HardhatProvider):
 
         # Verify that we're connected to a Hardhat node with mainnet-fork mode.
         self._upstream_provider.connect()
-        upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
+
+        try:
+            upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
+        except ExtraDataLengthError as err:
+            if isinstance(self._upstream_provider, Web3Provider):
+                logger.error(
+                    f"Upstream provider '{self._upstream_provider.name}' "
+                    f"missing Geth PoA middleware."
+                )
+                self._upstream_provider.web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+                upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
+            else:
+                raise ProviderError(f"Unable to get genesis block: {err}.") from err
+
         self._upstream_provider.disconnect()
 
         if self.get_block(0).hash != upstream_genesis_block_hash:
