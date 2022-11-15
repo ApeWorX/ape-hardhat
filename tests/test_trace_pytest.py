@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -7,27 +8,39 @@ CONFTEST = (BASE_DATA_PATH / "pytest_test_conftest.py").read_text()
 TEST_FILE = (BASE_DATA_PATH / "pytest_tests.py").read_text()
 NUM_TESTS = len([x for x in TEST_FILE.split("\n") if x.startswith("def test_")])
 TOKEN_B_GAS_REPORT = r"""
-                         TokenB Gas
+ +TokenB Gas
 
-  Method     Times called    Min.    Max.    Mean   Median
- ──────────────────────────────────────────────────────────
-  transfer              1   50911   50911   50911    50911
+  Method +Times called +Min. +Max. +Mean +Median
+ ─+
+  balanceOf +\d +\d+ + \d+ + \d+ + \d+
+  transfer +\d +\d+ + \d+ + \d+ + \d+
 """
 EXPECTED_GAS_REPORT = rf"""
-                     TestContractVy Gas
+ +TestContractVy Gas
 
-  Method      Times called    Min.    Max.    Mean   Median
- ───────────────────────────────────────────────────────────
-  setNumber              3   51021   53821   51958    51033
-  fooAndBar              1   23430   23430   23430    23430
+  Method +Times called +Min. +Max. +Mean +Median
+ ─+
+  myNumber +\d +\d+ + \d+ + \d+ + \d+
+  setNumber +\d +\d+ + \d+ + \d+ + \d+
+  fooAndBar +\d +\d+ + \d+ + \d+ + \d+
 
-                         TokenA Gas
+ +TokenA Gas
 
-  Method     Times called    Min.    Max.    Mean   Median
- ──────────────────────────────────────────────────────────
-  transfer              1   50911   50911   50911    50911
+  Method +Times called +Min. +Max. +Mean +Median
+ ─+
+  balanceOf +\d +\d+ + \d+ + \d+ + \d+
+  transfer +\d +\d+ + \d+ + \d+ + \d+
 {TOKEN_B_GAS_REPORT}
 """
+
+
+def filter_expected_methods(*methods_to_remove: str) -> str:
+    expected = EXPECTED_GAS_REPORT
+    for name in methods_to_remove:
+        line = f"\n  {name} +\\d +\\d+ + \\d+ + \\d+ + \\d+"
+        expected = expected.replace(line, "")
+
+    return expected
 
 
 @pytest.fixture
@@ -37,7 +50,7 @@ def ape_pytester(project, pytester):
     return pytester
 
 
-def run_trace_test(result, expected_report: str = EXPECTED_GAS_REPORT):
+def run_gas_test(result, expected_report: str = EXPECTED_GAS_REPORT):
     result.assert_outcomes(passed=NUM_TESTS), "\n".join(result.outlines)
 
     gas_header_line_index = None
@@ -50,26 +63,34 @@ def run_trace_test(result, expected_report: str = EXPECTED_GAS_REPORT):
     start_index = gas_header_line_index + 1
     end_index = start_index + len(expected)
     actual = [x.rstrip() for x in result.outlines[start_index:end_index]]
-    assert len(actual) == len(expected)
+    assert "WARNING: No gas usage data found." not in actual, "Gas data missing!"
+
+    actual_len = len(actual)
+    expected_len = len(expected)
+
+    if actual_len > expected_len:
+        remainder = "\n".join(actual[expected_len:])
+        pytest.fail(f"Actual contains more than expected:\n{remainder}")
+    elif expected_len > actual_len:
+        remainder = "\n".join(expected[actual_len:])
+        pytest.fail(f"Expected contains more than actual:\n{remainder}")
+
     for actual_line, expected_line in zip(actual, expected):
-        assert actual_line == expected_line
+        message = f"'{actual_line}' does not match pattern '{expected_line}'."
+        assert re.match(expected_line, actual_line), message
 
 
 @pytest.mark.sync
 def test_gas_flag_in_tests(ape_pytester):
     result = ape_pytester.runpytest("--gas")
-    run_trace_test(result)
+    run_gas_test(result)
 
 
 @pytest.mark.sync
 def test_gas_flag_exclude_method_using_cli_option(ape_pytester):
-    line = "\n  fooAndBar              1   23430   23430   23430    23430"
-    expected = EXPECTED_GAS_REPORT.replace(line, "")
-    result = ape_pytester.runpytest("--gas", "--gas-exclude", "*:fooAndBar")
-    run_trace_test(result, expected_report=expected)
-
-
-@pytest.mark.sync
-def test_gas_flag_excluding_contracts(ape_pytester):
-    result = ape_pytester.runpytest("--gas", "--gas-exclude", "TestContractVy,TokenA")
-    run_trace_test(result, expected_report=TOKEN_B_GAS_REPORT)
+    # NOTE: Includes both a mutable and a view method.
+    expected = filter_expected_methods("fooAndBar", "myNumber")
+    # Also ensure can filter out whole class
+    expected = expected.replace(TOKEN_B_GAS_REPORT, "")
+    result = ape_pytester.runpytest("--gas", "--gas-exclude", "*:fooAndBar,*:myNumber,tokenB:*")
+    run_gas_test(result, expected_report=expected)

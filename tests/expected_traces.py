@@ -1,7 +1,7 @@
 LOCAL_TRACE = r"""
 Call trace for
 '0x([A-Fa-f0-9]{64})'
-txn.origin=0x[a-fA-F0-9]{40}
+tx.origin=0x[a-fA-F0-9]{40}
 ContractA.methodWithoutArguments\(\) -> 0x00..5174 \[412065 gas\]
 ├── SYMBOL.methodB1\(lolol="ice-cream", dynamo=36\) \[401697 gas\]
 │   ├── ContractC.getSomeList\(\) -> \[
@@ -42,7 +42,7 @@ MAINNET_FAIL_TRACE = r"""
 Call trace for
 '0x([A-Fa-f0-9]{64})'
 reverted with message: "UNIV3R: min return"
-txn.origin=0x[a-fA-F0-9]{40}
+tx.origin=0x[a-fA-F0-9]{40}
 AggregationRouterV4.uniswapV3Swap\(
   amount=12851675475480000000000,
   minReturn=4205588148,
@@ -113,7 +113,7 @@ AggregationRouterV4.uniswapV3Swap\(
 MAINNET_TRACE = r"""
 Call trace for
 '0x([A-Fa-f0-9]{64})'
-txn.origin=0x[a-fA-F0-9]{40}
+tx.origin=0x[a-fA-F0-9]{40}
 DSProxy.execute\(_target=LoanShifterTaker, _data=0x35..0000\) -> '' \[1275643 gas\]
 └── \(delegate\) LoanShifterTaker.moveLoan\(
       _exchangeData=\[
