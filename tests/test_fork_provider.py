@@ -156,3 +156,76 @@ def test_get_receipt(connected_mainnet_fork_provider, fork_contract_instance, ow
     assert receipt.txn_hash == actual.txn_hash
     assert actual.receiver == fork_contract_instance.address
     assert actual.sender == receipt.sender
+
+
+@pytest.mark.sync
+@pytest.mark.parametrize(
+    "upstream_network,port,no_deploy,fork_block_number,has_hardhat_deploy",
+    [
+        ("mainnet", 8994, True, 15_964_699, False),
+        ("mainnet", 8995, True, 15_932_345, True),
+        ("mainnet", 8996, False, 15_900_000, False),
+        ("goerli", 8997, True, 7_948_861, False),
+        ("goerli", 8998, True, 7_424_430, True),
+        ("goerli", 8999, False, 7_900_000, False),
+    ],
+)
+def test_hardhat_command(
+    temp_config,
+    config,
+    create_fork_provider,
+    port,
+    upstream_network,
+    no_deploy,
+    fork_block_number,
+    has_hardhat_deploy,
+):
+    eth_config = {
+        "hardhat": {
+            "fork": {
+                "ethereum": {
+                    upstream_network: {
+                        "no_deploy": no_deploy,
+                        "block_number": fork_block_number,
+                    }
+                }
+            },
+        },
+    }
+    package_json = {
+        "name": "contracts",
+        "version": "0.1.0",
+        "dependencies": {
+            "hardhat": "^2.6.4",
+            "hardhat-ethers": "^2.0.2",
+        },
+    }
+
+    if has_hardhat_deploy:
+        package_json["devDependencies"] = {"hardhat-deploy": "^0.8.10"}
+
+    with temp_config(eth_config, package_json):
+        provider = create_fork_provider(
+            port=port,
+            network=upstream_network,
+        )
+
+        cmd = " ".join(provider.build_command())
+
+        expected_cmd = [
+            provider.npx_bin,
+            "hardhat",
+            "node",
+            "--hostname",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--fork",
+            provider.fork_url,
+        ]
+        if no_deploy and has_hardhat_deploy:
+            expected_cmd.append("--no-deploy")
+        if fork_block_number:
+            expected_cmd.extend(("--fork-block-number", str(fork_block_number)))
+
+        assert cmd == " ".join(expected_cmd)

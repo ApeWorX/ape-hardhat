@@ -1,11 +1,17 @@
+import json
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import mkdtemp
+from typing import Dict, Optional
 
 import ape
 import pytest
+import yaml
 from _pytest.runner import pytest_runtest_makereport as orig_pytest_runtest_makereport
 from ape.api.networks import LOCAL_NETWORK_NAME
 from ape.contracts import ContractContainer
+from ape.managers.config import CONFIG_FILE_NAME
 from ethpm_types import ContractType
 
 from ape_hardhat import HardhatForkProvider, HardhatProvider
@@ -145,3 +151,29 @@ def create_fork_provider(networks):
 @pytest.fixture(scope="session")
 def mainnet_fork_network_api(networks):
     return networks.ecosystems["ethereum"]["mainnet-fork"]
+
+
+@pytest.fixture(scope="session")
+def temp_config(config):
+    @contextmanager
+    def func(data: Dict, package_json: Optional[Dict] = None):
+        with tempfile.TemporaryDirectory() as temp_dir_str:
+            temp_dir = Path(temp_dir_str)
+
+            config._cached_configs = {}
+            config_file = temp_dir / CONFIG_FILE_NAME
+            config_file.touch()
+            config_file.write_text(yaml.dump(data))
+            config.load(force_reload=True)
+
+            if package_json:
+                package_json_file = temp_dir / "package.json"
+                package_json_file.write_text(json.dumps(package_json))
+
+            with config.using_project(temp_dir):
+                yield temp_dir
+
+            config_file.unlink()
+            config._cached_configs = {}
+
+    return func

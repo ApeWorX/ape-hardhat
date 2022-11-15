@@ -1,4 +1,6 @@
+import json
 import random
+import re
 import shutil
 from pathlib import Path
 from subprocess import PIPE, call
@@ -28,6 +30,7 @@ from ape_test import Config as TestConfig
 from eth_utils import is_0x_prefixed, is_hex, to_hex
 from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
 from hexbytes import HexBytes
+from pydantic import BaseModel
 from web3 import HTTPProvider, Web3
 from web3.eth import TxParams
 from web3.exceptions import ExtraDataLengthError
@@ -99,9 +102,18 @@ class HardhatConfigJS:
             self._path.write_text(self._content)
 
 
+class PackageJson(BaseModel):
+    name: Optional[str]
+    version: Optional[str]
+    description: Optional[str]
+    dependencies: Optional[Dict[str, str]]
+    devDependencies: Optional[Dict[str, str]]
+
+
 class HardhatForkConfig(PluginConfig):
     upstream_provider: Optional[str] = None
     block_number: Optional[int] = None
+    no_deploy: bool = True
 
 
 class HardhatNetworkConfig(PluginConfig):
@@ -166,7 +178,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             raise HardhatSubprocessError(
                 "NPM executable returned error code. See ape-hardhat README for install steps."
             )
-        elif _call(npx, "hardhat") != 0:
+        elif _call(npx, "hardhat", "--version") != 0:
             raise HardhatNotInstalledError()
 
         return npx
@@ -197,6 +209,33 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     @cached_property
     def _test_config(self) -> TestConfig:
         return cast(TestConfig, self.config_manager.get_config("test"))
+
+    @cached_property
+    def _package_json(self) -> PackageJson:
+        json_path = self.project_folder / "package.json"
+
+        if not json_path.is_file():
+            return PackageJson()
+
+        return PackageJson(**json.loads(json_path.read_text()))
+
+    @cached_property
+    def _hardhat_plugins(self) -> List[str]:
+        plugins: List[str] = []
+
+        def package_is_plugin(package: str) -> bool:
+            return re.search(r"hardhat-[A-Za-z0-9-]+$", package) is not None
+
+        if self._package_json.dependencies:
+            plugins.extend(filter(package_is_plugin, self._package_json.dependencies.keys()))
+
+        if self._package_json.devDependencies:
+            plugins.extend(filter(package_is_plugin, self._package_json.devDependencies.keys()))
+
+        return plugins
+
+    def _has_hardhat_plugin(self, plugin_name: str) -> bool:
+        return next((True for plugin in self._hardhat_plugins if plugin == plugin_name), False)
 
     def connect(self):
         """
@@ -471,6 +510,10 @@ class HardhatForkProvider(HardhatProvider):
         return self._fork_config.block_number
 
     @property
+    def no_deploy(self) -> bool:
+        return self._fork_config.no_deploy
+
+    @property
     def timeout(self) -> int:
         return self.config.fork_request_timeout  # type: ignore
 
@@ -537,6 +580,10 @@ class HardhatForkProvider(HardhatProvider):
 
         cmd = super().build_command()
         cmd.extend(("--fork", self.fork_url))
+
+        # --no-deploy option is only available if hardhat-deploy is installed
+        if self.no_deploy and self._has_hardhat_plugin("hardhat-deploy"):
+            cmd.append("--no-deploy")
         if self.fork_block_number is not None:
             cmd.extend(("--fork-block-number", str(self.fork_block_number)))
 
