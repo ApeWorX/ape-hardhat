@@ -64,6 +64,7 @@ module.exports = {{
 }};
 """
 HARDHAT_CONFIG_FILE_NAME = "hardhat.config.js"
+HARDHAT_PLUGIN_PATTERN = re.compile(r"hardhat-[A-Za-z0-9-]+$")
 _NO_REASON_REVERT_MESSAGE = "Transaction reverted without a reason string"
 _REVERT_REASON_PREFIX = (
     "Error: VM Exception while processing transaction: reverted with reason string "
@@ -224,7 +225,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         plugins: List[str] = []
 
         def package_is_plugin(package: str) -> bool:
-            return re.search(r"hardhat-[A-Za-z0-9-]+$", package) is not None
+            return re.search(HARDHAT_PLUGIN_PATTERN, package) is not None
 
         if self._package_json.dependencies:
             plugins.extend(filter(package_is_plugin, self._package_json.dependencies.keys()))
