@@ -30,7 +30,7 @@ from ape_test import Config as TestConfig
 from eth_utils import is_0x_prefixed, is_hex, to_hex
 from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
 from hexbytes import HexBytes
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from web3 import HTTPProvider, Web3
 from web3.eth import TxParams
 from web3.exceptions import ExtraDataLengthError
@@ -230,8 +230,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if self._package_json.dependencies:
             plugins.extend(filter(package_is_plugin, self._package_json.dependencies.keys()))
 
-        if self._package_json.devDependencies:
-            plugins.extend(filter(package_is_plugin, self._package_json.devDependencies.keys()))
+        if self._package_json.dev_dependencies:
+            plugins.extend(filter(package_is_plugin, self._package_json.dev_dependencies.keys()))
 
         return plugins
 
