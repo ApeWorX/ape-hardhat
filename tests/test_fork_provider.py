@@ -160,14 +160,14 @@ def test_get_receipt(connected_mainnet_fork_provider, fork_contract_instance, ow
 
 @pytest.mark.sync
 @pytest.mark.parametrize(
-    "upstream_network,port,no_deploy,fork_block_number,has_hardhat_deploy",
+    "upstream_network,port,enable_hardhat_deployments,fork_block_number,has_hardhat_deploy",
     [
-        ("mainnet", 8994, True, 15_964_699, False),
-        ("mainnet", 8995, True, 15_932_345, True),
-        ("mainnet", 8996, False, 15_900_000, False),
-        ("goerli", 8997, True, 7_948_861, False),
-        ("goerli", 8998, True, 7_424_430, True),
-        ("goerli", 8999, False, 7_900_000, False),
+        ("mainnet", 8994, False, 15_964_699, False),
+        ("mainnet", 8995, False, 15_932_345, True),
+        ("mainnet", 8996, True, 15_900_000, False),
+        ("goerli", 8997, False, 7_948_861, False),
+        ("goerli", 8998, False, 7_424_430, True),
+        ("goerli", 8999, True, 7_900_000, False),
     ],
 )
 def test_hardhat_command(
@@ -176,7 +176,7 @@ def test_hardhat_command(
     create_fork_provider,
     port,
     upstream_network,
-    no_deploy,
+    enable_hardhat_deployments,
     fork_block_number,
     has_hardhat_deploy,
 ):
@@ -185,7 +185,7 @@ def test_hardhat_command(
             "fork": {
                 "ethereum": {
                     upstream_network: {
-                        "no_deploy": no_deploy,
+                        "enable_hardhat_deployments": enable_hardhat_deployments,
                         "block_number": fork_block_number,
                     }
                 }
@@ -223,7 +223,7 @@ def test_hardhat_command(
             "--fork",
             provider.fork_url,
         ]
-        if no_deploy and has_hardhat_deploy:
+        if not enable_hardhat_deployments and has_hardhat_deploy:
             expected_cmd.append("--no-deploy")
         if fork_block_number:
             expected_cmd.extend(("--fork-block-number", str(fork_block_number)))

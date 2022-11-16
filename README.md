@@ -86,7 +86,7 @@ Otherwise, it defaults to the default mainnet provider plugin. You can also spec
 
 **NOTE**: Make sure you have the upstream provider plugin installed for ape.
 
-[Hardhat deployments](https://github.com/wighawag/hardhat-deploy#deploy-scripts-tags-and-dependencies) are disabled for forks for performance reasons. If you want your contract deployments to run on your fork, you can set ``no_deploy`` to ``False`` in your config:
+[Hardhat deployments](https://github.com/wighawag/hardhat-deploy#deploy-scripts-tags-and-dependencies) are disabled for forks for performance reasons. If you want your contract deployments to run on your fork, you can set ``enable_hardhat_deployments`` to ``true`` in your config:
 
 ```yaml
 hardhat:
@@ -94,7 +94,7 @@ hardhat:
     ethereum:
       mainnet:
         upstream_provider: alchemy
-        no_deploy: false
+        enable_hardhat_deployments: true
 ```
 
 ```bash

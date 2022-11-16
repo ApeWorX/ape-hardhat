@@ -114,7 +114,7 @@ class PackageJson(BaseModel):
 class HardhatForkConfig(PluginConfig):
     upstream_provider: Optional[str] = None
     block_number: Optional[int] = None
-    no_deploy: bool = True
+    enable_hardhat_deployments: bool = False
 
 
 class HardhatNetworkConfig(PluginConfig):
@@ -511,8 +511,8 @@ class HardhatForkProvider(HardhatProvider):
         return self._fork_config.block_number
 
     @property
-    def no_deploy(self) -> bool:
-        return self._fork_config.no_deploy
+    def enable_hardhat_deployments(self) -> bool:
+        return self._fork_config.enable_hardhat_deployments
 
     @property
     def timeout(self) -> int:
@@ -583,7 +583,7 @@ class HardhatForkProvider(HardhatProvider):
         cmd.extend(("--fork", self.fork_url))
 
         # --no-deploy option is only available if hardhat-deploy is installed
-        if self.no_deploy and self._has_hardhat_plugin("hardhat-deploy"):
+        if not self.enable_hardhat_deployments and self._has_hardhat_plugin("hardhat-deploy"):
             cmd.append("--no-deploy")
         if self.fork_block_number is not None:
             cmd.extend(("--fork-block-number", str(self.fork_block_number)))
