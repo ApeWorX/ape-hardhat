@@ -1,4 +1,3 @@
-import json
 import random
 import re
 import shutil
@@ -108,7 +107,7 @@ class PackageJson(BaseModel):
     version: Optional[str]
     description: Optional[str]
     dependencies: Optional[Dict[str, str]]
-    dev_dependencies: Optional[Dict[str, str]] = Field(None, alias="devDependencies")
+    dev_dependencies: Optional[Dict[str, str]] = Field(alias="devDependencies")
 
 
 class HardhatForkConfig(PluginConfig):
@@ -218,7 +217,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if not json_path.is_file():
             return PackageJson()
 
-        return PackageJson(**json.loads(json_path.read_text()))
+        return PackageJson.parse_file(json_path)
 
     @cached_property
     def _hardhat_plugins(self) -> List[str]:
