@@ -84,6 +84,8 @@ hardhat:
 
 Otherwise, it defaults to the default mainnet provider plugin. You can also specify a ``block_number``.
 
+**NOTE**: Make sure you have the upstream provider plugin installed for ape.
+
 Hardhat deployments are disabled for forks for performance reasons.
 If you want your contract deployments to run on your fork, you can set ``no_deploy`` to ``False`` in your config:
 
@@ -95,8 +97,6 @@ hardhat:
         upstream_provider: alchemy
         no_deploy: false
 ```
-
-**NOTE**: Make sure you have the upstream provider plugin installed for ape.
 
 ```bash
 ape plugins install alchemy
