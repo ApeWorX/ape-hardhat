@@ -36,6 +36,9 @@ def providers():
     yield "arbitrum", "mainnet-fork", HardhatForkProvider
     yield "arbitrum", "goerli-fork", HardhatForkProvider
 
+    yield "polygon", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "polygon", "mainnet-fork", HardhatForkProvider
+
 
 __all__ = [
     "HardhatNetworkConfig",
