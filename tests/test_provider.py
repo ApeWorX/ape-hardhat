@@ -173,7 +173,7 @@ def test_get_call_tree(connected_provider, sender, receiver):
 
 
 def test_request_timeout(connected_provider, config, create_provider):
-    actual = connected_provider.web3.provider._request_kwargs["timeout"]  # type: ignore
+    actual = connected_provider.web3.provider._request_kwargs["timeout"]
     expected = 29  # Value set in `ape-config.yaml`
     assert actual == expected
 

@@ -157,7 +157,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def timeout(self) -> int:
-        return self.config.request_timeout  # type: ignore
+        return self.config.request_timeout
 
     @property
     def chain_id(self) -> int:
@@ -247,7 +247,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         # NOTE: Must set port before calling 'super().connect()'.
         if not self.port:
-            self.port = self.config.port  # type: ignore
+            self.port = self.config.port
 
         if self.is_connected:
             # Connects to already running process
@@ -266,7 +266,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                         f"Connecting to existing '{self.process_name}' at port '{self.port}'."
                     )
             else:
-                for _ in range(self.config.process_attempts):  # type: ignore
+                for _ in range(self.config.process_attempts):
                     try:
                         self._start()
                         break
@@ -515,7 +515,7 @@ class HardhatForkProvider(HardhatProvider):
 
     @property
     def timeout(self) -> int:
-        return self.config.fork_request_timeout  # type: ignore
+        return self.config.fork_request_timeout
 
     @property
     def _upstream_network_name(self) -> str:

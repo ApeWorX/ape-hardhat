@@ -50,7 +50,7 @@ def test_impersonate(networks, accounts, upstream_network, port, create_fork_pro
 def test_request_timeout(networks, config, create_fork_provider):
     provider = create_fork_provider(9008)
     provider.connect()
-    actual = provider.web3.provider._request_kwargs["timeout"]  # type: ignore
+    actual = provider.web3.provider._request_kwargs["timeout"]
     expected = 360  # Value set in `ape-config.yaml`
     assert actual == expected
     provider.disconnect()
