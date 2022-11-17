@@ -1,4 +1,5 @@
 import random
+import re
 import shutil
 from pathlib import Path
 from subprocess import PIPE, call
@@ -28,6 +29,7 @@ from ape_test import Config as TestConfig
 from eth_utils import is_0x_prefixed, is_hex, to_hex
 from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
 from hexbytes import HexBytes
+from pydantic import BaseModel, Field
 from web3 import HTTPProvider, Web3
 from web3.eth import TxParams
 from web3.exceptions import ExtraDataLengthError
@@ -61,6 +63,7 @@ module.exports = {{
 }};
 """
 HARDHAT_CONFIG_FILE_NAME = "hardhat.config.js"
+HARDHAT_PLUGIN_PATTERN = re.compile(r"hardhat-[A-Za-z0-9-]+$")
 _NO_REASON_REVERT_MESSAGE = "Transaction reverted without a reason string"
 _REVERT_REASON_PREFIX = (
     "Error: VM Exception while processing transaction: reverted with reason string "
@@ -99,9 +102,18 @@ class HardhatConfigJS:
             self._path.write_text(self._content)
 
 
+class PackageJson(BaseModel):
+    name: Optional[str]
+    version: Optional[str]
+    description: Optional[str]
+    dependencies: Optional[Dict[str, str]]
+    dev_dependencies: Optional[Dict[str, str]] = Field(alias="devDependencies")
+
+
 class HardhatForkConfig(PluginConfig):
     upstream_provider: Optional[str] = None
     block_number: Optional[int] = None
+    enable_hardhat_deployments: bool = False
 
 
 class HardhatNetworkConfig(PluginConfig):
@@ -145,7 +157,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def timeout(self) -> int:
-        return self.config.request_timeout  # type: ignore
+        return self.config.request_timeout
 
     @property
     def chain_id(self) -> int:
@@ -166,7 +178,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             raise HardhatSubprocessError(
                 "NPM executable returned error code. See ape-hardhat README for install steps."
             )
-        elif _call(npx, "hardhat") != 0:
+        elif _call(npx, "hardhat", "--version") != 0:
             raise HardhatNotInstalledError()
 
         return npx
@@ -198,6 +210,33 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def _test_config(self) -> TestConfig:
         return cast(TestConfig, self.config_manager.get_config("test"))
 
+    @cached_property
+    def _package_json(self) -> PackageJson:
+        json_path = self.project_folder / "package.json"
+
+        if not json_path.is_file():
+            return PackageJson()
+
+        return PackageJson.parse_file(json_path)
+
+    @cached_property
+    def _hardhat_plugins(self) -> List[str]:
+        plugins: List[str] = []
+
+        def package_is_plugin(package: str) -> bool:
+            return re.search(HARDHAT_PLUGIN_PATTERN, package) is not None
+
+        if self._package_json.dependencies:
+            plugins.extend(filter(package_is_plugin, self._package_json.dependencies.keys()))
+
+        if self._package_json.dev_dependencies:
+            plugins.extend(filter(package_is_plugin, self._package_json.dev_dependencies.keys()))
+
+        return plugins
+
+    def _has_hardhat_plugin(self, plugin_name: str) -> bool:
+        return next((True for plugin in self._hardhat_plugins if plugin == plugin_name), False)
+
     def connect(self):
         """
         Start the hardhat process and verify it's up and accepting connections.
@@ -208,7 +247,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         # NOTE: Must set port before calling 'super().connect()'.
         if not self.port:
-            self.port = self.config.port  # type: ignore
+            self.port = self.config.port
 
         if self.is_connected:
             # Connects to already running process
@@ -227,7 +266,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                         f"Connecting to existing '{self.process_name}' at port '{self.port}'."
                     )
             else:
-                for _ in range(self.config.process_attempts):  # type: ignore
+                for _ in range(self.config.process_attempts):
                     try:
                         self._start()
                         break
@@ -471,8 +510,12 @@ class HardhatForkProvider(HardhatProvider):
         return self._fork_config.block_number
 
     @property
+    def enable_hardhat_deployments(self) -> bool:
+        return self._fork_config.enable_hardhat_deployments
+
+    @property
     def timeout(self) -> int:
-        return self.config.fork_request_timeout  # type: ignore
+        return self.config.fork_request_timeout
 
     @property
     def _upstream_network_name(self) -> str:
@@ -537,6 +580,10 @@ class HardhatForkProvider(HardhatProvider):
 
         cmd = super().build_command()
         cmd.extend(("--fork", self.fork_url))
+
+        # --no-deploy option is only available if hardhat-deploy is installed
+        if not self.enable_hardhat_deployments and self._has_hardhat_plugin("hardhat-deploy"):
+            cmd.append("--no-deploy")
         if self.fork_block_number is not None:
             cmd.extend(("--fork-block-number", str(self.fork_block_number)))
 
