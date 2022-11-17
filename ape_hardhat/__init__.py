@@ -30,12 +30,15 @@ def providers():
 
     yield "fantom", LOCAL_NETWORK_NAME, HardhatProvider
     yield "fantom", "opera-fork", HardhatForkProvider
+    yield "fantom", "testnet-fork", HardhatForkProvider
 
     yield "arbitrum", LOCAL_NETWORK_NAME, HardhatProvider
     yield "arbitrum", "mainnet-fork", HardhatForkProvider
+    yield "arbitrum", "goerli-fork", HardhatForkProvider
 
     yield "polygon", LOCAL_NETWORK_NAME, HardhatProvider
     yield "polygon", "mainnet-fork", HardhatForkProvider
+    yield "polygon", "mumbai-fork", HardhatForkProvider
 
 
 __all__ = [
