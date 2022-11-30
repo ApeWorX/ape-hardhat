@@ -111,12 +111,16 @@ def test_mainnet_transaction_traces(mainnet_receipt, captrace):
 
 
 def assert_rich_output(rich_capture: List[str], expected: str):
-    expected_lines = [x.strip() for x in expected.split("\n") if x.strip()]
-    actual_lines = [x.strip() for x in rich_capture if x.strip()]
+    expected_lines = [x.rstrip() for x in expected.split("\n") if x.rstrip()]
+    actual_lines = [x.rstrip() for x in rich_capture if x.rstrip()]
     assert actual_lines, "No output."
 
     for actual, expected in zip(actual_lines, expected_lines):
-        assert re.match(expected, actual), f"Pattern: {expected}, Line: {actual}"
+        fail_message = f"Pattern: {expected}, Line: {actual}"
+        try:
+            assert re.match(expected, actual), fail_message
+        except Exception as err:
+            pytest.fail(f"{fail_message}\n{err}")
 
     actual_len = len(actual_lines)
     expected_len = len(expected_lines)

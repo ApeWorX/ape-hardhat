@@ -517,25 +517,25 @@ DSProxy.execute\(_target=LoanShifterTaker, _data=0x35..0000\) -> '' \[1275643 ga
         \) \[174327 gas\]
 """
 LOCAL_GAS_REPORT = r"""
-                              ContractA Gas
+ +ContractA Gas
 
-  Method                   Times called     Min.     Max.     Mean   Median
- ───────────────────────────────────────────────────────────────────────────
+  Method +Times called +Min. +Max. +Mean +Median
+ ─+
   methodWithoutArguments +1 +\d+ +\d+ +\d+ + \d+
 
-                         ContractB Gas
+ +ContractB Gas
 
-  Method         Times called     Min.     Max.     Mean   Median
- ─────────────────────────────────────────────────────────────────
+  Method +Times called +Min. +Max. +Mean +Median
+ ─+
   methodB1 +3 +\d+ +\d+ +\d+ + \d+
   callMe +1 +\d+ +\d+ +\d+ + \d+
   methodB2 +1 +\d+ +\d+ +\d+ + \d+
   bandPractice +1 +\d+ +\d+ +\d+ + \d+
 
-                        ContractC Gas
+ +ContractC Gas
 
-  Method           Times called     Min.     Max.     Mean   Median
- ───────────────────────────────────────────────────────────────────
+  Method +Times called +Min. +Max. +Mean +Median
+ ─+
   getSomeList +3 +\d+ +\d+ +\d+ + \d+
   methodC1 +4 +\d+ +\d+ +\d+ + \d+
   paperwork +1 +\d+ +\d+ +\d+ + \d+
