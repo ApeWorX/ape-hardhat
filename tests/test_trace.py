@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import List
 
 import pytest
-from ape.api import ReceiptAPI
 from ape.contracts import ContractContainer
 from ethpm_types import ContractType
 
@@ -17,7 +16,6 @@ EXPECTED_MAP = {
     MAINNET_FAIL_TXN_HASH: MAINNET_FAIL_TRACE,
 }
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts" / "ethereum"
-TEMP_FILE_NAME = "temp"
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -30,23 +28,6 @@ def full_contracts_cache(config):
 def provider(networks):
     with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
         yield provider
-
-
-@pytest.fixture
-def show_and_get_trace():
-    def f(receipt: ReceiptAPI, method="show_trace") -> List[str]:
-        with open(TEMP_FILE_NAME, "w+") as temp_file:
-            getattr(receipt, method)(file=temp_file)
-
-        if not Path("temp").is_file():
-            return []
-
-        with open("temp", "r") as temp_file:
-            lines = temp_file.readlines()
-
-        return lines
-
-    return f
 
 
 @pytest.fixture(
@@ -62,7 +43,7 @@ def contract_a(owner, provider):
     base_path = BASE_CONTRACTS_PATH / "local"
 
     def get_contract_type(suffix: str) -> ContractType:
-        return ContractType.parse_raw((base_path / f"contract_{suffix}.json").read_text())
+        return ContractType.parse_file(base_path / f"contract_{suffix}.json")
 
     contract_c = owner.deploy(ContractContainer(get_contract_type("c")))
     contract_b = owner.deploy(ContractContainer(get_contract_type("b")), contract_c.address)
@@ -78,24 +59,13 @@ def local_receipt(contract_a, owner):
     return contract_a.methodWithoutArguments(sender=owner)
 
 
-@pytest.fixture(autouse=True)
-def clean_temp_file():
-    temp_path = Path(TEMP_FILE_NAME)
-    if temp_path.is_file():
-        temp_path.unlink()
-
-    yield
-
-    if temp_path.is_file():
-        temp_path.unlink()
-
-
 @pytest.mark.sync
-def test_local_transaction_traces(local_receipt, show_and_get_trace):
+def test_local_transaction_traces(local_receipt, capsys):
     # NOTE: Strange bug in Rich where we can't use sys.stdout for testing tree output.
     # And we have to write to a file, close it, and then re-open it to see output.
     def run_test():
-        lines = show_and_get_trace(local_receipt)
+        local_receipt.show_trace()
+        lines = capsys.readouterr().out.split("\n")
         assert_rich_output(lines, LOCAL_TRACE)
 
     run_test()
