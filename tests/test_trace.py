@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import List
 
 import pytest
-from ape.api import ReceiptAPI
 from ape.contracts import ContractContainer
 from ethpm_types import ContractType
 
@@ -17,7 +16,22 @@ EXPECTED_MAP = {
     MAINNET_FAIL_TXN_HASH: MAINNET_FAIL_TRACE,
 }
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts" / "ethereum"
-TEMP_FILE_NAME = "temp"
+
+
+@pytest.fixture
+def captrace(capsys):
+    class CapTrace:
+        def read_trace(self, expected_start: str):
+            lines = capsys.readouterr().out.split("\n")
+            start_index = 0
+            for index, line in enumerate(lines):
+                if line.strip() == expected_start:
+                    start_index = index
+                    break
+
+            return lines[start_index:]
+
+    return CapTrace()
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -30,23 +44,6 @@ def full_contracts_cache(config):
 def provider(networks):
     with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
         yield provider
-
-
-@pytest.fixture
-def show_and_get_trace():
-    def f(receipt: ReceiptAPI, method="show_trace") -> List[str]:
-        with open(TEMP_FILE_NAME, "w+") as temp_file:
-            getattr(receipt, method)(file=temp_file)
-
-        if not Path("temp").is_file():
-            return []
-
-        with open("temp", "r") as temp_file:
-            lines = temp_file.readlines()
-
-        return lines
-
-    return f
 
 
 @pytest.fixture(
@@ -62,7 +59,7 @@ def contract_a(owner, provider):
     base_path = BASE_CONTRACTS_PATH / "local"
 
     def get_contract_type(suffix: str) -> ContractType:
-        return ContractType.parse_raw((base_path / f"contract_{suffix}.json").read_text())
+        return ContractType.parse_file(base_path / f"contract_{suffix}.json")
 
     contract_c = owner.deploy(ContractContainer(get_contract_type("c")))
     contract_b = owner.deploy(ContractContainer(get_contract_type("b")), contract_c.address)
@@ -78,24 +75,13 @@ def local_receipt(contract_a, owner):
     return contract_a.methodWithoutArguments(sender=owner)
 
 
-@pytest.fixture(autouse=True)
-def clean_temp_file():
-    temp_path = Path(TEMP_FILE_NAME)
-    if temp_path.is_file():
-        temp_path.unlink()
-
-    yield
-
-    if temp_path.is_file():
-        temp_path.unlink()
-
-
 @pytest.mark.sync
-def test_local_transaction_traces(local_receipt, show_and_get_trace):
+def test_local_transaction_traces(local_receipt, captrace):
     # NOTE: Strange bug in Rich where we can't use sys.stdout for testing tree output.
     # And we have to write to a file, close it, and then re-open it to see output.
     def run_test():
-        lines = show_and_get_trace(local_receipt)
+        local_receipt.show_trace()
+        lines = captrace.read_trace("Call trace for")
         assert_rich_output(lines, LOCAL_TRACE)
 
     run_test()
@@ -105,9 +91,10 @@ def test_local_transaction_traces(local_receipt, show_and_get_trace):
 
 
 @pytest.mark.sync
-def test_local_transaction_gas_report(local_receipt, show_and_get_trace):
+def test_local_transaction_gas_report(local_receipt, captrace):
     def run_test():
-        lines = show_and_get_trace(local_receipt, method="show_gas_report")
+        local_receipt.show_gas_report()
+        lines = captrace.read_trace("ContractA Gas")
         assert_rich_output(lines, LOCAL_GAS_REPORT)
 
     run_test()
@@ -117,18 +104,23 @@ def test_local_transaction_gas_report(local_receipt, show_and_get_trace):
 
 
 @pytest.mark.manual
-def test_mainnet_transaction_traces(mainnet_receipt, show_and_get_trace):
-    lines = show_and_get_trace(mainnet_receipt)
+def test_mainnet_transaction_traces(mainnet_receipt, captrace):
+    mainnet_receipt.show_trace()
+    lines = captrace.read_trace("Call trace for")
     assert_rich_output(lines, EXPECTED_MAP[mainnet_receipt.txn_hash])
 
 
 def assert_rich_output(rich_capture: List[str], expected: str):
-    expected_lines = [x.strip() for x in expected.split("\n") if x.strip()]
-    actual_lines = [x.strip() for x in rich_capture if x.strip()]
+    expected_lines = [x.rstrip() for x in expected.split("\n") if x.rstrip()]
+    actual_lines = [x.rstrip() for x in rich_capture if x.rstrip()]
     assert actual_lines, "No output."
 
     for actual, expected in zip(actual_lines, expected_lines):
-        assert re.match(expected, actual), f"Pattern: {expected}, Line: {actual}"
+        fail_message = f"Pattern: {expected}, Line: {actual}"
+        try:
+            assert re.match(expected, actual), fail_message
+        except Exception as err:
+            pytest.fail(f"{fail_message}\n{err}")
 
     actual_len = len(actual_lines)
     expected_len = len(expected_lines)

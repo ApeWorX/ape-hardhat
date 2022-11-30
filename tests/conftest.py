@@ -122,12 +122,14 @@ def local_network_api(networks):
 
 @pytest.fixture(scope="session")
 def connected_provider(networks, local_network_api):
-    with networks.parse_network_choice("ethereum:local:hardhat") as provider:
+    with networks.parse_network_choice(
+        "ethereum:local:hardhat", provider_settings={"port": "auto"}
+    ) as provider:
         yield provider
 
 
 @pytest.fixture(scope="session")
-def hardhat_disconnected(create_provider):
+def disconnected_provider(create_provider):
     return create_provider()
 
 

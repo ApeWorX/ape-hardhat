@@ -13,8 +13,8 @@ from ape_hardhat.provider import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME, Har
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
 
 
-def test_instantiation(hardhat_disconnected):
-    assert hardhat_disconnected.name == "hardhat"
+def test_instantiation(disconnected_provider):
+    assert disconnected_provider.name == "hardhat"
 
 
 def test_connect_and_disconnect(create_provider):
@@ -45,9 +45,9 @@ def test_gas_price(connected_provider):
     assert gas_price > 1
 
 
-def test_uri_disconnected(hardhat_disconnected):
+def test_uri_disconnected(disconnected_provider):
     with pytest.raises(HardhatProviderError) as err:
-        _ = hardhat_disconnected.uri
+        _ = disconnected_provider.uri
 
     assert "Can't build URI before `connect()` is called." in str(err.value)
 
@@ -69,7 +69,7 @@ def test_rpc_methods(connected_provider, method, args, expected):
     assert method(connected_provider, *args) == expected
 
 
-def test_multiple_hardhat_instances(create_provider):
+def test_multiple_instances(create_provider):
     """
     Validate the somewhat tricky internal logic of running multiple Hardhat subprocesses
     under a single parent process.
@@ -135,6 +135,10 @@ def test_mine_many_blocks(connected_provider):
 
 def test_revert_failure(connected_provider):
     assert connected_provider.revert(0xFFFF) is False
+
+
+def test_get_balance(connected_provider, owner):
+    assert connected_provider.get_balance(owner.address)
 
 
 def test_snapshot_and_revert(connected_provider):
@@ -212,7 +216,7 @@ def test_transaction_contract_as_sender(contract_instance, connected_provider):
 @pytest.mark.parametrize(
     "amount", ("50 ETH", int(50e18), "0x2b5e3af16b1880000", "50000000000000000000")
 )
-def test_set_account_balance(connected_provider, owner, convert, amount):
+def test_set_balance(connected_provider, owner, convert, amount):
     connected_provider.set_balance(owner.address, amount)
     assert owner.balance == convert("50 ETH", int)
 

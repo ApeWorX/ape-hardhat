@@ -247,7 +247,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         # NOTE: Must set port before calling 'super().connect()'.
         if not self.port:
-            self.port = self.config.port
+            self.port = self.provider_settings.get("port", self.config.port)
 
         if self.is_connected:
             # Connects to already running process
@@ -300,19 +300,17 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             )
 
         # Handle if using PoA Hardhat
-
-        def began_poa() -> bool:
-            try:
-                block = self.web3.eth.get_block(0)
-            except ExtraDataLengthError:
-                return True
-
-            return (
+        try:
+            block = self.web3.eth.get_block(0)
+        except ExtraDataLengthError:
+            began_poa = True
+        else:
+            began_poa = (
                 "proofOfAuthorityData" in block
                 or len(block.get("extraData", "")) > MAX_EXTRADATA_LENGTH
             )
 
-        if began_poa():
+        if began_poa:
             self._web3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     def _start(self):
@@ -444,7 +442,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
         is_str = isinstance(amount, str)
-        is_hex = False if not is_str else is_0x_prefixed(str(amount))
+        _is_hex = False if not is_str else is_0x_prefixed(str(amount))
         is_key_word = is_str and len(str(amount).split(" ")) > 1
         if is_key_word:
             # This allows values such as "1000 ETH".
@@ -454,7 +452,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         amount_hex_str = str(amount)
 
         # Convert to hex str
-        if is_str and not is_hex:
+        if is_str and not _is_hex:
             amount_hex_str = to_hex(int(amount))
         elif isinstance(amount, int) or isinstance(amount, bytes):
             amount_hex_str = to_hex(amount)
