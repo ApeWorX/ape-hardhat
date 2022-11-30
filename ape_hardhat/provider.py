@@ -421,6 +421,16 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         return receipt
 
+    def get_balance(self, address: str) -> int:
+        if hasattr(address, "address"):
+            address = address.address  # type: ignore
+
+        result = self._make_request("eth_getBalance", [address, "latest"])
+        if not result:
+            raise ProviderError(f"Failed to get balance for account '{address}'.")
+
+        return int(result, 16) if isinstance(result, str) else result
+
     def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
         result = self._make_request("debug_traceTransaction", [txn_hash])
         frames = result.get("structLogs", [])
@@ -442,7 +452,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
         is_str = isinstance(amount, str)
-        is_hex = False if not is_str else is_0x_prefixed(str(amount))
+        _is_hex = False if not is_str else is_0x_prefixed(str(amount))
         is_key_word = is_str and len(str(amount).split(" ")) > 1
         if is_key_word:
             # This allows values such as "1000 ETH".
@@ -452,7 +462,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         amount_hex_str = str(amount)
 
         # Convert to hex str
-        if is_str and not is_hex:
+        if is_str and not _is_hex:
             amount_hex_str = to_hex(int(amount))
         elif isinstance(amount, int) or isinstance(amount, bytes):
             amount_hex_str = to_hex(amount)
