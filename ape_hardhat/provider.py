@@ -421,16 +421,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         return receipt
 
-    def get_balance(self, address: str) -> int:
-        if hasattr(address, "address"):
-            address = address.address  # type: ignore
-
-        result = self._make_request("eth_getBalance", [address, "latest"])
-        if not result:
-            raise ProviderError(f"Failed to get balance for account '{address}'.")
-
-        return int(result, 16) if isinstance(result, str) else result
-
     def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
         result = self._make_request("debug_traceTransaction", [txn_hash])
         frames = result.get("structLogs", [])
