@@ -18,6 +18,22 @@ EXPECTED_MAP = {
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts" / "ethereum"
 
 
+@pytest.fixture
+def captrace(capsys):
+    class CapTrace:
+        def read_trace(self, expected_start: str):
+            lines = capsys.readouterr().out.split("\n")
+            start_index = 0
+            for index, line in enumerate(lines):
+                if line.strip() == expected_start:
+                    start_index = index
+                    break
+
+            return lines[start_index:]
+
+    return CapTrace()
+
+
 @pytest.fixture(autouse=True, scope="module")
 def full_contracts_cache(config):
     destination = config.DATA_FOLDER / "ethereum"
@@ -60,12 +76,12 @@ def local_receipt(contract_a, owner):
 
 
 @pytest.mark.sync
-def test_local_transaction_traces(local_receipt, capsys):
+def test_local_transaction_traces(local_receipt, captrace):
     # NOTE: Strange bug in Rich where we can't use sys.stdout for testing tree output.
     # And we have to write to a file, close it, and then re-open it to see output.
     def run_test():
         local_receipt.show_trace()
-        lines = capsys.readouterr().out.split("\n")
+        lines = captrace.read_trace("Call trace for")
         assert_rich_output(lines, LOCAL_TRACE)
 
     run_test()
@@ -75,9 +91,10 @@ def test_local_transaction_traces(local_receipt, capsys):
 
 
 @pytest.mark.sync
-def test_local_transaction_gas_report(local_receipt, show_and_get_trace):
+def test_local_transaction_gas_report(local_receipt, captrace):
     def run_test():
-        lines = show_and_get_trace(local_receipt, method="show_gas_report")
+        local_receipt.show_gas_report()
+        lines = captrace.read_trace("ContractA Gas")
         assert_rich_output(lines, LOCAL_GAS_REPORT)
 
     run_test()
@@ -87,8 +104,9 @@ def test_local_transaction_gas_report(local_receipt, show_and_get_trace):
 
 
 @pytest.mark.manual
-def test_mainnet_transaction_traces(mainnet_receipt, show_and_get_trace):
-    lines = show_and_get_trace(mainnet_receipt)
+def test_mainnet_transaction_traces(mainnet_receipt, captrace):
+    mainnet_receipt.show_trace()
+    lines = captrace.read_trace("Call trace for")
     assert_rich_output(lines, EXPECTED_MAP[mainnet_receipt.txn_hash])
 
 

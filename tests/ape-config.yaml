@@ -5,7 +5,6 @@ ethereum:
     default_provider: hardhat
 
 hardhat:
-  port: auto
   request_timeout: 29
   fork_request_timeout: 360
 

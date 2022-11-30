@@ -84,7 +84,7 @@ AggregationRouterV4.uniswapV3Swap\(
 │   └── XDEFI.balanceOf\(account=0x[a-fA-F0-9]{40}\) ->
 │       1313544030383442674610343 \[135118 gas\]
 │       └── \(delegate\)
-│           FixedToken.balanceOf\(account=0x[a-fA-F0-9]{40}
+│           FixedToken.balanceOf\(account=0x77924185CF0cbB2Ae0b746A0086A065d6875b
 │           0a5\) -> 1313544030383442674610343 \[132875 gas\]
 └── CALL: 0x[a-fA-F0-9]{40}.<0x128acb08>  \[130650 gas\]
     ├── CALL: FiatTokenProxy.<0xa9059cbb>  \[102998 gas\]

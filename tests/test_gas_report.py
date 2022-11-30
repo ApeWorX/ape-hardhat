@@ -85,6 +85,9 @@ def test_gas_flag_in_tests(ape_pytester):
     result = ape_pytester.runpytest("--gas")
     run_gas_test(result)
 
+    # Verify can happen more than once.
+    run_gas_test(result)
+
 
 @pytest.mark.sync
 def test_gas_flag_exclude_method_using_cli_option(ape_pytester):
