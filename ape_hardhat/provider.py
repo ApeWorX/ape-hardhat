@@ -404,9 +404,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             # Allow for an unsigned transaction
             txn = self.prepare_transaction(txn)
             txn_dict = txn.dict()
+            txn_params = cast(TxParams, txn_dict)
 
             try:
-                txn_params = cast(TxParams, txn_dict)
                 txn_hash = self.web3.eth.send_transaction(txn_params)
             except ValueError as err:
                 raise self.get_virtual_machine_error(err) from err
@@ -429,8 +429,14 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     def get_call_tree(self, txn_hash: str) -> CallTreeNode:
         receipt = self.chain_manager.get_receipt(txn_hash)
+
+        # Subtract base gas costs.
+        # (21_000 + 4 gas per 0-byte and 16 gas per non-zero byte).
+        data_gas = sum([4 if x == 0 else 16 for x in receipt.data])
+        method_gas_cost = receipt.gas_used - 21_000 - data_gas
+
         root_node_kwargs = {
-            "gas_cost": receipt.gas_used,
+            "gas_cost": method_gas_cost,
             "gas_limit": receipt.gas_limit,
             "address": receipt.receiver,
             "calldata": receipt.data,
