@@ -41,8 +41,6 @@ from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatS
 
 EPHEMERAL_PORTS_START = 49152
 EPHEMERAL_PORTS_END = 60999
-HARDHAT_START_NETWORK_RETRIES = [0.1, 0.2, 0.3, 0.5, 1.0]  # seconds between network retries
-HARDHAT_START_PROCESS_ATTEMPTS = 3  # number of attempts to start subprocess before giving up
 DEFAULT_PORT = 8545
 HARDHAT_CHAIN_ID = 31337
 HARDHAT_CONFIG = """
@@ -118,10 +116,6 @@ class HardhatForkConfig(PluginConfig):
 
 class HardhatNetworkConfig(PluginConfig):
     port: Optional[Union[int, Literal["auto"]]] = DEFAULT_PORT
-
-    # Retry strategy configs, try increasing these if you're getting HardhatSubprocessError
-    network_retries: List[float] = HARDHAT_START_NETWORK_RETRIES
-    process_attempts: int = HARDHAT_START_PROCESS_ATTEMPTS
     request_timeout: int = 30
     fork_request_timeout: int = 300
 
