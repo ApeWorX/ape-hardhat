@@ -138,7 +138,7 @@ def _call(*args):
     return call([*args], stderr=PIPE, stdout=PIPE, stdin=PIPE)
 
 
-class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
+class Hardhat(SubprocessProvider, Web3Provider, TestProviderAPI):
     port: Optional[int] = None
     attempted_ports: List[int] = []
     unlocked_accounts: List[AddressType] = []
@@ -490,7 +490,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return VirtualMachineError(message=message)
 
 
-class HardhatForkProvider(HardhatProvider):
+class HardhatForkProvider(Hardhat):
     """
     A Hardhat provider that uses ``--fork``, like:
     ``npx hardhat node --fork <upstream-provider-url>``.

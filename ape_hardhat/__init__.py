@@ -7,13 +7,8 @@ from ape import plugins
 from ape.api.networks import LOCAL_NETWORK_NAME
 from ape_ethereum.ecosystem import NETWORKS
 
-from .provider import (
-    HardhatForkProvider,
-    HardhatNetworkConfig,
-    HardhatProvider,
-    HardhatProviderError,
-    HardhatSubprocessError,
-)
+from .exceptions import HardhatProviderError, HardhatSubprocessError
+from .provider import Hardhat, HardhatForkProvider, HardhatNetworkConfig
 
 
 @plugins.register(plugins.Config)
@@ -23,27 +18,27 @@ def config_class():
 
 @plugins.register(plugins.ProviderPlugin)
 def providers():
-    yield "ethereum", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "ethereum", LOCAL_NETWORK_NAME, Hardhat
 
     for network in NETWORKS:
         yield "ethereum", f"{network}-fork", HardhatForkProvider
 
-    yield "fantom", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "fantom", LOCAL_NETWORK_NAME, Hardhat
     yield "fantom", "opera-fork", HardhatForkProvider
     yield "fantom", "testnet-fork", HardhatForkProvider
 
-    yield "arbitrum", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "arbitrum", LOCAL_NETWORK_NAME, Hardhat
     yield "arbitrum", "mainnet-fork", HardhatForkProvider
     yield "arbitrum", "goerli-fork", HardhatForkProvider
 
-    yield "polygon", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "polygon", LOCAL_NETWORK_NAME, Hardhat
     yield "polygon", "mainnet-fork", HardhatForkProvider
     yield "polygon", "mumbai-fork", HardhatForkProvider
 
 
 __all__ = [
     "HardhatNetworkConfig",
-    "HardhatProvider",
+    "Hardhat",
     "HardhatProviderError",
     "HardhatSubprocessError",
 ]
