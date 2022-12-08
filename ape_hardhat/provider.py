@@ -23,7 +23,7 @@ from ape.exceptions import (
     VirtualMachineError,
 )
 from ape.logging import logger
-from ape.types import AddressType, SnapshotID
+from ape.types import AddressType, ContractCode, SnapshotID
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
 from eth_utils import is_0x_prefixed, is_hex, to_hex
@@ -357,7 +357,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def set_block_gas_limit(self, gas_limit: int) -> bool:
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)]) is True
 
-    def set_code(self, address: AddressType, code: Union[str, bytes, HexBytes]) -> bool:
+    def set_code(self, address: AddressType, code: ContractCode) -> bool:
         if isinstance(code, bytes):
             code = code.hex()
 
