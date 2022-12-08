@@ -8,7 +8,7 @@ from evm_trace import CallTreeNode, CallType, TraceFrame
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
-from ape_hardhat.provider import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME, HardhatProvider
+from ape_hardhat.provider import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
 
@@ -55,18 +55,6 @@ def test_uri_disconnected(disconnected_provider):
 def test_uri(connected_provider):
     expected_uri = f"http://127.0.0.1:{connected_provider.port}"
     assert expected_uri in connected_provider.uri
-
-
-@pytest.mark.parametrize(
-    "method,args,expected",
-    [
-        (HardhatProvider.get_nonce, [TEST_WALLET_ADDRESS], 0),
-        (HardhatProvider.get_balance, [TEST_WALLET_ADDRESS], 0),
-        (HardhatProvider.get_code, [TEST_WALLET_ADDRESS], HexBytes("")),
-    ],
-)
-def test_rpc_methods(connected_provider, method, args, expected):
-    assert method(connected_provider, *args) == expected
 
 
 def test_multiple_instances(create_provider):
