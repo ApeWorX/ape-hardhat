@@ -8,7 +8,7 @@ from evm_trace import CallTreeNode, CallType, TraceFrame
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
-from ape_hardhat.provider import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME, Hardhat
+from ape_hardhat.provider import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME, HardhatProvider
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
 
@@ -60,9 +60,9 @@ def test_uri(connected_provider):
 @pytest.mark.parametrize(
     "method,args,expected",
     [
-        (Hardhat.get_nonce, [TEST_WALLET_ADDRESS], 0),
-        (Hardhat.get_balance, [TEST_WALLET_ADDRESS], 0),
-        (Hardhat.get_code, [TEST_WALLET_ADDRESS], HexBytes("")),
+        (HardhatProvider.get_nonce, [TEST_WALLET_ADDRESS], 0),
+        (HardhatProvider.get_balance, [TEST_WALLET_ADDRESS], 0),
+        (HardhatProvider.get_code, [TEST_WALLET_ADDRESS], HexBytes("")),
     ],
 )
 def test_rpc_methods(connected_provider, method, args, expected):
