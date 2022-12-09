@@ -14,7 +14,7 @@ from ape.contracts import ContractContainer
 from ape.managers.config import CONFIG_FILE_NAME
 from ethpm_types import ContractType
 
-from ape_hardhat import HardhatProvider, HardhatProviderForkProvider
+from ape_hardhat import HardhatForkProvider, HardhatProvider
 
 # NOTE: Ensure that we don't use local paths for the DATA FOLDER
 ape.config.DATA_FOLDER = Path(mkdtemp()).resolve()
@@ -137,7 +137,7 @@ def disconnected_provider(create_provider):
 def create_fork_provider(networks):
     def method(port: int = 9001, network: str = "mainnet"):
         network_api = networks.ecosystems["ethereum"][f"{network}-fork"]
-        provider = HardhatProviderForkProvider(
+        provider = HardhatForkProvider(
             name="hardhat",
             network=network_api,
             request_header={},

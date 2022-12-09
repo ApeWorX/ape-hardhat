@@ -485,7 +485,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return VirtualMachineError(message=message)
 
 
-class HardhatProviderForkProvider(HardhatProvider):
+class HardhatForkProvider(HardhatProvider):
     """
     A Hardhat provider that uses ``--fork``, like:
     ``npx hardhat node --fork <upstream-provider-url>``.
