@@ -430,16 +430,16 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         data_gas = sum([4 if x == 0 else 16 for x in receipt.data])
         method_gas_cost = receipt.gas_used - 21_000 - data_gas
 
-        root_node_kwargs = {
-            "gas_cost": method_gas_cost,
-            "gas_limit": receipt.gas_limit,
-            "address": receipt.receiver,
-            "calldata": receipt.data,
-            "value": receipt.value,
-            "call_type": CallType.CALL,
-            "failed": receipt.failed,
-        }
-        return get_calltree_from_geth_trace(receipt.trace, **root_node_kwargs)
+        return get_calltree_from_geth_trace(
+            receipt.trace,
+            gas_cost=method_gas_cost,
+            gas_limit=receipt.gas_limit,
+            address=receipt.receiver,
+            calldata=receipt.data,
+            value=receipt.value,
+            call_type=CallType.CALL,
+            failed=receipt.failed,
+        )
 
     def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
         is_str = isinstance(amount, str)
