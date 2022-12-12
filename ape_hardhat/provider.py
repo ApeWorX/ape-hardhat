@@ -23,7 +23,7 @@ from ape.exceptions import (
     VirtualMachineError,
 )
 from ape.logging import logger
-from ape.types import AddressType, SnapshotID
+from ape.types import AddressType, ContractCode, SnapshotID
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
 from eth_utils import is_0x_prefixed, is_hex, to_hex
@@ -41,8 +41,6 @@ from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatS
 
 EPHEMERAL_PORTS_START = 49152
 EPHEMERAL_PORTS_END = 60999
-HARDHAT_START_NETWORK_RETRIES = [0.1, 0.2, 0.3, 0.5, 1.0]  # seconds between network retries
-HARDHAT_START_PROCESS_ATTEMPTS = 3  # number of attempts to start subprocess before giving up
 DEFAULT_PORT = 8545
 HARDHAT_CHAIN_ID = 31337
 HARDHAT_CONFIG = """
@@ -118,10 +116,6 @@ class HardhatForkConfig(PluginConfig):
 
 class HardhatNetworkConfig(PluginConfig):
     port: Optional[Union[int, Literal["auto"]]] = DEFAULT_PORT
-
-    # Retry strategy configs, try increasing these if you're getting HardhatSubprocessError
-    network_retries: List[float] = HARDHAT_START_NETWORK_RETRIES
-    process_attempts: int = HARDHAT_START_PROCESS_ATTEMPTS
     request_timeout: int = 30
     fork_request_timeout: int = 300
 
@@ -290,7 +284,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         # Verify is actually a Hardhat provider,
         # or else skip it to possibly try another port.
-        client_version = self._web3.clientVersion
+        # TODO: Once we are on web3.py 0.6.0b8 or later, can just use snake_case here.
+        client_version = getattr(self._web3, "client_version", getattr(self._web3, "clientVersion"))
 
         if "hardhat" in client_version.lower():
             self._web3.eth.set_gas_price_strategy(rpc_gas_price_strategy)
@@ -357,7 +352,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def set_block_gas_limit(self, gas_limit: int) -> bool:
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)]) is True
 
-    def set_code(self, address: AddressType, code: Union[str, bytes, HexBytes]) -> bool:
+    def set_code(self, address: AddressType, code: ContractCode) -> bool:
         if isinstance(code, bytes):
             code = code.hex()
 
@@ -404,9 +399,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             # Allow for an unsigned transaction
             txn = self.prepare_transaction(txn)
             txn_dict = txn.dict()
+            txn_params = cast(TxParams, txn_dict)
 
             try:
-                txn_params = cast(TxParams, txn_dict)
                 txn_hash = self.web3.eth.send_transaction(txn_params)
             except ValueError as err:
                 raise self.get_virtual_machine_error(err) from err
@@ -429,16 +424,22 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     def get_call_tree(self, txn_hash: str) -> CallTreeNode:
         receipt = self.chain_manager.get_receipt(txn_hash)
-        root_node_kwargs = {
-            "gas_cost": receipt.gas_used,
-            "gas_limit": receipt.gas_limit,
-            "address": receipt.receiver,
-            "calldata": receipt.data,
-            "value": receipt.value,
-            "call_type": CallType.CALL,
-            "failed": receipt.failed,
-        }
-        return get_calltree_from_geth_trace(receipt.trace, **root_node_kwargs)
+
+        # Subtract base gas costs.
+        # (21_000 + 4 gas per 0-byte and 16 gas per non-zero byte).
+        data_gas = sum([4 if x == 0 else 16 for x in receipt.data])
+        method_gas_cost = receipt.gas_used - 21_000 - data_gas
+
+        return get_calltree_from_geth_trace(
+            receipt.trace,
+            gas_cost=method_gas_cost,
+            gas_limit=receipt.gas_limit,
+            address=receipt.receiver,
+            calldata=receipt.data,
+            value=receipt.value,
+            call_type=CallType.CALL,
+            failed=receipt.failed,
+        )
 
     def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
         is_str = isinstance(amount, str)

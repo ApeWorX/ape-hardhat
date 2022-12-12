@@ -8,7 +8,7 @@ from evm_trace import CallTreeNode, CallType, TraceFrame
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
-from ape_hardhat.provider import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME, HardhatProvider
+from ape_hardhat.provider import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
 
@@ -20,9 +20,9 @@ def test_instantiation(disconnected_provider):
 def test_connect_and_disconnect(create_provider):
     # Use custom port to prevent connecting to a port used in another test.
 
-    hardhat = create_provider()
-    hardhat.port = 8555
-    hardhat.connect()
+    provider = create_provider()
+    provider.port = 8555
+    provider.connect()
 
     # Verify config file got created
     config = Path(HARDHAT_CONFIG_FILE_NAME)
@@ -31,13 +31,13 @@ def test_connect_and_disconnect(create_provider):
     assert DEFAULT_TEST_MNEMONIC in config_text
 
     try:
-        assert hardhat.is_connected
-        assert hardhat.chain_id == HARDHAT_CHAIN_ID
+        assert provider.is_connected
+        assert provider.chain_id == HARDHAT_CHAIN_ID
     finally:
-        hardhat.disconnect()
+        provider.disconnect()
 
-    assert not hardhat.is_connected
-    assert hardhat.process is None
+    assert not provider.is_connected
+    assert provider.process is None
 
 
 def test_gas_price(connected_provider):
@@ -55,18 +55,6 @@ def test_uri_disconnected(disconnected_provider):
 def test_uri(connected_provider):
     expected_uri = f"http://127.0.0.1:{connected_provider.port}"
     assert expected_uri in connected_provider.uri
-
-
-@pytest.mark.parametrize(
-    "method,args,expected",
-    [
-        (HardhatProvider.get_nonce, [TEST_WALLET_ADDRESS], 0),
-        (HardhatProvider.get_balance, [TEST_WALLET_ADDRESS], 0),
-        (HardhatProvider.get_code, [TEST_WALLET_ADDRESS], HexBytes("")),
-    ],
-)
-def test_rpc_methods(connected_provider, method, args, expected):
-    assert method(connected_provider, *args) == expected
 
 
 def test_multiple_instances(create_provider):
@@ -173,7 +161,7 @@ def test_get_call_tree(connected_provider, sender, receiver):
     call_tree = connected_provider.get_call_tree(transfer.txn_hash)
     assert isinstance(call_tree, CallTreeNode)
     assert call_tree.call_type == CallType.CALL
-    assert repr(call_tree) == "CALL: 0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7 [21000 gas]"
+    assert repr(call_tree) == "CALL: 0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7 [0 gas]"
 
 
 def test_request_timeout(connected_provider, config, create_provider):

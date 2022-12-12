@@ -7,13 +7,20 @@ import pytest
 from ape.contracts import ContractContainer
 from ethpm_types import ContractType
 
-from .expected_traces import LOCAL_GAS_REPORT, LOCAL_TRACE, MAINNET_FAIL_TRACE, MAINNET_TRACE
+from .expected_traces import (
+    LOCAL_GAS_REPORT,
+    LOCAL_TRACE,
+    MAINNET_FAIL_TRACE_FIRST_10_LINES,
+    MAINNET_FAIL_TRACE_LAST_10_LINES,
+    MAINNET_TRACE_FIRST_10_LINES,
+    MAINNET_TRACE_LAST_10_LINES,
+)
 
 MAINNET_FAIL_TXN_HASH = "0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d"
 MAINNET_TXN_HASH = "0xb7d7f1d5ce7743e821d3026647df486f517946ef1342a1ae93c96e4a8016eab7"
 EXPECTED_MAP = {
-    MAINNET_TXN_HASH: MAINNET_TRACE,
-    MAINNET_FAIL_TXN_HASH: MAINNET_FAIL_TRACE,
+    MAINNET_TXN_HASH: (MAINNET_TRACE_FIRST_10_LINES, MAINNET_TRACE_LAST_10_LINES),
+    MAINNET_FAIL_TXN_HASH: (MAINNET_FAIL_TRACE_FIRST_10_LINES, MAINNET_FAIL_TRACE_LAST_10_LINES),
 }
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts" / "ethereum"
 
@@ -51,7 +58,7 @@ def provider(networks):
     scope="module",
 )
 def mainnet_receipt(request, provider):
-    yield provider.get_receipt(request.param)
+    return provider.get_receipt(request.param)
 
 
 @pytest.fixture(scope="module")
@@ -107,7 +114,11 @@ def test_local_transaction_gas_report(local_receipt, captrace):
 def test_mainnet_transaction_traces(mainnet_receipt, captrace):
     mainnet_receipt.show_trace()
     lines = captrace.read_trace("Call trace for")
-    assert_rich_output(lines, EXPECTED_MAP[mainnet_receipt.txn_hash])
+    expected_beginning, expected_ending = EXPECTED_MAP[mainnet_receipt.txn_hash]
+    actual_beginning = lines[:10]
+    actual_ending = lines[-11:]
+    assert_rich_output(actual_beginning, expected_beginning)
+    assert_rich_output(actual_ending, expected_ending)
 
 
 def assert_rich_output(rich_capture: List[str], expected: str):

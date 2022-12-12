@@ -7,13 +7,8 @@ from ape import plugins
 from ape.api.networks import LOCAL_NETWORK_NAME
 from ape_ethereum.ecosystem import NETWORKS
 
-from .provider import (
-    HardhatForkProvider,
-    HardhatNetworkConfig,
-    HardhatProvider,
-    HardhatProviderError,
-    HardhatSubprocessError,
-)
+from .exceptions import HardhatProviderError, HardhatSubprocessError
+from .provider import HardhatForkProvider, HardhatNetworkConfig, HardhatProvider
 
 
 @plugins.register(plugins.Config)
