@@ -23,11 +23,12 @@ from ape.exceptions import (
     VirtualMachineError,
 )
 from ape.logging import logger
-from ape.types import AddressType, ContractCode, SnapshotID
+from ape.types import AddressType, CallTreeNode, ContractCode, SnapshotID, TraceFrame
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
 from eth_utils import is_0x_prefixed, is_hex, to_hex
-from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
+from evm_trace import CallTreeNode as EvmCallTreeNode
+from evm_trace import CallType, get_calltree_from_geth_trace
 from hexbytes import HexBytes
 from pydantic import BaseModel, Field
 from web3 import HTTPProvider, Web3
@@ -430,7 +431,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         data_gas = sum([4 if x == 0 else 16 for x in receipt.data])
         method_gas_cost = receipt.gas_used - 21_000 - data_gas
 
-        return get_calltree_from_geth_trace(
+        evm_call = get_calltree_from_geth_trace(
             receipt.trace,
             gas_cost=method_gas_cost,
             gas_limit=receipt.gas_limit,
@@ -440,6 +441,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             call_type=CallType.CALL,
             failed=receipt.failed,
         )
+        return self._create_call_tree_node(evm_call)
 
     def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
         is_str = isinstance(amount, str)
