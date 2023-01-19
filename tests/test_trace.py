@@ -29,7 +29,7 @@ BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts" / "ethereum"
 def captrace(capsys):
     class CapTrace:
         def read_trace(self, expected_start: str):
-            lines = capsys.readouterr().out.split("\n")
+            lines = capsys.readouterr().out.splitlines()
             start_index = 0
             for index, line in enumerate(lines):
                 if line.strip() == expected_start:
@@ -122,7 +122,7 @@ def test_mainnet_transaction_traces(mainnet_receipt, captrace):
 
 
 def assert_rich_output(rich_capture: List[str], expected: str):
-    expected_lines = [x.rstrip() for x in expected.split("\n") if x.rstrip()]
+    expected_lines = [x.rstrip() for x in expected.splitlines() if x.rstrip()]
     actual_lines = [x.rstrip() for x in rich_capture if x.rstrip()]
     assert actual_lines, "No output."
 

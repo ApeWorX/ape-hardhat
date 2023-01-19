@@ -2,9 +2,11 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from ape.api import ReceiptAPI
 from ape.exceptions import ContractLogicError, SignatureError
+from ape.types import CallTreeNode, TraceFrame
 from ape.utils import DEFAULT_TEST_MNEMONIC
-from evm_trace import CallTreeNode, CallType, TraceFrame
+from evm_trace import CallType
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
@@ -160,8 +162,8 @@ def test_get_call_tree(connected_provider, sender, receiver):
     transfer = sender.transfer(receiver, 1)
     call_tree = connected_provider.get_call_tree(transfer.txn_hash)
     assert isinstance(call_tree, CallTreeNode)
-    assert call_tree.call_type == CallType.CALL
-    assert repr(call_tree) == "CALL: 0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7 [0 gas]"
+    assert call_tree.call_type == CallType.CALL.value
+    assert repr(call_tree) == "0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7.0x()"
 
 
 def test_request_timeout(connected_provider, config, create_provider):
@@ -221,6 +223,7 @@ def test_set_code(connected_provider, contract_instance):
 
 def test_return_value(connected_provider, contract_instance, owner):
     receipt = contract_instance.setAddress(owner.address, sender=owner)
+    assert isinstance(receipt, ReceiptAPI)
     assert receipt.return_value == 123
 
 

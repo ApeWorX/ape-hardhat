@@ -122,8 +122,8 @@ def local_network_api(networks):
 
 @pytest.fixture(scope="session")
 def connected_provider(networks, local_network_api):
-    with networks.parse_network_choice(
-        "ethereum:local:hardhat", provider_settings={"port": "auto"}
+    with networks.ethereum.local.use_provider(
+        "hardhat", provider_settings={"port": "auto"}
     ) as provider:
         yield provider
 
@@ -136,7 +136,7 @@ def disconnected_provider(create_provider):
 @pytest.fixture(scope="session")
 def create_fork_provider(networks):
     def method(port: int = 9001, network: str = "mainnet"):
-        network_api = networks.ecosystems["ethereum"][f"{network}-fork"]
+        network_api = networks.ethereum[f"{network}-fork"]
         provider = HardhatForkProvider(
             name="hardhat",
             network=network_api,
@@ -148,11 +148,6 @@ def create_fork_provider(networks):
         return provider
 
     return method
-
-
-@pytest.fixture(scope="session")
-def mainnet_fork_network_api(networks):
-    return networks.ecosystems["ethereum"]["mainnet-fork"]
 
 
 @pytest.fixture(scope="session")

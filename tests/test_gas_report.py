@@ -2,11 +2,14 @@ import re
 from pathlib import Path
 
 import pytest
+from ape.managers.config import CONFIG_FILE_NAME
 
-BASE_DATA_PATH = Path(__file__).parent / "data" / "python"
+TESTS_PATH = Path(__file__).parent
+APE_CONFIG_FILE = TESTS_PATH / CONFIG_FILE_NAME
+BASE_DATA_PATH = TESTS_PATH / "data" / "python"
 CONFTEST = (BASE_DATA_PATH / "pytest_test_conftest.py").read_text()
 TEST_FILE = (BASE_DATA_PATH / "pytest_tests.py").read_text()
-NUM_TESTS = len([x for x in TEST_FILE.split("\n") if x.startswith("def test_")])
+NUM_TESTS = len([x for x in TEST_FILE.splitlines() if x.startswith("def test_")])
 TOKEN_B_GAS_REPORT = r"""
  +TokenB Gas
 
@@ -47,7 +50,7 @@ def filter_expected_methods(*methods_to_remove: str) -> str:
 def ape_pytester(project, pytester):
     pytester.makeconftest(CONFTEST)
     pytester.makepyfile(TEST_FILE)
-    return pytester
+    yield pytester
 
 
 def run_gas_test(result, expected_report: str = EXPECTED_GAS_REPORT):
@@ -59,7 +62,7 @@ def run_gas_test(result, expected_report: str = EXPECTED_GAS_REPORT):
             gas_header_line_index = index
 
     assert gas_header_line_index is not None, "'Gas Profile' not in output."
-    expected = expected_report.split("\n")[1:]
+    expected = expected_report.splitlines()[1:]
     start_index = gas_header_line_index + 1
     end_index = start_index + len(expected)
     actual = [x.rstrip() for x in result.outlines[start_index:end_index]]

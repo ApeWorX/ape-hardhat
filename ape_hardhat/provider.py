@@ -27,8 +27,9 @@ from ape.types import AddressType, CallTreeNode, ContractCode, SnapshotID, Trace
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
 from eth_utils import is_0x_prefixed, is_hex, to_hex
-from evm_trace import CallTreeNode as EvmCallTreeNode
-from evm_trace import CallType, get_calltree_from_geth_trace
+from evm_trace import CallType
+from evm_trace import TraceFrame as EvmTraceFrame
+from evm_trace import get_calltree_from_geth_trace
 from hexbytes import HexBytes
 from pydantic import BaseModel, Field
 from web3 import HTTPProvider, Web3
@@ -418,10 +419,14 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return receipt
 
     def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
+        for trace in self._get_transaction_trace(txn_hash):
+            yield self._create_trace_frame(trace)
+
+    def _get_transaction_trace(self, txn_hash: str) -> Iterator[EvmTraceFrame]:
         result = self._make_request("debug_traceTransaction", [txn_hash])
         frames = result.get("structLogs", [])
         for frame in frames:
-            yield TraceFrame(**frame)
+            yield EvmTraceFrame(**frame)
 
     def get_call_tree(self, txn_hash: str) -> CallTreeNode:
         receipt = self.chain_manager.get_receipt(txn_hash)
@@ -432,7 +437,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         method_gas_cost = receipt.gas_used - 21_000 - data_gas
 
         evm_call = get_calltree_from_geth_trace(
-            receipt.trace,
+            self._get_transaction_trace(txn_hash),
             gas_cost=method_gas_cost,
             gas_limit=receipt.gas_limit,
             address=receipt.receiver,
@@ -441,7 +446,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             call_type=CallType.CALL,
             failed=receipt.failed,
         )
-        return self._create_call_tree_node(evm_call)
+        return self._create_call_tree_node(evm_call, txn_hash=txn_hash)
 
     def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
         is_str = isinstance(amount, str)

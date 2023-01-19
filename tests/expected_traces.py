@@ -47,11 +47,11 @@ AggregationRouterV4\.uniswapV3Swap\(
     5789604461865809771178549250512551984713807685540901737341300416798777562476
 """
 MAINNET_FAIL_TRACE_LAST_10_LINES = r"""
-    │   \)
-    │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\.<0x0dfe1681>
-    │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\.<0xd21220a7>
-    │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\.<0xddca3f43>
-    │   └── WETH\.transfer\(
+    │   ├── 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\.0xd21220a7\(\) ->
+    │   │   0x000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
+    │   ├── 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\.0xddca3f43\(\) ->
+    │   │   0x00000000000000000000000000000000000000000000000000000000000001f4
+    │   └── WETH.transfer\(
     │         dst=0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640,
     │         wad=2098831888913057968
     │       \) -> True
@@ -71,7 +71,7 @@ DSProxy\.execute\(_target=LoanShifterTaker, _data=0x35\.\.0000\) -> '' \[1249147
         0,
 """
 MAINNET_TRACE_LAST_10_LINES = r"""
-    │                   └── LendingRateOracle\.getMarketBorrowRate\(_asset=Dai\) ->
+    │                   └── LendingRateOracle\.getMarketBorrowRate\(_asset=DAI\) ->
     │                       35000000000000000000000000
     ├── DSProxy\.authority\(\) -> DSGuard
     ├── DSGuard\.forbid\(src=LoanShifterReceiver, dst=DSProxy, sig=0x1c\.\.0000\)
