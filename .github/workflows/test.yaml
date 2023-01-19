@@ -81,7 +81,7 @@ jobs:
           run: npm install --save-dev hardhat
 
         - name: Run Async Tests
-          run: pytest -n auto -m "not sync and not manual and not fuzzing"
+          run: pytest -m "not sync and not manual and not fuzzing"
 
         - name: Run Sync Tests
           # Only run synchronous tests if not from a forked repo (Else it always fails)

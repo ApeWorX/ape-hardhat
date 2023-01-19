@@ -59,39 +59,6 @@ def test_uri(connected_provider):
     assert expected_uri in connected_provider.uri
 
 
-def test_multiple_instances(create_provider):
-    """
-    Validate the somewhat tricky internal logic of running multiple Hardhat subprocesses
-    under a single parent process.
-    """
-    # instantiate the providers (which will start the subprocesses) and validate the ports
-    provider_1 = create_provider()
-    provider_2 = create_provider()
-    provider_3 = create_provider()
-    provider_1.port = 8556
-    provider_2.port = 8557
-    provider_3.port = 8558
-    provider_1.connect()
-    provider_2.connect()
-    provider_3.connect()
-
-    # The web3 clients must be different in the HH provider instances (compared to the
-    # behavior of the EthereumProvider base class, where it's a shared classvar)
-    assert provider_1._web3 != provider_2._web3 != provider_3._web3
-
-    assert provider_1.port == 8556
-    assert provider_2.port == 8557
-    assert provider_3.port == 8558
-
-    provider_1.mine()
-    provider_2.mine()
-    provider_3.mine()
-    hash_1 = provider_1.get_block("latest").hash
-    hash_2 = provider_2.get_block("latest").hash
-    hash_3 = provider_3.get_block("latest").hash
-    assert hash_1 != hash_2 != hash_3
-
-
 def test_set_block_gas_limit(connected_provider):
     gas_limit = connected_provider.get_block("latest").gas_limit
     assert connected_provider.set_block_gas_limit(gas_limit) is True

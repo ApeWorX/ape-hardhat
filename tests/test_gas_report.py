@@ -2,10 +2,8 @@ import re
 from pathlib import Path
 
 import pytest
-from ape.managers.config import CONFIG_FILE_NAME
 
 TESTS_PATH = Path(__file__).parent
-APE_CONFIG_FILE = TESTS_PATH / CONFIG_FILE_NAME
 BASE_DATA_PATH = TESTS_PATH / "data" / "python"
 CONFTEST = (BASE_DATA_PATH / "pytest_test_conftest.py").read_text()
 TEST_FILE = (BASE_DATA_PATH / "pytest_tests.py").read_text()
@@ -83,7 +81,6 @@ def run_gas_test(result, expected_report: str = EXPECTED_GAS_REPORT):
         assert re.match(expected_line, actual_line), message
 
 
-@pytest.mark.sync
 def test_gas_flag_in_tests(ape_pytester):
     result = ape_pytester.runpytest("--gas")
     run_gas_test(result)
@@ -92,7 +89,6 @@ def test_gas_flag_in_tests(ape_pytester):
     run_gas_test(result)
 
 
-@pytest.mark.sync
 def test_gas_flag_exclude_method_using_cli_option(ape_pytester):
     # NOTE: Includes both a mutable and a view method.
     expected = filter_expected_methods("fooAndBar", "myNumber")

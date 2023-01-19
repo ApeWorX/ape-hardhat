@@ -47,16 +47,17 @@ AggregationRouterV4\.uniswapV3Swap\(
     5789604461865809771178549250512551984713807685540901737341300416798777562476
 """
 MAINNET_FAIL_TRACE_LAST_10_LINES = r"""
-    │   ├── 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\.0xd21220a7\(\) ->
-    │   │   0x000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
-    │   ├── 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\.0xddca3f43\(\) ->
-    │   │   0x00000000000000000000000000000000000000000000000000000000000001f4
-    │   └── WETH.transfer\(
-    │         dst=0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640,
-    │         wad=2098831888913057968
-    │       \) -> True
-    └── WETH\.balanceOf\(0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\) ->
-        68359883632315875514968
+    ├── WETH\.balanceOf\(UniswapV3Pool\) -> 68357784800426962457000
+    ├── AggregationRouterV4\.uniswapV3SwapCallback\(
+    │     amount0Delta=-4192051335,
+    │     amount1Delta=2098831888913057968,
+    │     0x00\.\.097d
+    │   \)
+    │   ├── UniswapV3Pool\.token0\(\) -> FiatTokenProxy
+    │   ├── UniswapV3Pool\.token1\(\) -> WETH
+    │   ├── UniswapV3Pool\.fee\(\) -> 500
+    │   └── WETH\.transfer\(dst=UniswapV3Pool, wad=2098831888913057968\) -> True
+    └── WETH\.balanceOf\(UniswapV3Pool\) -> 68359883632315875514968
 """
 MAINNET_TRACE_FIRST_10_LINES = r"""
 Call trace for
@@ -71,6 +72,7 @@ DSProxy\.execute\(_target=LoanShifterTaker, _data=0x35\.\.0000\) -> '' \[1249147
         0,
 """
 MAINNET_TRACE_LAST_10_LINES = r"""
+    │                   │   -> LendingRateOracle
     │                   └── LendingRateOracle\.getMarketBorrowRate\(_asset=DAI\) ->
     │                       35000000000000000000000000
     ├── DSProxy\.authority\(\) -> DSGuard

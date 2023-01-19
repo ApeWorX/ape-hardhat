@@ -3,6 +3,7 @@ from pathlib import Path
 
 import ape
 import pytest
+from ape.api.networks import LOCAL_NETWORK_NAME
 from ape.exceptions import ContractLogicError
 from ape_ethereum.ecosystem import NETWORKS
 
@@ -17,8 +18,39 @@ def connected_mainnet_fork_provider():
 
 
 @pytest.fixture(scope="module")
-def fork_contract_instance(owner, contract_container, connected_mainnet_fork_provider):
+def mainnet_fork_contract_instance(owner, contract_container, connected_mainnet_fork_provider):
     return owner.deploy(contract_container)
+
+
+@pytest.mark.fork
+def test_multiple_providers(
+    name, networks, connected_provider, mainnet_fork_port, goerli_fork_port
+):
+    assert networks.active_provider.name == name
+    assert networks.active_provider.network.name == LOCAL_NETWORK_NAME
+    assert networks.active_provider.port == 8545
+
+    with networks.ethereum.mainnet_fork.use_provider(
+        name, provider_settings={"port": mainnet_fork_port}
+    ):
+        assert networks.active_provider.name == name
+        assert networks.active_provider.network.name == "mainnet-fork"
+        assert networks.active_provider.port == mainnet_fork_port
+
+        with networks.ethereum.goerli_fork.use_provider(
+            name, provider_settings={"port": goerli_fork_port}
+        ):
+            assert networks.active_provider.name == name
+            assert networks.active_provider.network.name == "goerli-fork"
+            assert networks.active_provider.port == goerli_fork_port
+
+        assert networks.active_provider.name == name
+        assert networks.active_provider.network.name == "mainnet-fork"
+        assert networks.active_provider.port == mainnet_fork_port
+
+    assert networks.active_provider.name == name
+    assert networks.active_provider.network.name == LOCAL_NETWORK_NAME
+    assert networks.active_provider.port == 8545
 
 
 @pytest.mark.parametrize("network", [k for k in NETWORKS.keys()])
@@ -28,22 +60,22 @@ def test_fork_config(config, network):
     assert network_config.get("upstream_provider") == "alchemy", "config not registered"
 
 
-@pytest.mark.sync
-@pytest.mark.parametrize("upstream_network,port", [("mainnet", 8998), ("goerli", 8999)])
-def test_impersonate(networks, accounts, upstream_network, port, create_fork_provider):
-    provider = create_fork_provider(port=port, network=upstream_network)
-    provider.connect()
-    orig_provider = networks.active_provider
-    networks.active_provider = provider
-
+@pytest.mark.fork
+def test_goerli_impersonate(accounts, goerli_fork_provider):
     impersonated_account = accounts[TEST_ADDRESS]
     other_account = accounts[0]
     receipt = impersonated_account.transfer(other_account, "1 wei")
     assert receipt.receiver == other_account
     assert receipt.sender == impersonated_account
 
-    provider.disconnect()
-    networks.active_provider = orig_provider
+
+@pytest.mark.fork
+def test_mainnet_impersonate(accounts, mainnet_fork_provider):
+    impersonated_account = accounts[TEST_ADDRESS]
+    other_account = accounts[0]
+    receipt = impersonated_account.transfer(other_account, "1 wei")
+    assert receipt.receiver == other_account
+    assert receipt.sender == impersonated_account
 
 
 @pytest.mark.sync
@@ -100,38 +132,40 @@ def test_reset_fork_specify_block_number_via_config(networks, create_fork_provid
 
 
 @pytest.mark.sync
-def test_transaction(owner, fork_contract_instance):
-    receipt = fork_contract_instance.setNumber(6, sender=owner)
+def test_transaction(owner, mainnet_fork_contract_instance):
+    receipt = mainnet_fork_contract_instance.setNumber(6, sender=owner)
     assert receipt.sender == owner
 
-    value = fork_contract_instance.myNumber()
+    value = mainnet_fork_contract_instance.myNumber()
     assert value == 6
 
 
 @pytest.mark.sync
-def test_revert(sender, fork_contract_instance):
+def test_revert(sender, mainnet_fork_contract_instance):
     # 'sender' is not the owner so it will revert (with a message)
     with pytest.raises(ContractLogicError, match="!authorized"):
-        fork_contract_instance.setNumber(6, sender=sender)
+        mainnet_fork_contract_instance.setNumber(6, sender=sender)
 
 
 @pytest.mark.sync
-def test_contract_revert_no_message(owner, fork_contract_instance, connected_mainnet_fork_provider):
+def test_contract_revert_no_message(
+    owner, mainnet_fork_contract_instance, connected_mainnet_fork_provider
+):
     # The Contract raises empty revert when setting number to 5.
     with pytest.raises(ContractLogicError, match="Transaction failed."):
-        fork_contract_instance.setNumber(5, sender=owner)
+        mainnet_fork_contract_instance.setNumber(5, sender=owner)
 
 
 @pytest.mark.sync
 def test_transaction_contract_as_sender(
-    fork_contract_instance, connected_mainnet_fork_provider, convert
+    mainnet_fork_contract_instance, connected_mainnet_fork_provider, convert
 ):
     # Set balance so test wouldn't normally fail from lack of funds
-    connected_mainnet_fork_provider.set_balance(fork_contract_instance.address, "1000 ETH")
+    connected_mainnet_fork_provider.set_balance(mainnet_fork_contract_instance.address, "1000 ETH")
 
     with pytest.raises(ContractLogicError, match="!authorized"):
         # Task failed successfully
-        fork_contract_instance.setNumber(10, sender=fork_contract_instance)
+        mainnet_fork_contract_instance.setNumber(10, sender=mainnet_fork_contract_instance)
 
 
 @pytest.mark.sync
@@ -147,11 +181,11 @@ def test_transaction_unknown_contract_as_sender(accounts, networks, create_fork_
 
 
 @pytest.mark.sync
-def test_get_receipt(connected_mainnet_fork_provider, fork_contract_instance, owner):
-    receipt = fork_contract_instance.setAddress(owner.address, sender=owner)
+def test_get_receipt(connected_mainnet_fork_provider, mainnet_fork_contract_instance, owner):
+    receipt = mainnet_fork_contract_instance.setAddress(owner.address, sender=owner)
     actual = connected_mainnet_fork_provider.get_receipt(receipt.txn_hash)
     assert receipt.txn_hash == actual.txn_hash
-    assert actual.receiver == fork_contract_instance.address
+    assert actual.receiver == mainnet_fork_contract_instance.address
     assert actual.sender == receipt.sender
 
 

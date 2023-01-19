@@ -47,22 +47,15 @@ def full_contracts_cache(config):
     shutil.copytree(BASE_CONTRACTS_PATH, destination)
 
 
-@pytest.fixture(autouse=True, scope="module")
-def provider(networks):
-    with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
-        yield provider
-
-
 @pytest.fixture(
     params=(MAINNET_TXN_HASH, MAINNET_FAIL_TXN_HASH),
-    scope="module",
 )
-def mainnet_receipt(request, provider):
-    return provider.get_receipt(request.param)
+def mainnet_receipt(request, mainnet_fork_provider):
+    return mainnet_fork_provider.get_receipt(request.param)
 
 
 @pytest.fixture(scope="module")
-def contract_a(owner, provider):
+def contract_a(owner, mainnet_fork_provider):
     base_path = BASE_CONTRACTS_PATH / "local"
 
     def get_contract_type(suffix: str) -> ContractType:
@@ -125,9 +118,17 @@ def assert_rich_output(rich_capture: List[str], expected: str):
     expected_lines = [x.rstrip() for x in expected.splitlines() if x.rstrip()]
     actual_lines = [x.rstrip() for x in rich_capture if x.rstrip()]
     assert actual_lines, "No output."
+    output = "\n".join(actual_lines)
 
     for actual, expected in zip(actual_lines, expected_lines):
-        fail_message = f"Pattern: {expected}, Line: {actual}"
+        fail_message = f"""\n
+        \tPattern: {expected},\n
+        \tLine   : {actual}\n
+        \n
+        Complete output:
+        \n{output}
+        """
+
         try:
             assert re.match(expected, actual), fail_message
         except Exception as err:
