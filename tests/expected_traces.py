@@ -47,7 +47,6 @@ AggregationRouterV4\.uniswapV3Swap\(
     5789604461865809771178549250512551984713807685540901737341300416798777562476
 """
 MAINNET_FAIL_TRACE_LAST_10_LINES = r"""
-    ├── WETH\.balanceOf\(UniswapV3Pool\) -> 68357784800426962457000
     ├── AggregationRouterV4\.uniswapV3SwapCallback\(
     │     amount0Delta=-4192051335,
     │     amount1Delta=2098831888913057968,
@@ -72,7 +71,6 @@ DSProxy\.execute\(_target=LoanShifterTaker, _data=0x35\.\.0000\) -> '' \[1249147
         0,
 """
 MAINNET_TRACE_LAST_10_LINES = r"""
-    │                   │   -> LendingRateOracle
     │                   └── LendingRateOracle\.getMarketBorrowRate\(_asset=DAI\) ->
     │                       35000000000000000000000000
     ├── DSProxy\.authority\(\) -> DSGuard

@@ -109,7 +109,7 @@ def test_mainnet_transaction_traces(mainnet_receipt, captrace):
     lines = captrace.read_trace("Call trace for")
     expected_beginning, expected_ending = EXPECTED_MAP[mainnet_receipt.txn_hash]
     actual_beginning = lines[:10]
-    actual_ending = lines[-11:]
+    actual_ending = lines[-10:]
     assert_rich_output(actual_beginning, expected_beginning)
     assert_rich_output(actual_ending, expected_ending)
 
@@ -131,6 +131,8 @@ def assert_rich_output(rich_capture: List[str], expected: str):
 
         try:
             assert re.match(expected, actual), fail_message
+        except AssertionError:
+            raise  # Let assertion errors raise as normal.
         except Exception as err:
             pytest.fail(f"{fail_message}\n{err}")
 
