@@ -54,8 +54,8 @@ def mainnet_receipt(request, mainnet_fork_provider):
     return mainnet_fork_provider.get_receipt(request.param)
 
 
-@pytest.fixture(scope="module")
-def contract_a(owner, mainnet_fork_provider):
+@pytest.fixture
+def contract_a(owner, connected_provider):
     base_path = BASE_CONTRACTS_PATH / "local"
 
     def get_contract_type(suffix: str) -> ContractType:
@@ -75,7 +75,7 @@ def local_receipt(contract_a, owner):
     return contract_a.methodWithoutArguments(sender=owner)
 
 
-@pytest.mark.sync
+@pytest.mark.fork
 def test_local_transaction_traces(local_receipt, captrace):
     # NOTE: Strange bug in Rich where we can't use sys.stdout for testing tree output.
     # And we have to write to a file, close it, and then re-open it to see output.
@@ -90,7 +90,7 @@ def test_local_transaction_traces(local_receipt, captrace):
     run_test()
 
 
-@pytest.mark.sync
+@pytest.mark.fork
 def test_local_transaction_gas_report(local_receipt, captrace):
     def run_test():
         local_receipt.show_gas_report()

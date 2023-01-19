@@ -190,7 +190,7 @@ def goerli_fork_port():
 
 @pytest.fixture
 def goerli_fork_provider(networks, goerli_fork_port):
-    with networks.etherem.goerli_fork.use_provider(
+    with networks.ethereum.goerli_fork.use_provider(
         NAME, provider_settings={"port": goerli_fork_port}
     ) as provider:
         yield provider

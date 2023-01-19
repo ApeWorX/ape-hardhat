@@ -5,41 +5,33 @@ import pytest
 from ape.api import ReceiptAPI
 from ape.exceptions import ContractLogicError, SignatureError
 from ape.types import CallTreeNode, TraceFrame
-from ape.utils import DEFAULT_TEST_MNEMONIC
 from evm_trace import CallType
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatProviderError
-from ape_hardhat.provider import HARDHAT_CHAIN_ID, HARDHAT_CONFIG_FILE_NAME
+from ape_hardhat.provider import HARDHAT_CHAIN_ID
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
 
 
-def test_instantiation(disconnected_provider):
-    assert disconnected_provider.name == "hardhat"
+def test_instantiation(disconnected_provider, name):
+    assert disconnected_provider.name == name
 
 
-def test_connect_and_disconnect(create_provider):
+def test_connect_and_disconnect(disconnected_provider):
     # Use custom port to prevent connecting to a port used in another test.
 
-    provider = create_provider()
-    provider.port = 8555
-    provider.connect()
-
-    # Verify config file got created
-    config = Path(HARDHAT_CONFIG_FILE_NAME)
-    config_text = config.read_text()
-    assert config.exists()
-    assert DEFAULT_TEST_MNEMONIC in config_text
+    disconnected_provider.port = 8555
+    disconnected_provider.connect()
 
     try:
-        assert provider.is_connected
-        assert provider.chain_id == HARDHAT_CHAIN_ID
+        assert disconnected_provider.is_connected
+        assert disconnected_provider.chain_id == HARDHAT_CHAIN_ID
     finally:
-        provider.disconnect()
+        disconnected_provider.disconnect()
 
-    assert not provider.is_connected
-    assert provider.process is None
+    assert not disconnected_provider.is_connected
+    assert disconnected_provider.process is None
 
 
 def test_gas_price(connected_provider):
@@ -48,10 +40,10 @@ def test_gas_price(connected_provider):
 
 
 def test_uri_disconnected(disconnected_provider):
-    with pytest.raises(HardhatProviderError) as err:
+    with pytest.raises(
+        HardhatProviderError, match=r"Can't build URI before `connect\(\)` is called\."
+    ):
         _ = disconnected_provider.uri
-
-    assert "Can't build URI before `connect()` is called." in str(err.value)
 
 
 def test_uri(connected_provider):
@@ -133,17 +125,17 @@ def test_get_call_tree(connected_provider, sender, receiver):
     assert repr(call_tree) == "0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7.0x()"
 
 
-def test_request_timeout(connected_provider, config, create_provider):
+def test_request_timeout(connected_provider, config):
+    # Test value set in `ape-config.yaml`
+    expected = 29
     actual = connected_provider.web3.provider._request_kwargs["timeout"]
-    expected = 29  # Value set in `ape-config.yaml`
     assert actual == expected
 
     # Test default behavior
     with tempfile.TemporaryDirectory() as temp_dir_str:
         temp_dir = Path(temp_dir_str)
         with config.using_project(temp_dir):
-            provider = create_provider()
-            assert provider.timeout == 30
+            assert connected_provider.timeout == 30
 
 
 def test_send_transaction(contract_instance, owner):
