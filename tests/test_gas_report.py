@@ -48,7 +48,7 @@ def filter_expected_methods(*methods_to_remove: str) -> str:
 def ape_pytester(project, pytester):
     pytester.makeconftest(CONFTEST)
     pytester.makepyfile(TEST_FILE)
-    yield pytester
+    return pytester
 
 
 def run_gas_test(result, expected_report: str = EXPECTED_GAS_REPORT):

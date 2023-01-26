@@ -488,9 +488,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             return ContractLogicError(txn=txn)
 
         elif message == "Transaction ran out of gas":
-            return OutOfGasError(txn=txn)  # type: ignore
+            return OutOfGasError(txn=txn)
 
-        return VirtualMachineError(message=message)
+        return VirtualMachineError(message)
 
 
 class HardhatForkProvider(HardhatProvider):
