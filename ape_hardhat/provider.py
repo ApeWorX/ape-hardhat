@@ -467,27 +467,28 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         self._make_request("hardhat_setBalance", [account, amount_hex_str])
 
-    def get_virtual_machine_error(self, exception: Exception) -> VirtualMachineError:
+    def get_virtual_machine_error(self, exception: Exception, **kwargs) -> VirtualMachineError:
+        txn = kwargs.get("txn")
         if not len(exception.args):
-            return VirtualMachineError(base_err=exception)
+            return VirtualMachineError(base_err=exception, txn=txn)
 
         err_data = exception.args[0]
 
         message = err_data if isinstance(err_data, str) else str(err_data.get("message"))
         if not message:
-            return VirtualMachineError(base_err=exception)
+            return VirtualMachineError(base_err=exception, txn=txn)
         elif message.startswith("execution reverted: "):
             message = message.replace("execution reverted: ", "")
 
         if message.startswith(_REVERT_REASON_PREFIX):
             message = message.replace(_REVERT_REASON_PREFIX, "").strip("'")
-            return ContractLogicError(revert_message=message)
+            return ContractLogicError(revert_message=message, txn=txn)
 
         elif _NO_REASON_REVERT_MESSAGE in message:
-            return ContractLogicError()
+            return ContractLogicError(txn=txn)
 
         elif message == "Transaction ran out of gas":
-            return OutOfGasError()  # type: ignore
+            return OutOfGasError(txn=txn)  # type: ignore
 
         return VirtualMachineError(message=message)
 
