@@ -128,3 +128,7 @@ node_modules/
 
 # Hardhat
 tests/**/cache
+
+**/.DS_Store
+*.swp
+*.swo
