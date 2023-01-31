@@ -107,7 +107,7 @@ class PackageJson(BaseModel):
     version: Optional[str]
     description: Optional[str]
     dependencies: Optional[Dict[str, str]]
-    dev_dependencies: Optional[Dict[str, str]] = Field(alias="devDependencies")
+    dev_dependencies: Optional[Dict[str, str]] = Field(None, alias="devDependencies")
 
 
 class HardhatForkConfig(PluginConfig):
