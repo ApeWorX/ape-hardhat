@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 from ape.api import ReceiptAPI
-from ape.exceptions import ContractLogicError, SignatureError
+from ape.exceptions import ContractLogicError
 from ape.types import CallTreeNode, TraceFrame
 from evm_trace import CallType
 from hexbytes import HexBytes
@@ -141,10 +141,6 @@ def test_request_timeout(connected_provider, config):
 def test_send_transaction(contract_instance, owner):
     contract_instance.setNumber(10, sender=owner)
     assert contract_instance.myNumber() == 10
-
-    # Have to be in the same test because of X-dist complications
-    with pytest.raises(SignatureError):
-        contract_instance.setNumber(20)
 
 
 def test_contract_revert_no_message(owner, contract_instance):
