@@ -29,7 +29,7 @@ BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts" / "ethereum"
 def captrace(capsys):
     class CapTrace:
         def read_trace(self, expected_start: str):
-            lines = capsys.readouterr().out.split("\n")
+            lines = capsys.readouterr().out.splitlines()
             start_index = 0
             for index, line in enumerate(lines):
                 if line.strip() == expected_start:
@@ -47,22 +47,15 @@ def full_contracts_cache(config):
     shutil.copytree(BASE_CONTRACTS_PATH, destination)
 
 
-@pytest.fixture(autouse=True, scope="module")
-def provider(networks):
-    with networks.parse_network_choice("ethereum:mainnet-fork:hardhat") as provider:
-        yield provider
-
-
 @pytest.fixture(
     params=(MAINNET_TXN_HASH, MAINNET_FAIL_TXN_HASH),
-    scope="module",
 )
-def mainnet_receipt(request, provider):
-    return provider.get_receipt(request.param)
+def mainnet_receipt(request, mainnet_fork_provider):
+    return mainnet_fork_provider.get_receipt(request.param)
 
 
-@pytest.fixture(scope="module")
-def contract_a(owner, provider):
+@pytest.fixture
+def contract_a(owner, connected_provider):
     base_path = BASE_CONTRACTS_PATH / "local"
 
     def get_contract_type(suffix: str) -> ContractType:
@@ -82,7 +75,7 @@ def local_receipt(contract_a, owner):
     return contract_a.methodWithoutArguments(sender=owner)
 
 
-@pytest.mark.sync
+@pytest.mark.fork
 def test_local_transaction_traces(local_receipt, captrace):
     # NOTE: Strange bug in Rich where we can't use sys.stdout for testing tree output.
     # And we have to write to a file, close it, and then re-open it to see output.
@@ -97,7 +90,7 @@ def test_local_transaction_traces(local_receipt, captrace):
     run_test()
 
 
-@pytest.mark.sync
+@pytest.mark.fork
 def test_local_transaction_gas_report(local_receipt, captrace):
     def run_test():
         local_receipt.show_gas_report()
@@ -116,20 +109,30 @@ def test_mainnet_transaction_traces(mainnet_receipt, captrace):
     lines = captrace.read_trace("Call trace for")
     expected_beginning, expected_ending = EXPECTED_MAP[mainnet_receipt.txn_hash]
     actual_beginning = lines[:10]
-    actual_ending = lines[-11:]
+    actual_ending = lines[-10:]
     assert_rich_output(actual_beginning, expected_beginning)
     assert_rich_output(actual_ending, expected_ending)
 
 
 def assert_rich_output(rich_capture: List[str], expected: str):
-    expected_lines = [x.rstrip() for x in expected.split("\n") if x.rstrip()]
+    expected_lines = [x.rstrip() for x in expected.splitlines() if x.rstrip()]
     actual_lines = [x.rstrip() for x in rich_capture if x.rstrip()]
     assert actual_lines, "No output."
+    output = "\n".join(actual_lines)
 
     for actual, expected in zip(actual_lines, expected_lines):
-        fail_message = f"Pattern: {expected}, Line: {actual}"
+        fail_message = f"""\n
+        \tPattern: {expected},\n
+        \tLine   : {actual}\n
+        \n
+        Complete output:
+        \n{output}
+        """
+
         try:
             assert re.match(expected, actual), fail_message
+        except AssertionError:
+            raise  # Let assertion errors raise as normal.
         except Exception as err:
             pytest.fail(f"{fail_message}\n{err}")
 

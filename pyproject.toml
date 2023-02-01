@@ -3,6 +3,7 @@ requires = ["setuptools>=51.1.1", "wheel", "setuptools_scm[toml]>=5.0"]
 
 [tool.mypy]
 exclude = ["build/", "tests/functional/data/"]
+plugins = ["pydantic.mypy"]
 
 [tool.setuptools_scm]
 write_to = "ape_hardhat/version.py"
@@ -31,7 +32,7 @@ python_files = "test_*.py"
 testpaths = "tests"
 markers = """
 fuzzing: Run Hypothesis fuzz test suite
-sync: Run without x-dist
+fork: Run without x-dist
 manual: Tests you want to avoid running in automated CI/CD because of expense
 """
 

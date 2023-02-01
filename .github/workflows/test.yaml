@@ -2,15 +2,22 @@ on: ["push", "pull_request"]
 
 name: Test
 
+concurrency:
+  # Cancel older, in-progress jobs from the same PR, same workflow.
+  # use run_id if the job is triggered by a push to ensure
+  # push-triggered jobs to not get canceled.
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
     linting:
         runs-on: ubuntu-latest
 
         steps:
-        - uses: actions/checkout@v2
+        - uses: actions/checkout@v3
 
         - name: Setup Python
-          uses: actions/setup-python@v2
+          uses: actions/setup-python@v4
           with:
               python-version: 3.8
 
@@ -20,20 +27,23 @@ jobs:
         - name: Run Black
           run: black --check .
 
+        - name: Run isort
+          run: isort --check-only .
+
         - name: Run flake8
           run: flake8 .
 
-        - name: Run isort
-          run: isort --check-only .
+        - name: Run mdformat
+          run: mdformat . --check
 
     type-check:
         runs-on: ubuntu-latest
 
         steps:
-        - uses: actions/checkout@v2
+        - uses: actions/checkout@v3
 
         - name: Setup Python
-          uses: actions/setup-python@v2
+          uses: actions/setup-python@v4
           with:
               python-version: 3.8
 
@@ -41,7 +51,7 @@ jobs:
           run: pip install .[lint]
 
         - name: Run MyPy
-          run: mypy . --exclude=build
+          run: mypy .
 
     functional:
         runs-on: ${{ matrix.os }}
@@ -52,10 +62,10 @@ jobs:
                 os: [ubuntu-latest, macos-latest]   # eventually add `windows-latest`
 
         steps:
-        - uses: actions/checkout@v2
+        - uses: actions/checkout@v3
 
         - name: Setup Python
-          uses: actions/setup-python@v2
+          uses: actions/setup-python@v4
           with:
               python-version: ${{ matrix.python-version }}
 
@@ -63,7 +73,7 @@ jobs:
           run: pip install .[test]
 
         - name: Setup Node
-          uses: actions/setup-node@v2
+          uses: actions/setup-node@v3
           with:
               node-version: '16'
 
@@ -71,12 +81,12 @@ jobs:
           run: npm install --save-dev hardhat
 
         - name: Run Async Tests
-          run: pytest -n auto -m "not sync and not manual and not fuzzing"
+          run: pytest -m "not fork and not manual and not fuzzing"
 
         - name: Run Sync Tests
-          # Only run synchronous tests if not from a forked repo (Else it always fails)
+          # Only run forked-network tests if not from a forked repo (Else it always fails)
           if: github.event.pull_request.head.repo.full_name == github.repository
-          run: pytest -m sync
+          run: pytest -m fork
           env:
             WEB3_ALCHEMY_PROJECT_ID: ${{ secrets.WEB3_ALCHEMY_PROJECT_ID }}
 
@@ -88,10 +98,10 @@ jobs:
 #            fail-fast: true
 #
 #        steps:
-#        - uses: actions/checkout@v2
+#        - uses: actions/checkout@v3
 #
 #        - name: Setup Python
-#          uses: actions/setup-python@v2
+#          uses: actions/setup-python@v4
 #          with:
 #              python-version: 3.8
 #

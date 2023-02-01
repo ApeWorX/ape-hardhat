@@ -9,20 +9,23 @@ import ape
 import pytest
 import yaml
 from _pytest.runner import pytest_runtest_makereport as orig_pytest_runtest_makereport
-from ape.api.networks import LOCAL_NETWORK_NAME
 from ape.contracts import ContractContainer
+from ape.exceptions import APINotImplementedError, UnknownSnapshotError
 from ape.managers.config import CONFIG_FILE_NAME
 from ethpm_types import ContractType
 
-from ape_hardhat import HardhatForkProvider, HardhatProvider
+from ape_hardhat import HardhatProvider
 
 # NOTE: Ensure that we don't use local paths for the DATA FOLDER
 ape.config.DATA_FOLDER = Path(mkdtemp()).resolve()
 
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts"
+NAME = "hardhat"
 
 # Needed to test tracing support in core `ape test` command.
 pytest_plugins = ["pytester"]
+MAINNET_FORK_PORT = 9001
+GOERLI_FORK_PORT = 9002
 
 
 def pytest_runtest_makereport(item, call):
@@ -34,9 +37,52 @@ def pytest_runtest_makereport(item, call):
     return tr
 
 
+@pytest.fixture(scope="session")
+def name():
+    return NAME
+
+
 @pytest.fixture(scope="session", autouse=True)
 def in_tests_dir(config):
     with config.using_project(Path(__file__).parent):
+        yield
+
+
+@contextmanager
+def _isolation():
+    if ape.networks.active_provider is None:
+        raise AssertionError("Isolation should only be used with a connected provider.")
+
+    init_network_name = ape.chain.provider.network.name
+    init_provider_name = ape.chain.provider.name
+
+    try:
+        snapshot = ape.chain.snapshot()
+    except APINotImplementedError:
+        # Provider not used or connected in test.
+        snapshot = None
+
+    yield
+
+    if (
+        snapshot is None
+        or ape.networks.active_provider is None
+        or ape.chain.provider.network.name != init_network_name
+        or ape.chain.provider.name != init_provider_name
+    ):
+        return
+
+    try:
+        ape.chain.restore(snapshot)
+    except UnknownSnapshotError:
+        # Assume snapshot removed for testing reasons
+        # or the provider was not needed to be connected for the test.
+        pass
+
+
+@pytest.fixture(autouse=True)
+def main_provider_isolation(connected_provider):
+    with _isolation():
         yield
 
 
@@ -65,37 +111,23 @@ def networks():
     return ape.networks
 
 
-@pytest.fixture(scope="session")
-def create_provider(local_network_api):
-    def method():
-        return HardhatProvider(
-            name="hardhat",
-            network=local_network_api,
-            request_header={},
-            data_folder=Path("."),
-            provider_settings={},
-        )
-
-    return method
-
-
-@pytest.fixture(scope="session", params=("solidity", "vyper"))
+@pytest.fixture(params=("solidity", "vyper"))
 def raw_contract_type(request):
     path = BASE_CONTRACTS_PATH / "ethereum" / "local" / f"{request.param}_contract.json"
     return path.read_text()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def contract_type(raw_contract_type) -> ContractType:
     return ContractType.parse_raw(raw_contract_type)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def contract_container(contract_type) -> ContractContainer:
     return ContractContainer(contract_type=contract_type)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def contract_instance(owner, contract_container, connected_provider):
     return owner.deploy(contract_container)
 
@@ -117,42 +149,50 @@ def owner(accounts):
 
 @pytest.fixture(scope="session")
 def local_network_api(networks):
-    return networks.ecosystems["ethereum"][LOCAL_NETWORK_NAME]
+    return networks.ethereum.local
 
 
-@pytest.fixture(scope="session")
-def connected_provider(networks, local_network_api):
-    with networks.parse_network_choice(
-        "ethereum:local:hardhat", provider_settings={"port": "auto"}
-    ) as provider:
+@pytest.fixture
+def connected_provider(name, networks, local_network_api):
+    with networks.ethereum.local.use_provider(name) as provider:
         yield provider
 
 
 @pytest.fixture(scope="session")
-def disconnected_provider(create_provider):
-    return create_provider()
+def disconnected_provider(name, local_network_api):
+    return HardhatProvider(
+        name=name,
+        network=local_network_api,
+        request_header={},
+        data_folder=Path("."),
+        provider_settings={},
+    )
 
 
-@pytest.fixture(scope="session")
-def create_fork_provider(networks):
-    def method(port: int = 9001, network: str = "mainnet"):
-        network_api = networks.ecosystems["ethereum"][f"{network}-fork"]
-        provider = HardhatForkProvider(
-            name="hardhat",
-            network=network_api,
-            request_header={},
-            data_folder=Path("."),
-            provider_settings={},
-        )
-        provider.port = port
-        return provider
-
-    return method
+@pytest.fixture
+def mainnet_fork_port():
+    return MAINNET_FORK_PORT
 
 
-@pytest.fixture(scope="session")
-def mainnet_fork_network_api(networks):
-    return networks.ecosystems["ethereum"]["mainnet-fork"]
+@pytest.fixture
+def mainnet_fork_provider(name, networks, mainnet_fork_port):
+    with networks.ethereum["mainnet-fork"].use_provider(
+        name, provider_settings={"port": mainnet_fork_port}
+    ) as provider:
+        yield provider
+
+
+@pytest.fixture
+def goerli_fork_port():
+    return GOERLI_FORK_PORT
+
+
+@pytest.fixture
+def goerli_fork_provider(name, networks, goerli_fork_port):
+    with networks.ethereum.goerli_fork.use_provider(
+        name, provider_settings={"port": goerli_fork_port}
+    ) as provider:
+        yield provider
 
 
 @pytest.fixture(scope="session")

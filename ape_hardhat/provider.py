@@ -23,11 +23,13 @@ from ape.exceptions import (
     VirtualMachineError,
 )
 from ape.logging import logger
-from ape.types import AddressType, ContractCode, SnapshotID
+from ape.types import AddressType, CallTreeNode, ContractCode, SnapshotID, TraceFrame
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
 from eth_utils import is_0x_prefixed, is_hex, to_hex
-from evm_trace import CallTreeNode, CallType, TraceFrame, get_calltree_from_geth_trace
+from evm_trace import CallType
+from evm_trace import TraceFrame as EvmTraceFrame
+from evm_trace import get_calltree_from_geth_trace
 from hexbytes import HexBytes
 from pydantic import BaseModel, Field
 from web3 import HTTPProvider, Web3
@@ -105,7 +107,7 @@ class PackageJson(BaseModel):
     version: Optional[str]
     description: Optional[str]
     dependencies: Optional[Dict[str, str]]
-    dev_dependencies: Optional[Dict[str, str]] = Field(alias="devDependencies")
+    dev_dependencies: Optional[Dict[str, str]] = Field(None, alias="devDependencies")
 
 
 class HardhatForkConfig(PluginConfig):
@@ -399,6 +401,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             # Allow for an unsigned transaction
             txn = self.prepare_transaction(txn)
             txn_dict = txn.dict()
+            if isinstance(txn_dict.get("type"), int):
+                txn_dict["type"] = HexBytes(txn_dict["type"]).hex()
+
             txn_params = cast(TxParams, txn_dict)
 
             try:
@@ -412,15 +417,62 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             receipt.raise_for_status()
 
         else:
-            receipt = super().send_transaction(txn)
+            try:
+                txn_hash = self.web3.eth.send_raw_transaction(txn.serialize_transaction())
+            except ValueError as err:
+                vm_err = self.get_virtual_machine_error(err, txn=txn)
+
+                if "nonce too low" in str(vm_err):
+                    # Add additional nonce information
+                    new_err_msg = f"Nonce '{txn.nonce}' is too low"
+                    raise VirtualMachineError(
+                        new_err_msg, base_err=vm_err.base_err, code=vm_err.code
+                    )
+
+                vm_err.txn = txn
+                raise vm_err from err
+
+            receipt = self.get_receipt(
+                txn_hash.hex(),
+                required_confirmations=(
+                    txn.required_confirmations
+                    if txn.required_confirmations is not None
+                    else self.network.required_confirmations
+                ),
+            )
+
+            if receipt.failed:
+                txn_dict = receipt.transaction.dict()
+                if isinstance(txn_dict.get("type"), int):
+                    txn_dict["type"] = HexBytes(txn_dict["type"]).hex()
+
+                txn_params = cast(TxParams, txn_dict)
+
+                # Replay txn to get revert reason
+                try:
+                    self.web3.eth.call(txn_params)
+                except Exception as err:
+                    vm_err = self.get_virtual_machine_error(err, txn=txn)
+                    vm_err.txn = txn
+                    raise vm_err from err
+
+            logger.info(
+                f"Confirmed {receipt.txn_hash} (total fees paid = {receipt.total_fees_paid})"
+            )
+            self.chain_manager.history.append(receipt)
+            return receipt
 
         return receipt
 
     def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
+        for trace in self._get_transaction_trace(txn_hash):
+            yield self._create_trace_frame(trace)
+
+    def _get_transaction_trace(self, txn_hash: str) -> Iterator[EvmTraceFrame]:
         result = self._make_request("debug_traceTransaction", [txn_hash])
         frames = result.get("structLogs", [])
         for frame in frames:
-            yield TraceFrame(**frame)
+            yield EvmTraceFrame(**frame)
 
     def get_call_tree(self, txn_hash: str) -> CallTreeNode:
         receipt = self.chain_manager.get_receipt(txn_hash)
@@ -430,8 +482,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         data_gas = sum([4 if x == 0 else 16 for x in receipt.data])
         method_gas_cost = receipt.gas_used - 21_000 - data_gas
 
-        return get_calltree_from_geth_trace(
-            receipt.trace,
+        evm_call = get_calltree_from_geth_trace(
+            self._get_transaction_trace(txn_hash),
             gas_cost=method_gas_cost,
             gas_limit=receipt.gas_limit,
             address=receipt.receiver,
@@ -440,6 +492,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             call_type=CallType.CALL,
             failed=receipt.failed,
         )
+        return self._create_call_tree_node(evm_call, txn_hash=txn_hash)
 
     def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
         is_str = isinstance(amount, str)
@@ -460,29 +513,30 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         self._make_request("hardhat_setBalance", [account, amount_hex_str])
 
-    def get_virtual_machine_error(self, exception: Exception) -> VirtualMachineError:
+    def get_virtual_machine_error(self, exception: Exception, **kwargs) -> VirtualMachineError:
+        txn = kwargs.get("txn")
         if not len(exception.args):
-            return VirtualMachineError(base_err=exception)
+            return VirtualMachineError(base_err=exception, txn=txn)
 
         err_data = exception.args[0]
 
         message = err_data if isinstance(err_data, str) else str(err_data.get("message"))
         if not message:
-            return VirtualMachineError(base_err=exception)
+            return VirtualMachineError(base_err=exception, txn=txn)
         elif message.startswith("execution reverted: "):
             message = message.replace("execution reverted: ", "")
 
         if message.startswith(_REVERT_REASON_PREFIX):
             message = message.replace(_REVERT_REASON_PREFIX, "").strip("'")
-            return ContractLogicError(revert_message=message)
+            return ContractLogicError(revert_message=message, txn=txn)
 
         elif _NO_REASON_REVERT_MESSAGE in message:
-            return ContractLogicError()
+            return ContractLogicError(txn=txn)
 
         elif message == "Transaction ran out of gas":
-            return OutOfGasError()  # type: ignore
+            return OutOfGasError(txn=txn)
 
-        return VirtualMachineError(message=message)
+        return VirtualMachineError(message)
 
 
 class HardhatForkProvider(HardhatProvider):

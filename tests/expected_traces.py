@@ -47,22 +47,22 @@ AggregationRouterV4\.uniswapV3Swap\(
     5789604461865809771178549250512551984713807685540901737341300416798777562476
 """
 MAINNET_FAIL_TRACE_LAST_10_LINES = r"""
+    ├── AggregationRouterV4\.uniswapV3SwapCallback\(
+    │     amount0Delta=-4192051335,
+    │     amount1Delta=2098831888913057968,
+    │     0x00\.\.097d
     │   \)
-    │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\.<0x0dfe1681>
-    │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\.<0xd21220a7>
-    │   ├── STATICCALL: 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\.<0xddca3f43>
-    │   └── WETH\.transfer\(
-    │         dst=0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640,
-    │         wad=2098831888913057968
-    │       \) -> True
-    └── WETH\.balanceOf\(0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640\) ->
-        68359883632315875514968
+    │   ├── UniswapV3Pool\.token0\(\) -> FiatTokenProxy
+    │   ├── UniswapV3Pool\.token1\(\) -> WETH
+    │   ├── UniswapV3Pool\.fee\(\) -> 500
+    │   └── WETH\.transfer\(dst=UniswapV3Pool, wad=2098831888913057968\) -> True
+    └── WETH\.balanceOf\(UniswapV3Pool\) -> 68359883632315875514968
 """
 MAINNET_TRACE_FIRST_10_LINES = r"""
 Call trace for
 '0xb7d7f1d5ce7743e821d3026647df486f517946ef1342a1ae93c96e4a8016eab7'
 tx\.origin=0x5668EAd1eDB8E2a4d724C8fb9cB5fFEabEB422dc
-DSProxy\.execute\(_target=LoanShifterTaker, _data=0x35\.\.0000\) -> '' \[1249147 gas\]
+DSProxy\.execute\(_target=LoanShifterTaker, _data=0x35\.\.0000\) -> "" \[1249147 gas\]
 └── \(delegate\) LoanShifterTaker\.moveLoan\(
       _exchangeData=\[
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,
@@ -71,7 +71,7 @@ DSProxy\.execute\(_target=LoanShifterTaker, _data=0x35\.\.0000\) -> '' \[1249147
         0,
 """
 MAINNET_TRACE_LAST_10_LINES = r"""
-    │                   └── LendingRateOracle\.getMarketBorrowRate\(_asset=Dai\) ->
+    │                   └── LendingRateOracle\.getMarketBorrowRate\(_asset=DAI\) ->
     │                       35000000000000000000000000
     ├── DSProxy\.authority\(\) -> DSGuard
     ├── DSGuard\.forbid\(src=LoanShifterReceiver, dst=DSProxy, sig=0x1c\.\.0000\)
