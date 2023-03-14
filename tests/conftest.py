@@ -112,7 +112,7 @@ def networks():
 
 
 @pytest.fixture(params=("solidity", "vyper"))
-def contract_type(request, raw_contract_type, get_contract_type) -> ContractType:
+def contract_type(request, get_contract_type) -> ContractType:
     return get_contract_type(f"{request.param}_contract")
 
 
