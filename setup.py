@@ -11,7 +11,7 @@ extras_require = {
         "pytest-xdist",  # multi-process runner
         "pytest-cov",  # Coverage analyzer plugin
         "hypothesis>=6.2.0,<7.0",  # Strategy-based fuzzer
-        "ape-alchemy>=0.4.0",  # Needed for forked-network tests
+        "ape-alchemy",  # Needed for forked-network tests
         "rich",  # Needed for trace tests
     ],
     "lint": [
@@ -75,7 +75,7 @@ setup(
     url="https://github.com/ApeWorX/ape-hardhat",
     include_package_data=True,
     install_requires=[
-        "eth-ape>=0.6.1,<0.7",
+        "eth-ape>=0.6.5,<0.7",
         "evm-trace",  # Use same version as eth-ape
         "hexbytes",  # Use same version as eth-ape
         "web3",  # Use same version as eth-ape

@@ -112,14 +112,18 @@ def networks():
 
 
 @pytest.fixture(params=("solidity", "vyper"))
-def raw_contract_type(request):
-    path = BASE_CONTRACTS_PATH / "ethereum" / "local" / f"{request.param}_contract.json"
-    return path.read_text()
+def contract_type(request, raw_contract_type, get_contract_type) -> ContractType:
+    return get_contract_type(f"{request.param}_contract")
 
 
 @pytest.fixture
-def contract_type(raw_contract_type) -> ContractType:
-    return ContractType.parse_raw(raw_contract_type)
+def get_contract_type():
+    def fn(name: str):
+        path = BASE_CONTRACTS_PATH / "ethereum" / "local" / f"{name}.json"
+        content = path.read_text()
+        return ContractType.parse_raw(content)
+
+    return fn
 
 
 @pytest.fixture
