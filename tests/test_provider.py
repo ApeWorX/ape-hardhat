@@ -53,7 +53,6 @@ def test_uri(connected_provider):
 
 
 def test_set_block_gas_limit(connected_provider):
-    assert False
     gas_limit = connected_provider.get_block("latest").gas_limit
     assert connected_provider.set_block_gas_limit(gas_limit) is True
 
