@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from ape.api import ReceiptAPI
+from ape.contracts import ContractContainer
 from ape.exceptions import ContractLogicError
 from ape.types import CallTreeNode, TraceFrame
 from evm_trace import CallType
@@ -147,6 +148,13 @@ def test_contract_revert_no_message(owner, contract_instance):
     # The Contract raises empty revert when setting number to 5.
     with pytest.raises(ContractLogicError, match="Transaction failed."):
         contract_instance.setNumber(5, sender=owner)
+
+
+def test_contract_revert_custom_exception(owner, get_contract_type, accounts):
+    ct = get_contract_type("has_error")
+    contract = owner.deploy(ContractContainer(ct))
+    with pytest.raises(ContractLogicError, match="0x82b42900"):
+        contract.withdraw(sender=accounts[7])
 
 
 def test_transaction_contract_as_sender(contract_instance, connected_provider):

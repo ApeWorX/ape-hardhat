@@ -493,6 +493,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         elif message == "Transaction ran out of gas":
             return OutOfGasError(txn=txn)
 
+        elif "reverted with an unrecognized custom error" in message and "(return data:" in message:
+            # Happens during custom Solidity exceptions.
+            message = message.split("(return data:")[-1].rstrip("/)").strip()
+            return ContractLogicError(revert_message=message, txn=txn)
+
         return VirtualMachineError(message)
 
 
