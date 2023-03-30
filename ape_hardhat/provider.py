@@ -33,11 +33,11 @@ from evm_trace import get_calltree_from_geth_trace
 from hexbytes import HexBytes
 from pydantic import BaseModel, Field
 from web3 import HTTPProvider, Web3
-from web3.eth import TxParams
 from web3.exceptions import ExtraDataLengthError
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from web3.middleware import geth_poa_middleware
 from web3.middleware.validation import MAX_EXTRADATA_LENGTH
+from web3.types import TxParams
 
 from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
 
