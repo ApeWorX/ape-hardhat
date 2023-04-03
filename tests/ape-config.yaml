@@ -4,6 +4,12 @@ ethereum:
   local:
     default_provider: hardhat
 
+polygon:
+  local:
+    default_provider: hardhat
+  mumbai:
+    default_provider: alchemy
+
 hardhat:
   request_timeout: 29
   fork_request_timeout: 360
