@@ -296,16 +296,20 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         # Handle if using PoA Hardhat
         try:
-            block = self.web3.eth.get_block(0)
+            first_block = self.web3.eth.get_block(0)
+            latest_block = self.web3.eth.get_block("latest")
         except ExtraDataLengthError:
-            began_poa = True
+            contains_poa = True
         else:
-            began_poa = (
-                "proofOfAuthorityData" in block
-                or len(block.get("extraData", "")) > MAX_EXTRADATA_LENGTH
-            )
+            for block in (first_block, latest_block):
+                contains_poa = (
+                    "proofOfAuthorityData" in block
+                    or len(block.get("extraData", "")) > MAX_EXTRADATA_LENGTH
+                )
+                if contains_poa:
+                    break
 
-        if began_poa:
+        if contains_poa:
             self._web3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     def _start(self):

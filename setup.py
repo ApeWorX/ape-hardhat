@@ -12,6 +12,7 @@ extras_require = {
         "pytest-cov",  # Coverage analyzer plugin
         "hypothesis>=6.2.0,<7.0",  # Strategy-based fuzzer
         "ape-alchemy",  # Needed for forked-network tests
+        "ape-polygon",  # Needed to make sure polygon works
         "rich",  # Needed for trace tests
     ],
     "lint": [

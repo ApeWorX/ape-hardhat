@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from ape.api.networks import LOCAL_NETWORK_NAME
+from ape.contracts import ContractInstance
 from ape.exceptions import ContractLogicError
 from ape_ethereum.ecosystem import NETWORKS
 
@@ -165,7 +166,7 @@ def test_get_receipt(mainnet_fork_provider, mainnet_fork_contract_instance, owne
     assert actual.sender == receipt.sender
 
 
-@pytest.mark.sync
+@pytest.mark.fork
 @pytest.mark.parametrize(
     "upstream_network,port,enable_hardhat_deployments,fork_block_number,has_hardhat_deploy",
     [
@@ -239,3 +240,13 @@ def test_hardhat_command(
             expected_cmd.extend(("--fork-block-number", str(fork_block_number)))
 
         assert cmd == " ".join(expected_cmd)
+
+
+@pytest.mark.fork
+def test_connect_to_polygon(networks, owner, contract_container):
+    """
+    Ensures we don't get PoA middleware issue.
+    """
+    with networks.polygon.mumbai_fork.use_provider("hardhat"):
+        contract = owner.deploy(contract_container)
+        assert isinstance(contract, ContractInstance)  # Didn't fail
