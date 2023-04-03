@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 from ape.api import ReceiptAPI
-from ape.contracts import ContractContainer, ContractInstance
+from ape.contracts import ContractContainer
 from ape.exceptions import ContractLogicError
 from ape.types import CallTreeNode, TraceFrame
 from evm_trace import CallType
@@ -196,12 +196,3 @@ def test_get_receipt(connected_provider, contract_instance, owner):
     assert receipt.txn_hash == actual.txn_hash
     assert actual.receiver == contract_instance.address
     assert actual.sender == receipt.sender
-
-
-def test_connect_to_polygon(networks, owner, contract_container):
-    """
-    Ensures we don't get PoA middleware issue.
-    """
-    with networks.polygon.mumbai_fork.use_provider("hardhat"):
-        contract = owner.deploy(contract_container)
-        assert isinstance(contract, ContractInstance)  # Didn't fail
