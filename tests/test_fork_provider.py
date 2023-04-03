@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 from ape.api.networks import LOCAL_NETWORK_NAME
-from ape.contract import ContractInstance
+from ape.contracts import ContractInstance
 from ape.exceptions import ContractLogicError
 from ape_ethereum.ecosystem import NETWORKS
 
