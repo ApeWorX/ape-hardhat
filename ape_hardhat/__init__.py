@@ -39,6 +39,10 @@ def providers():
     yield "optimism", "mainnet-fork", HardhatForkProvider
     yield "optimism", "goerli-fork", HardhatForkProvider
 
+    yield "bsc", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "bsc", "mainnet-fork", HardhatProvider
+    yield "bsc", "testnet-fork", HardhatProvider
+
 
 __all__ = [
     "HardhatNetworkConfig",
