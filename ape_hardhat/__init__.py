@@ -23,25 +23,29 @@ def providers():
     for network in NETWORKS:
         yield "ethereum", f"{network}-fork", HardhatForkProvider
 
-    yield "fantom", LOCAL_NETWORK_NAME, HardhatProvider
-    yield "fantom", "opera-fork", HardhatForkProvider
-    yield "fantom", "testnet-fork", HardhatForkProvider
-
     yield "arbitrum", LOCAL_NETWORK_NAME, HardhatProvider
     yield "arbitrum", "mainnet-fork", HardhatForkProvider
     yield "arbitrum", "goerli-fork", HardhatForkProvider
 
-    yield "polygon", LOCAL_NETWORK_NAME, HardhatProvider
-    yield "polygon", "mainnet-fork", HardhatForkProvider
-    yield "polygon", "mumbai-fork", HardhatForkProvider
+    yield "avalanche", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "avalanche", "mainnet-fork", HardhatForkProvider
+    yield "avalanche", "fuji-fork", HardhatForkProvider
+
+    yield "bsc", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "bsc", "mainnet-fork", HardhatForkProvider
+    yield "bsc", "testnet-fork", HardhatForkProvider
+
+    yield "fantom", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "fantom", "opera-fork", HardhatForkProvider
+    yield "fantom", "testnet-fork", HardhatForkProvider
 
     yield "optimism", LOCAL_NETWORK_NAME, HardhatProvider
     yield "optimism", "mainnet-fork", HardhatForkProvider
     yield "optimism", "goerli-fork", HardhatForkProvider
 
-    yield "bsc", LOCAL_NETWORK_NAME, HardhatProvider
-    yield "bsc", "mainnet-fork", HardhatProvider
-    yield "bsc", "testnet-fork", HardhatProvider
+    yield "polygon", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "polygon", "mainnet-fork", HardhatForkProvider
+    yield "polygon", "mumbai-fork", HardhatForkProvider
 
 
 __all__ = [
