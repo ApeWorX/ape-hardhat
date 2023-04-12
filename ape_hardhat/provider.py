@@ -26,6 +26,7 @@ from ape.logging import logger
 from ape.types import AddressType, CallTreeNode, ContractCode, SnapshotID, TraceFrame
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
+from chompjs import parse_js_object  # type: ignore
 from eth_utils import is_0x_prefixed, is_hex, to_hex
 from evm_trace import CallType
 from evm_trace import TraceFrame as EvmTraceFrame
@@ -50,56 +51,97 @@ HARDHAT_CONFIG = """
 module.exports = {{
   networks: {{
     hardhat: {{
-      hardfork: "london",
+      hardfork: "{hard_fork}",
       // Base fee of 0 allows use of 0 gas price when testing
       initialBaseFeePerGas: 0,
       accounts: {{
         mnemonic: "{mnemonic}",
-        path: "m/44'/60'/0'",
+        path: "{hd_path}",
         count: {number_of_accounts}
       }}
     }},
   }},
 }};
-"""
-HARDHAT_CONFIG_FILE_NAME = "hardhat.config.js"
+""".lstrip()
+HARDHAT_HD_PATH = "m/44'/60'/0'"
+HARDHAT_CONFIG_FILE_NAME_OPTIONS = ("hardhat.config.js", "hardhat.config.ts")
 HARDHAT_PLUGIN_PATTERN = re.compile(r"hardhat-[A-Za-z0-9-]+$")
+DEFAULT_HARDHAT_HARD_FORK = "shanghai"
 _NO_REASON_REVERT_MESSAGE = "Transaction reverted without a reason string"
 _REVERT_REASON_PREFIX = (
     "Error: VM Exception while processing transaction: reverted with reason string "
 )
 
 
-class HardhatConfigJS:
-    """
-    A class representing the actual ``hardhat.config.js`` file.
-    """
+def _validate_hardhat_config_file(
+    base_path: Path,
+    mnemonic: str,
+    num_of_accounts: int,
+    hard_fork: Optional[str] = None,
+):
+    hard_fork = hard_fork or DEFAULT_HARDHAT_HARD_FORK
 
-    def __init__(
-        self,
-        project_path: Path,
-        mnemonic: str,
-        num_of_accounts: int,
-        hard_fork: Optional[str] = None,
-    ):
-        self._base_path = project_path
-        self._mnemonic = mnemonic
-        self._num_of_accounts = num_of_accounts
-        self._hard_fork = hard_fork or "london"
+    # Find Hardhat config file.
+    file = None
+    for name in HARDHAT_CONFIG_FILE_NAME_OPTIONS:
+        if (base_path / name).is_file():
+            file = base_path / name
+            break
 
-    @property
-    def _content(self) -> str:
-        return HARDHAT_CONFIG.format(
-            mnemonic=self._mnemonic, number_of_accounts=self._num_of_accounts
+    content = HARDHAT_CONFIG.format(
+        hd_path=HARDHAT_HD_PATH,
+        mnemonic=mnemonic,
+        number_of_accounts=num_of_accounts,
+        hard_fork=hard_fork,
+    )
+    if not file:
+        # Create default '.js' file.
+        js_file = base_path / HARDHAT_CONFIG_FILE_NAME_OPTIONS[0]
+        logger.debug(f"Creating file '{js_file.name}'.")
+        js_file.write_text(content)
+        return js_file
+
+    invalid_config_warning = (
+        f"Existing '{file.name}' conflicts with ape. "
+        "Some features may not work as intended. "
+        f"The default config looks like this:\n{content}\n"
+        "NOTE: You can configure the test account mnemonic "
+        "and/or number of test accounts using your `ape-config.yaml`: "
+        "https://docs.apeworx.io/ape/stable/userguides/config.html#testing"
+    )
+
+    try:
+        js_obj = {}
+        try:
+            js_obj = parse_js_object(file.read_text())
+        except Exception:
+            # Will fail if using type-script features.
+            pass
+
+        if js_obj:
+            accounts_config = js_obj.get("networks", {}).get("hardhat", {}).get("accounts", {})
+            if not accounts_config or (
+                accounts_config.get("mnemonic") != mnemonic
+                or accounts_config.get("count") != num_of_accounts
+                or accounts_config.get("path") != HARDHAT_HD_PATH
+            ):
+                logger.warning(invalid_config_warning)
+
+        else:
+            # Not as good of a check, but we do our best.
+            content = file.read_text()
+            if (
+                mnemonic not in content
+                or HARDHAT_HD_PATH not in content
+                or str(num_of_accounts) not in content
+            ):
+                logger.warning(invalid_config_warning)
+
+    except Exception as err:
+        logger.error(
+            f"Failed to parse Hardhat config file: {err}. "
+            f"Some features may not work as intended."
         )
-
-    @property
-    def _path(self) -> Path:
-        return self._base_path / HARDHAT_CONFIG_FILE_NAME
-
-    def write_if_not_exists(self):
-        if not self._path.is_file():
-            self._path.write_text(self._content)
 
 
 class PackageJson(BaseModel):
@@ -238,8 +280,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         Start the hardhat process and verify it's up and accepting connections.
         """
 
-        js_config = HardhatConfigJS(self.project_folder, self.mnemonic, self.number_of_accounts)
-        js_config.write_if_not_exists()
+        _validate_hardhat_config_file(self.project_folder, self.mnemonic, self.number_of_accounts)
 
         # NOTE: Must set port before calling 'super().connect()'.
         if not self.port:

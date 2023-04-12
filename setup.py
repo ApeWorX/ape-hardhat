@@ -75,6 +75,7 @@ setup(
         "evm-trace",  # Use same version as eth-ape
         "hexbytes",  # Use same version as eth-ape
         "web3",  # Use same version as eth-ape
+        "chompjs>=1.1.9,<2",  # To help parse hardhat files
     ],
     python_requires=">=3.8,<3.11",
     extras_require=extras_require,
