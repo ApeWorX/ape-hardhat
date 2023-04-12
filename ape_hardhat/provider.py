@@ -484,10 +484,12 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         if message.startswith(_REVERT_REASON_PREFIX):
             message = message.replace(_REVERT_REASON_PREFIX, "").strip("'")
-            return ContractLogicError(revert_message=message, txn=txn)
+            err = ContractLogicError(revert_message=message, txn=txn)
+            return self.compiler_manager.enrich_error(err)
 
         elif _NO_REASON_REVERT_MESSAGE in message:
-            return ContractLogicError(txn=txn)
+            err = ContractLogicError(txn=txn)
+            return self.compiler_manager.enrich_error(err)
 
         elif message == "Transaction ran out of gas":
             return OutOfGasError(txn=txn)
@@ -495,7 +497,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         elif "reverted with an unrecognized custom error" in message and "(return data:" in message:
             # Happens during custom Solidity exceptions.
             message = message.split("(return data:")[-1].rstrip("/)").strip()
-            return ContractLogicError(revert_message=message, txn=txn)
+            err = ContractLogicError(revert_message=message, txn=txn)
+            return self.compiler_manager.enrich_error(err)
 
         return VirtualMachineError(message)
 
