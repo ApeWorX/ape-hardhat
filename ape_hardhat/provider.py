@@ -20,6 +20,7 @@ from ape.exceptions import (
     OutOfGasError,
     ProviderError,
     SubprocessError,
+    TransactionError,
     VirtualMachineError,
 )
 from ape.logging import logger
@@ -498,7 +499,14 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             # Happens during custom Solidity exceptions.
             message = message.split("(return data:")[-1].rstrip("/)").strip()
             err = ContractLogicError(revert_message=message, **kwargs)
-            return self.compiler_manager.enrich_error(err)
+            enriched_error = self.compiler_manager.enrich_error(err)
+
+            if enriched_error.message == TransactionError.DEFAULT_MESSAGE:
+                # Since input data is always missing, and to preserve backwards compat,
+                # use the selector as the message still.
+                enriched_error.message = message
+
+            return enriched_error
 
         return VirtualMachineError(message, **kwargs)
 
