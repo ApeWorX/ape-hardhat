@@ -18,7 +18,7 @@ hardhat:
     ethereum:
       mainnet:
         upstream_provider: alchemy
-        block_number: 15776634
+        block_number: 17040366
       goerli:
         upstream_provider: alchemy
         block_number: 7849922

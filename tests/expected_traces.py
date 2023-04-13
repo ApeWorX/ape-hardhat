@@ -1,6 +1,5 @@
 LOCAL_TRACE = r"""
-Call trace for
-'0x([A-Fa-f0-9]{64})'
+Call trace for '0x([A-Fa-f0-9]{64})'
 tx\.origin=0x[a-fA-F0-9]{40}
 ContractA\.methodWithoutArguments\(\) -> 0x00..5174 \[\d+ gas\]
 ├── SYMBOL\.methodB1\(lolol="ice-cream", dynamo=36\)
@@ -12,8 +11,7 @@ ContractA\.methodWithoutArguments\(\) -> 0x00..5174 \[\d+ gas\]
 │   └── ContractC\.methodC1\(windows95="simpler", jamaica=36, cardinal=ContractA\)
 ├── SYMBOL\.callMe\(blue=tx.origin\) -> tx\.origin
 ├── SYMBOL\.methodB2\(trombone=tx.origin\)
-│   ├── ContractC\.paperwork\(ContractA\) -> \(os="simpler", country=36,
-│   │   wings=ContractA\)
+│   ├── ContractC\.paperwork\(ContractA\) -> \(os="simpler", country=36, wings=ContractA\)
 │   ├── ContractC\.methodC1\(windows95="simpler", jamaica=0, cardinal=ContractC\)
 │   ├── ContractC\.methodC2\(\)
 │   └── ContractC\.methodC2\(\)
@@ -35,8 +33,7 @@ ContractA\.methodWithoutArguments\(\) -> 0x00..5174 \[\d+ gas\]
     └── ContractC\.methodC1\(windows95="simpler", jamaica=111, cardinal=ContractA\)
 """
 MAINNET_FAIL_TRACE_FIRST_10_LINES = r"""
-Call trace for
-'0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d'
+Call trace for '0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d'
 reverted with message: "UNIV3R: min return"
 tx\.origin=0xd2f91C13e2D7ABbA4408Cd3D86285b7835524ad7
 AggregationRouterV4\.uniswapV3Swap\(
@@ -59,8 +56,7 @@ MAINNET_FAIL_TRACE_LAST_10_LINES = r"""
     └── WETH\.balanceOf\(UniswapV3Pool\) -> 68359883632315875514968
 """
 MAINNET_TRACE_FIRST_10_LINES = r"""
-Call trace for
-'0xb7d7f1d5ce7743e821d3026647df486f517946ef1342a1ae93c96e4a8016eab7'
+Call trace for '0xb7d7f1d5ce7743e821d3026647df486f517946ef1342a1ae93c96e4a8016eab7'
 tx\.origin=0x5668EAd1eDB8E2a4d724C8fb9cB5fFEabEB422dc
 DSProxy\.execute\(_target=LoanShifterTaker, _data=0x35\.\.0000\) -> "" \[1249147 gas\]
 └── \(delegate\) LoanShifterTaker\.moveLoan\(
