@@ -153,7 +153,7 @@ def test_contract_revert_no_message(owner, contract_instance):
 def test_contract_revert_custom_exception(owner, get_contract_type, accounts):
     ct = get_contract_type("has_error")
     contract = owner.deploy(ContractContainer(ct))
-    with pytest.raises(ContractLogicError, match="0x82b42900"):
+    with pytest.raises(contract.Unauthorized):
         contract.withdraw(sender=accounts[7])
 
 
