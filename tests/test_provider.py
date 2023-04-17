@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from ape.api import ReceiptAPI
+from ape.api.accounts import ImpersonatedAccount
 from ape.contracts import ContractContainer
 from ape.exceptions import ContractLogicError
 from ape.types import CallTreeNode, TraceFrame
@@ -106,9 +107,15 @@ def test_snapshot_and_revert(connected_provider):
     assert block_1.hash == block_3.hash
 
 
-def test_unlock_account(connected_provider):
+def test_unlock_account(connected_provider, owner, contract_a, accounts):
     assert connected_provider.unlock_account(TEST_WALLET_ADDRESS) is True
     assert TEST_WALLET_ADDRESS in connected_provider.unlocked_accounts
+
+    # Ensure can transact.
+    impersonated_account = accounts[TEST_WALLET_ADDRESS]
+    assert isinstance(impersonated_account, ImpersonatedAccount)
+    receipt = contract_a.methodWithoutArguments(sender=impersonated_account)
+    assert not receipt.failed
 
 
 def test_get_transaction_trace(connected_provider, sender, receiver):

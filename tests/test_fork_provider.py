@@ -111,7 +111,7 @@ def test_reset_fork_specify_block_number_via_config(mainnet_fork_provider):
     mainnet_fork_provider.mine(5)
     mainnet_fork_provider.reset_fork()
     block_num_after_reset = mainnet_fork_provider.get_block("latest").number
-    assert block_num_after_reset == 15776634  # Specified in ape-config.yaml
+    assert block_num_after_reset == 17040366  # Specified in ape-config.yaml
 
 
 @pytest.mark.fork
