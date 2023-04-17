@@ -20,6 +20,7 @@ from ape_hardhat import HardhatProvider
 ape.config.DATA_FOLDER = Path(mkdtemp()).resolve()
 
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts"
+LOCAL_CONTRACTS_PATH = BASE_CONTRACTS_PATH / "ethereum" / "local"
 NAME = "hardhat"
 
 # Needed to test tracing support in core `ape test` command.
@@ -119,8 +120,7 @@ def contract_type(request, get_contract_type) -> ContractType:
 @pytest.fixture
 def get_contract_type():
     def fn(name: str):
-        path = BASE_CONTRACTS_PATH / "ethereum" / "local" / f"{name}.json"
-        return ContractType.parse_file(path)
+        return ContractType.parse_file(LOCAL_CONTRACTS_PATH / f"{name}.json")
 
     return fn
 
