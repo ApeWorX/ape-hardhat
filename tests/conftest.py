@@ -120,8 +120,7 @@ def contract_type(request, get_contract_type) -> ContractType:
 def get_contract_type():
     def fn(name: str):
         path = BASE_CONTRACTS_PATH / "ethereum" / "local" / f"{name}.json"
-        content = path.read_text()
-        return ContractType.parse_raw(content)
+        return ContractType.parse_file(path)
 
     return fn
 
@@ -223,3 +222,15 @@ def temp_config(config):
             config._cached_configs = {}
 
     return func
+
+
+@pytest.fixture
+def contract_a(owner, connected_provider, get_contract_type):
+    contract_c = owner.deploy(ContractContainer(get_contract_type("contract_c")))
+    contract_b = owner.deploy(
+        ContractContainer(get_contract_type("contract_b")), contract_c.address
+    )
+    contract_a = owner.deploy(
+        ContractContainer(get_contract_type("contract_a")), contract_b.address, contract_c.address
+    )
+    return contract_a

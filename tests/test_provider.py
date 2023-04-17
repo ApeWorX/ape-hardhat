@@ -106,9 +106,14 @@ def test_snapshot_and_revert(connected_provider):
     assert block_1.hash == block_3.hash
 
 
-def test_unlock_account(connected_provider):
+def test_unlock_account(connected_provider, owner, contract_a):
     assert connected_provider.unlock_account(TEST_WALLET_ADDRESS) is True
     assert TEST_WALLET_ADDRESS in connected_provider.unlocked_accounts
+
+    # Ensure can transact.
+    impersonated_account = connected_provider.account_manager[TEST_WALLET_ADDRESS]
+    receipt = contract_a.methodWithoutArguments(sender=impersonated_account)
+    assert not receipt.failed
 
 
 def test_get_transaction_trace(connected_provider, sender, receiver):
