@@ -196,3 +196,11 @@ def test_get_receipt(connected_provider, contract_instance, owner):
     assert receipt.txn_hash == actual.txn_hash
     assert actual.receiver == contract_instance.address
     assert actual.sender == receipt.sender
+
+
+def test_use_different_config(temp_config, networks, accounts, caplog):
+    data = {"hardhat": {"hardhat_config_file": "./hardhat.config.ts"}}
+    with temp_config(data):
+        provider = networks.ethereum.local.get_provider("hardhat")
+        assert provider.hardhat_config_file.name == "hardhat.config.ts"
+        assert "--config" in provider.build_command()

@@ -101,6 +101,19 @@ hardhat:
 ape plugins install alchemy
 ```
 
+## Custom Hardhat Config File
+
+By default, Ape generates and uses a basic config file for starting up a Hardhat node and having the same test accounts that Ape expects.
+To avoid conflict with other pre-existing Hardhat config files, Ape generates one in `$HOME/.ape/hardhat` and always refers to that one.
+To use a different one, such as the one in your local project instead, add the following to your `ape-config.yaml`:
+
+```yaml
+hardhat:
+  hardhat_config_file: ./hardhat.config.ts
+```
+
+**NOTE**: You can refer to either a Hardhat JS file or a Hardhat TS file.
+
 ## Development
 
 Please see the [contributing guide](CONTRIBUTING.md) to learn more how to contribute to this project.
