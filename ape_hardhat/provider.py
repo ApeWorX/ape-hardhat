@@ -20,6 +20,7 @@ from ape.exceptions import (
     OutOfGasError,
     ProviderError,
     SubprocessError,
+    TransactionError,
     VirtualMachineError,
 )
 from ape.logging import logger
@@ -530,34 +531,44 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         self._make_request("hardhat_setBalance", [account, amount_hex_str])
 
     def get_virtual_machine_error(self, exception: Exception, **kwargs) -> VirtualMachineError:
-        txn = kwargs.get("txn")
         if not len(exception.args):
-            return VirtualMachineError(base_err=exception, txn=txn)
+            return VirtualMachineError(base_err=exception, **kwargs)
 
         err_data = exception.args[0]
 
         message = err_data if isinstance(err_data, str) else str(err_data.get("message"))
         if not message:
-            return VirtualMachineError(base_err=exception, txn=txn)
+            return VirtualMachineError(base_err=exception, **kwargs)
+
         elif message.startswith("execution reverted: "):
             message = message.replace("execution reverted: ", "")
 
         if message.startswith(_REVERT_REASON_PREFIX):
             message = message.replace(_REVERT_REASON_PREFIX, "").strip("'")
-            return ContractLogicError(revert_message=message, txn=txn)
+            err = ContractLogicError(revert_message=message, **kwargs)
+            return self.compiler_manager.enrich_error(err)
 
         elif _NO_REASON_REVERT_MESSAGE in message:
-            return ContractLogicError(txn=txn)
+            err = ContractLogicError(**kwargs)
+            return self.compiler_manager.enrich_error(err)
 
         elif message == "Transaction ran out of gas":
-            return OutOfGasError(txn=txn)
+            return OutOfGasError(**kwargs)
 
         elif "reverted with an unrecognized custom error" in message and "(return data:" in message:
             # Happens during custom Solidity exceptions.
             message = message.split("(return data:")[-1].rstrip("/)").strip()
-            return ContractLogicError(revert_message=message, txn=txn)
+            err = ContractLogicError(revert_message=message, **kwargs)
+            enriched_error = self.compiler_manager.enrich_error(err)
 
-        return VirtualMachineError(message)
+            if enriched_error.message == TransactionError.DEFAULT_MESSAGE:
+                # Since input data is always missing, and to preserve backwards compat,
+                # use the selector as the message still.
+                enriched_error.message = message
+
+            return enriched_error
+
+        return VirtualMachineError(message, **kwargs)
 
 
 class HardhatForkProvider(HardhatProvider):

@@ -15,13 +15,13 @@ extras_require = {
         "rich",  # Needed for trace tests
     ],
     "lint": [
-        "black>=22.12.0",  # auto-formatter and linter
-        "mypy==0.991",  # Static type analyzer
+        "black>=23.3.0,<24",  # auto-formatter and linter
+        "mypy>=0.991,<1",  # Static type analyzer
         "types-PyYAML",  # Needed due to mypy typeshed
         "types-setuptools",  # Needed for mypy typeshed
         "types-requests",  # Needed due to mypy typeshed
-        "flake8>=5.0.4",  # Style linter
-        "isort>=5.10.1",  # Import sorting linter
+        "flake8>=6.0.0,<7",  # Style linter
+        "isort>=5.10.1,<6",  # Import sorting linter
         "mdformat>=0.7.16",  # Auto-formatter for markdown
         "mdformat-gfm>=0.3.5",  # Needed for formatting GitHub-flavored markdown
         "mdformat-frontmatter>=0.4.1",  # Needed for frontmatters-style headers in issue templates
@@ -71,7 +71,7 @@ setup(
     url="https://github.com/ApeWorX/ape-hardhat",
     include_package_data=True,
     install_requires=[
-        "eth-ape>=0.6.7,<0.7",
+        "eth-ape>=0.6.8,<0.7",
         "evm-trace",  # Use same version as eth-ape
         "hexbytes",  # Use same version as eth-ape
         "web3",  # Use same version as eth-ape
