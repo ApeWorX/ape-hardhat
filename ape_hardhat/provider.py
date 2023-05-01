@@ -236,7 +236,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if not hardhat_version or not hardhat_version[0].isnumeric():
             raise HardhatNotInstalledError()
 
-        # This next check actually ensures it is installed.
         npm = shutil.which("npm")
         if not npm:
             raise HardhatSubprocessError(f"Could not locate `npm` executable. {suffix}")
@@ -248,6 +247,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             return npx
 
         data = json.loads(install_result)
+
+        # This actually ensures it is installed.
         self._detected_correct_install = "hardhat" in data.get("dependencies", {})
         return npx
 
