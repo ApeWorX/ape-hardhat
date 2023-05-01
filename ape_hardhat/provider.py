@@ -27,6 +27,7 @@ from ape.logging import logger
 from ape.types import AddressType, CallTreeNode, ContractCode, SnapshotID, TraceFrame
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
+from chompjs import parse_js_object  # type: ignore
 from eth_utils import is_0x_prefixed, is_hex, to_hex
 from evm_trace import CallType
 from evm_trace import TraceFrame as EvmTraceFrame
@@ -51,56 +52,98 @@ HARDHAT_CONFIG = """
 module.exports = {{
   networks: {{
     hardhat: {{
-      hardfork: "london",
+      hardfork: "{hard_fork}",
       // Base fee of 0 allows use of 0 gas price when testing
       initialBaseFeePerGas: 0,
       accounts: {{
         mnemonic: "{mnemonic}",
-        path: "m/44'/60'/0'",
+        path: "{hd_path}",
         count: {number_of_accounts}
       }}
     }},
   }},
 }};
-"""
-HARDHAT_CONFIG_FILE_NAME = "hardhat.config.js"
+""".lstrip()
+HARDHAT_HD_PATH = "m/44'/60'/0'"
+DEFAULT_HARDHAT_CONFIG_FILE_NAME = "hardhat.config.js"
+HARDHAT_CONFIG_FILE_NAME_OPTIONS = (DEFAULT_HARDHAT_CONFIG_FILE_NAME, "hardhat.config.ts")
 HARDHAT_PLUGIN_PATTERN = re.compile(r"hardhat-[A-Za-z0-9-]+$")
+DEFAULT_HARDHAT_HARD_FORK = "shanghai"
 _NO_REASON_REVERT_MESSAGE = "Transaction reverted without a reason string"
 _REVERT_REASON_PREFIX = (
     "Error: VM Exception while processing transaction: reverted with reason string "
 )
 
 
-class HardhatConfigJS:
-    """
-    A class representing the actual ``hardhat.config.js`` file.
-    """
+def _validate_hardhat_config_file(
+    path: Path,
+    mnemonic: str,
+    num_of_accounts: int,
+    hard_fork: str = DEFAULT_HARDHAT_HARD_FORK,
+):
+    if not path.is_file() and path.is_dir():
+        path = path / DEFAULT_HARDHAT_CONFIG_FILE_NAME
 
-    def __init__(
-        self,
-        project_path: Path,
-        mnemonic: str,
-        num_of_accounts: int,
-        hard_fork: Optional[str] = None,
-    ):
-        self._base_path = project_path
-        self._mnemonic = mnemonic
-        self._num_of_accounts = num_of_accounts
-        self._hard_fork = hard_fork or "london"
-
-    @property
-    def _content(self) -> str:
-        return HARDHAT_CONFIG.format(
-            mnemonic=self._mnemonic, number_of_accounts=self._num_of_accounts
+    elif path.name not in HARDHAT_CONFIG_FILE_NAME_OPTIONS:
+        raise ValueError(
+            f"Expecting file name to be one of '{', '.join(HARDHAT_CONFIG_FILE_NAME_OPTIONS)}'. "
+            f"Receiver '{path.name}'."
         )
 
-    @property
-    def _path(self) -> Path:
-        return self._base_path / HARDHAT_CONFIG_FILE_NAME
+    content = HARDHAT_CONFIG.format(
+        hd_path=HARDHAT_HD_PATH,
+        mnemonic=mnemonic,
+        number_of_accounts=num_of_accounts,
+        hard_fork=hard_fork,
+    )
+    if not path.is_file():
+        # Create default '.js' file.
+        logger.debug(f"Creating file '{path.name}'.")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+        return path
 
-    def write_if_not_exists(self):
-        if not self._path.is_file():
-            self._path.write_text(self._content)
+    invalid_config_warning = (
+        f"Existing '{path.name}' conflicts with ape. "
+        "Some features may not work as intended. "
+        f"The default config looks like this:\n{content}\n"
+        "NOTE: You can configure the test account mnemonic "
+        "and/or number of test accounts using your `ape-config.yaml`: "
+        "https://docs.apeworx.io/ape/stable/userguides/config.html#testing"
+    )
+
+    try:
+        js_obj = {}
+        try:
+            js_obj = parse_js_object(path.read_text())
+        except Exception:
+            # Will fail if using type-script features.
+            pass
+
+        if js_obj:
+            accounts_config = js_obj.get("networks", {}).get("hardhat", {}).get("accounts", {})
+            if not accounts_config or (
+                accounts_config.get("mnemonic") != mnemonic
+                or accounts_config.get("count") != num_of_accounts
+                or accounts_config.get("path") != HARDHAT_HD_PATH
+            ):
+                logger.warning(invalid_config_warning)
+
+        else:
+            # Not as good of a check, but we do our best.
+            content = path.read_text()
+            if (
+                mnemonic not in content
+                or HARDHAT_HD_PATH not in content
+                or str(num_of_accounts) not in content
+            ):
+                logger.warning(invalid_config_warning)
+
+    except Exception as err:
+        logger.error(
+            f"Failed to parse Hardhat config file: {err}. "
+            f"Some features may not work as intended."
+        )
 
 
 class PackageJson(BaseModel):
@@ -121,6 +164,14 @@ class HardhatNetworkConfig(PluginConfig):
     port: Optional[Union[int, Literal["auto"]]] = DEFAULT_PORT
     request_timeout: int = 30
     fork_request_timeout: int = 300
+
+    hardhat_config_file: Optional[Path] = None
+    """
+    Optionally specify a Hardhat config file to use
+    (in the case when you don't wish to use the one Ape creates).
+    Note: If you do this, you may need to ensure its settings
+    matches Ape's.
+    """
 
     # For setting the values in --fork and --fork-block-number command arguments.
     # Used only in HardhatForkProvider.
@@ -158,23 +209,18 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def chain_id(self) -> int:
-        if hasattr(self.web3, "eth"):
-            return self.web3.eth.chain_id
-        else:
-            return HARDHAT_CHAIN_ID
+        return self.web3.eth.chain_id if hasattr(self.web3, "eth") else HARDHAT_CHAIN_ID
 
     @cached_property
     def npx_bin(self) -> str:
         npx = shutil.which("npx")
-
+        suffix = "See ape-hardhat README for install steps."
         if not npx:
-            raise HardhatSubprocessError(
-                "Could not locate NPM executable. See ape-hardhat README for install steps."
-            )
+            raise HardhatSubprocessError(f"Could not locate NPM executable. {suffix}")
+
         elif _call(npx, "--version") != 0:
-            raise HardhatSubprocessError(
-                "NPM executable returned error code. See ape-hardhat README for install steps."
-            )
+            raise HardhatSubprocessError(f"NPM executable returned error code. {suffix}.")
+
         elif _call(npx, "hardhat", "--version") != 0:
             raise HardhatNotInstalledError()
 
@@ -202,6 +248,17 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def is_connected(self) -> bool:
         self._set_web3()
         return self._web3 is not None
+
+    @property
+    def hardhat_config_file(self) -> Path:
+        if self.config.hardhat_config_file and self.config.hardhat_config_file.is_dir():
+            path = self.config.hardhat_config_file / DEFAULT_HARDHAT_CONFIG_FILE_NAME
+        elif self.config.hardhat_config_file:
+            path = self.config.hardhat_config_file
+        else:
+            path = self.config_manager.DATA_FOLDER / "hardhat" / DEFAULT_HARDHAT_CONFIG_FILE_NAME
+
+        return path.expanduser().absolute()
 
     @cached_property
     def _test_config(self) -> TestConfig:
@@ -239,8 +296,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         Start the hardhat process and verify it's up and accepting connections.
         """
 
-        js_config = HardhatConfigJS(self.project_folder, self.mnemonic, self.number_of_accounts)
-        js_config.write_if_not_exists()
+        _validate_hardhat_config_file(
+            self.hardhat_config_file, self.mnemonic, self.number_of_accounts
+        )
 
         # NOTE: Must set port before calling 'super().connect()'.
         if not self.port:
@@ -280,7 +338,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             return
 
         self._web3 = Web3(HTTPProvider(self.uri, request_kwargs={"timeout": self.timeout}))
-
         if not self._web3.is_connected():
             self._web3 = None
             return
@@ -341,7 +398,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         super().disconnect()
 
     def build_command(self) -> List[str]:
-        return [
+        cmd = [
             self.npx_bin,
             "hardhat",
             "node",
@@ -349,7 +406,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             "127.0.0.1",
             "--port",
             str(self.port),
+            "--config",
+            str(self.hardhat_config_file),
         ]
+        return cmd
 
     def set_block_gas_limit(self, gas_limit: int) -> bool:
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)]) is True
