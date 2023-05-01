@@ -187,6 +187,7 @@ def test_hardhat_command(
     fork_block_number,
     has_hardhat_deploy,
     name,
+    data_folder,
 ):
     eth_config = {
         name: {
@@ -204,7 +205,7 @@ def test_hardhat_command(
         "name": "contracts",
         "version": "0.1.0",
         "dependencies": {
-            "hardhat": "^2.6.4",
+            "hardhat": "^2.13.1",
             "hardhat-ethers": "^2.0.2",
         },
     }
@@ -222,24 +223,26 @@ def test_hardhat_command(
             provider_settings={},
         )
         provider.port = port
-        cmd = " ".join(provider.build_command())
-        expected_cmd = [
-            provider.npx_bin,
+        actual = provider.build_command()
+        expected = [
             name,
             "node",
             "--hostname",
             "127.0.0.1",
             "--port",
             str(port),
+            "--config",
+            str(data_folder / "hardhat" / "hardhat.config.js"),
             "--fork",
             provider.fork_url,
         ]
         if not enable_hardhat_deployments and has_hardhat_deploy:
-            expected_cmd.append("--no-deploy")
+            expected.append("--no-deploy")
         if fork_block_number:
-            expected_cmd.extend(("--fork-block-number", str(fork_block_number)))
+            expected.extend(("--fork-block-number", str(fork_block_number)))
 
-        assert cmd == " ".join(expected_cmd)
+        assert actual[0].endswith("npx")
+        assert actual[1:] == expected
 
 
 @pytest.mark.fork

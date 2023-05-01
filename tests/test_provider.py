@@ -10,7 +10,7 @@ from ape.types import CallTreeNode, TraceFrame
 from evm_trace import CallType
 from hexbytes import HexBytes
 
-from ape_hardhat.exceptions import HardhatProviderError
+from ape_hardhat.exceptions import HardhatNotInstalledError, HardhatProviderError
 from ape_hardhat.provider import HARDHAT_CHAIN_ID
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
@@ -210,9 +210,28 @@ def test_get_receipt(connected_provider, contract_instance, owner):
     assert actual.sender == receipt.sender
 
 
-def test_use_different_config(temp_config, networks, accounts, caplog):
+def test_use_different_config(temp_config, networks):
     data = {"hardhat": {"hardhat_config_file": "./hardhat.config.ts"}}
     with temp_config(data):
         provider = networks.ethereum.local.get_provider("hardhat")
         assert provider.hardhat_config_file.name == "hardhat.config.ts"
         assert "--config" in provider.build_command()
+
+
+def test_connect_when_hardhat_not_installed(networks, mock_web3, install_detection_fail):
+    """
+    Verifies that if both Hardhat is sensed to not be installed correctly
+    and Web3 doesn't connect, you get the custom error about installing
+    Hardhat in the project.
+    """
+
+    provider = networks.ethereum.local.get_provider("hardhat")
+    mock_web3.is_connected.return_value = False
+    expected = (
+        r"Missing local Hardhat NPM package\. "
+        r"See ape-hardhat README for install steps\. "
+        r"Note: global installation of Hardhat will not work and "
+        r"you must be in your project's directory\."
+    )
+    with pytest.raises(HardhatNotInstalledError, match=expected):
+        provider.connect()

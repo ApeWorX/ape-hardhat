@@ -1,4 +1,5 @@
 import json
+import subprocess
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -17,7 +18,8 @@ from ethpm_types import ContractType
 from ape_hardhat import HardhatProvider
 
 # NOTE: Ensure that we don't use local paths for the DATA FOLDER
-ape.config.DATA_FOLDER = Path(mkdtemp()).resolve()
+DATA_FOLDER = Path(mkdtemp()).resolve()
+ape.config.DATA_FOLDER = DATA_FOLDER
 
 BASE_CONTRACTS_PATH = Path(__file__).parent / "data" / "contracts"
 LOCAL_CONTRACTS_PATH = BASE_CONTRACTS_PATH / "ethereum" / "local"
@@ -41,6 +43,11 @@ def pytest_runtest_makereport(item, call):
 @pytest.fixture(scope="session")
 def name():
     return NAME
+
+
+@pytest.fixture(scope="session")
+def data_folder():
+    return DATA_FOLDER
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -234,3 +241,28 @@ def contract_a(owner, connected_provider, get_contract_type):
         ContractContainer(get_contract_type("contract_a")), contract_b.address, contract_c.address
     )
     return contract_a
+
+
+@pytest.fixture
+def mock_web3(mocker):
+    mock = mocker.MagicMock()
+    factory = mocker.patch("ape_hardhat.provider._create_web3")
+    factory.return_value = mock
+    return mock
+
+
+@pytest.fixture
+def install_detection_fail(mocker):
+    cmd = ["list", "hardhat", "--json"]
+
+    def side_effect(cmd_ls):
+        if cmd_ls[1:] == cmd:
+            # mock
+            raise subprocess.CalledProcessError(1, cmd)
+
+        # Run normally.
+        return subprocess.check_output(cmd_ls)
+
+    check_output_mock = mocker.patch("ape_hardhat.provider.check_output")
+    check_output_mock.side_effect = side_effect
+    return check_output_mock

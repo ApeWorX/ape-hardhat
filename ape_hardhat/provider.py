@@ -1,8 +1,9 @@
+import json
 import random
 import re
 import shutil
 from pathlib import Path
-from subprocess import PIPE, call
+from subprocess import PIPE, CalledProcessError, call, check_output
 from typing import Dict, Iterator, List, Literal, Optional, Union, cast
 
 from ape.api import (
@@ -19,6 +20,7 @@ from ape.exceptions import (
     ContractLogicError,
     OutOfGasError,
     ProviderError,
+    RPCTimeoutError,
     SubprocessError,
     TransactionError,
     VirtualMachineError,
@@ -191,6 +193,12 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     attempted_ports: List[int] = []
     unlocked_accounts: List[AddressType] = []
 
+    # Will get set to False if notices not installed correctly.
+    # However, will still attempt to connect and only raise
+    # if failed to connect. This is because sometimes Hardhat may still work,
+    # such when running via `pytester`.
+    _detected_correct_install: bool = True
+
     @property
     def mnemonic(self) -> str:
         return self._test_config.mnemonic
@@ -211,19 +219,36 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def chain_id(self) -> int:
         return self.web3.eth.chain_id if hasattr(self.web3, "eth") else HARDHAT_CHAIN_ID
 
-    @cached_property
+    @property
     def npx_bin(self) -> str:
         npx = shutil.which("npx")
         suffix = "See ape-hardhat README for install steps."
         if not npx:
-            raise HardhatSubprocessError(f"Could not locate NPM executable. {suffix}")
+            raise HardhatSubprocessError(f"Could not locate `npx` executable. {suffix}")
 
         elif _call(npx, "--version") != 0:
-            raise HardhatSubprocessError(f"NPM executable returned error code. {suffix}.")
+            raise HardhatSubprocessError(f"`npm` executable returned error code. {suffix}.")
 
-        elif _call(npx, "hardhat", "--version") != 0:
+        # NOTE: Even if a version appears in this output, Hardhat still may not be installed
+        # because of how NPM works.
+        hardhat_version = check_output([npx, "hardhat", "--version"]).decode("utf8").strip()
+        logger.debug(f"Using Hardhat version '{hardhat_version}'.")
+        if not hardhat_version or not hardhat_version[0].isnumeric():
             raise HardhatNotInstalledError()
 
+        # This next check actually ensures it is installed.
+        npm = shutil.which("npm")
+        if not npm:
+            raise HardhatSubprocessError(f"Could not locate `npm` executable. {suffix}")
+
+        try:
+            install_result = check_output([npm, "list", "hardhat", "--json"])
+        except CalledProcessError:
+            self._detected_correct_install = False
+            return npx
+
+        data = json.loads(install_result)
+        self._detected_correct_install = "hardhat" in data.get("dependencies", {})
         return npx
 
     @property
@@ -337,7 +362,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if not self.port:
             return
 
-        self._web3 = Web3(HTTPProvider(self.uri, request_kwargs={"timeout": self.timeout}))
+        self._web3 = _create_web3(self.uri, self.timeout)
         if not self._web3.is_connected():
             self._web3 = None
             return
@@ -390,7 +415,13 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                 self.port = port
 
         self.attempted_ports.append(self.port)
-        self.start()
+        try:
+            self.start()
+        except RPCTimeoutError as err:
+            if not self._detected_correct_install:
+                raise HardhatNotInstalledError() from err
+
+            raise  # RPCTimeoutError
 
     def disconnect(self):
         self._web3 = None
@@ -398,7 +429,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         super().disconnect()
 
     def build_command(self) -> List[str]:
-        cmd = [
+        return [
             self.npx_bin,
             "hardhat",
             "node",
@@ -409,7 +440,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             "--config",
             str(self.hardhat_config_file),
         ]
-        return cmd
 
     def set_block_gas_limit(self, gas_limit: int) -> bool:
         return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)]) is True
@@ -681,3 +711,8 @@ class HardhatForkProvider(HardhatProvider):
             forking_params["blockNumber"] = block_number
 
         return self._make_request("hardhat_reset", [{"forking": forking_params}])
+
+
+def _create_web3(uri: str, timeout: int) -> Web3:
+    # NOTE: This method exists so can be mocked in testing.
+    return Web3(HTTPProvider(uri, request_kwargs={"timeout": timeout}))
