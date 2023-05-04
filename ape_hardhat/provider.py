@@ -191,13 +191,16 @@ def _call(*args):
 class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     port: Optional[int] = None
     attempted_ports: List[int] = []
-    unlocked_accounts: List[AddressType] = []
 
     # Will get set to False if notices not installed correctly.
     # However, will still attempt to connect and only raise
     # if failed to connect. This is because sometimes Hardhat may still work,
     # such when running via `pytester`.
     _detected_correct_install: bool = True
+
+    @property
+    def unlocked_accounts(self) -> List[AddressType]:
+        return list(self.account_manager.test_accounts._impersonated_accounts)
 
     @property
     def mnemonic(self) -> str:
@@ -472,11 +475,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return self._make_request("evm_revert", [snapshot_id]) is True
 
     def unlock_account(self, address: AddressType) -> bool:
-        result = self._make_request("hardhat_impersonateAccount", [address])
-        if result:
-            self.unlocked_accounts.append(address)
-
-        return result is True
+        return self._make_request("hardhat_impersonateAccount", [address])
 
     def send_transaction(self, txn: TransactionAPI) -> ReceiptAPI:
         """
@@ -488,7 +487,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if sender:
             sender = self.conversion_manager.convert(txn.sender, AddressType)
 
-        if sender in self.unlocked_accounts:
+        sender_address = cast(AddressType, sender)
+        if sender_address in self.unlocked_accounts:
             # Allow for an unsigned transaction
             txn = self.prepare_transaction(txn)
             txn_dict = txn.dict()
