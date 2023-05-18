@@ -232,6 +232,14 @@ def test_get_receipt(connected_provider, contract_instance, owner):
     assert actual.sender == receipt.sender
 
 
+def test_revert_error(error_contract, not_owner):
+    """
+    Test matching a revert custom Solidity error.
+    """
+    with pytest.raises(error_contract.Unauthorized):
+        error_contract.withdraw(sender=not_owner)
+
+
 def test_use_different_config(temp_config, networks):
     data = {"hardhat": {"hardhat_config_file": "./hardhat.config.ts"}}
     with temp_config(data):
