@@ -142,6 +142,17 @@ def contract_instance(owner, contract_container, connected_provider):
     return owner.deploy(contract_container)
 
 
+@pytest.fixture
+def error_contract_container(get_contract_type):
+    ct = get_contract_type("has_error")
+    return ContractContainer(ct)
+
+
+@pytest.fixture
+def error_contract(owner, error_contract_container):
+    return owner.deploy(error_contract_container)
+
+
 @pytest.fixture(scope="session")
 def sender(accounts):
     return accounts[0]
@@ -155,6 +166,11 @@ def receiver(accounts):
 @pytest.fixture(scope="session")
 def owner(accounts):
     return accounts[2]
+
+
+@pytest.fixture(scope="session")
+def not_owner(accounts):
+    return accounts[3]
 
 
 @pytest.fixture(scope="session")
