@@ -500,7 +500,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             try:
                 txn_hash = self.web3.eth.send_transaction(txn_params)
             except ValueError as err:
-                breakpoint()
                 err_args = getattr(err, "args", None)
                 tx: Union[TransactionAPI, ReceiptAPI]
                 if (
@@ -513,7 +512,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                     # we have it here. Use the receipt instead of the txn
                     # for the err, so we can do source tracing.
                     txn_hash_from_err = err_args[0]["data"]["txHash"]
-                    o
+                    tx = self.get_receipt(txn_hash_from_err)
 
                 else:
                     tx = txn
