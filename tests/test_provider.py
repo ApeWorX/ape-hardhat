@@ -119,6 +119,9 @@ def test_unlock_account(connected_provider, owner, contract_a, accounts):
     receipt = contract_a.methodWithoutArguments(sender=impersonated_account)
     assert not receipt.failed
 
+    txn_hash = receipt.transaction.txn_hash.hex()
+    assert receipt.txn_hash == txn_hash
+
 
 def test_get_transaction_trace(connected_provider, sender, receiver):
     transfer = sender.transfer(receiver, 1)
