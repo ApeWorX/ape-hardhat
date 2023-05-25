@@ -30,6 +30,7 @@ from ape.types import AddressType, CallTreeNode, ContractCode, SnapshotID, Trace
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
 from chompjs import parse_js_object  # type: ignore
+from eth_typing import HexStr
 from eth_utils import is_0x_prefixed, is_hex, to_hex
 from evm_trace import CallType
 from evm_trace import TraceFrame as EvmTraceFrame
@@ -496,20 +497,61 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                 txn_dict["type"] = HexBytes(txn_dict["type"]).hex()
 
             txn_params = cast(TxParams, txn_dict)
-
             try:
                 txn_hash = self.web3.eth.send_transaction(txn_params)
             except ValueError as err:
-                raise self.get_virtual_machine_error(err) from err
+                err_args = getattr(err, "args", None)
+                tx: Union[TransactionAPI, ReceiptAPI]
+                if (
+                    err_args is not None
+                    and isinstance(err_args[0], dict)
+                    and "data" in err_args[0]
+                    and "txHash" in err_args[0]["data"]
+                ):
+                    # Txn hash won't work in Ape at this point, but at least
+                    # we have it here. Use the receipt instead of the txn
+                    # for the err, so we can do source tracing.
+                    txn_hash_from_err = err_args[0]["data"]["txHash"]
+                    tx = self.get_receipt(txn_hash_from_err)
+
+                else:
+                    tx = txn
+
+                raise self.get_virtual_machine_error(err, txn=tx) from err
 
             receipt = self.get_receipt(
-                txn_hash.hex(), required_confirmations=txn.required_confirmations or 0
+                txn_hash.hex(), required_confirmations=txn.required_confirmations or 0, txn=txn_dict
             )
             receipt.raise_for_status()
 
         else:
             receipt = super().send_transaction(txn)
 
+        return receipt
+
+    def get_receipt(
+        self,
+        txn_hash: str,
+        required_confirmations: int = 0,
+        timeout: Optional[int] = None,
+        **kwargs,
+    ) -> ReceiptAPI:
+        try:
+            # Try once without waiting first.
+            # NOTE: This is required for txn sent with an impersonated account.
+            receipt_data = dict(self.web3.eth.get_transaction_receipt(HexStr(txn_hash)))
+        except Exception:
+            return super().get_receipt(
+                txn_hash, required_confirmations=required_confirmations, timeout=timeout
+            )
+
+        txn = kwargs.get("txn", dict(self.web3.eth.get_transaction(HexStr(txn_hash))))
+        data: Dict = {"txn_hash": txn_hash, **receipt_data, **txn}
+        if "gas_price" not in data:
+            data["gas_price"] = self.gas_price
+
+        receipt = self.network.ecosystem.decode_receipt(data)
+        self.chain_manager.history.append(receipt)
         return receipt
 
     def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
