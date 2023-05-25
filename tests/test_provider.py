@@ -240,6 +240,16 @@ def test_revert_error(error_contract, not_owner):
         error_contract.withdraw(sender=not_owner)
 
 
+def test_revert_error_from_impersonated_account(error_contract, accounts):
+    account = accounts[TEST_WALLET_ADDRESS]
+    with pytest.raises(error_contract.Unauthorized) as err:
+        error_contract.withdraw(sender=account)
+
+    # Before, this would fail because there would not be an associated txn
+    # because the account is impersonated.
+    assert err.value.txn.txn_hash.startswith("0x")
+
+
 def test_use_different_config(temp_config, networks):
     data = {"hardhat": {"hardhat_config_file": "./hardhat.config.ts"}}
     with temp_config(data):
