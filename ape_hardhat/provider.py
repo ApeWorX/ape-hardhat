@@ -616,6 +616,21 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         elif message.startswith("execution reverted: "):
             message = message.replace("execution reverted: ", "")
 
+        builtin_check = (
+            "Error: VM Exception while processing transaction: reverted with panic code "
+        )
+        if message.startswith(builtin_check):
+            message = message.replace(builtin_check, "")
+            panic_code = message.split("(")[0].strip()
+            err = ContractLogicError(revert_message=panic_code, **kwargs)
+            enriched_err = self.compiler_manager.enrich_error(err)
+            if enriched_err != err:
+                # It was enriched.
+                return enriched_err
+
+            # Use full message.
+            return ContractLogicError(revert_message=message, **kwargs)
+
         if message.startswith(_REVERT_REASON_PREFIX):
             message = message.replace(_REVERT_REASON_PREFIX, "").strip("'")
             err = ContractLogicError(revert_message=message, **kwargs)
