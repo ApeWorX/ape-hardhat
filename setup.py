@@ -77,7 +77,7 @@ setup(
         "web3",  # Use same version as eth-ape
         "chompjs>=1.1.9,<2",  # To help parse hardhat files
     ],
-    python_requires=">=3.8,<3.11",
+    python_requires=">=3.8,<4",
     extras_require=extras_require,
     py_modules=["ape_hardhat"],
     license="Apache-2.0",
@@ -96,5 +96,6 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
 )
