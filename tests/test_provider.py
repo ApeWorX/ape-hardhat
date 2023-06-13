@@ -275,3 +275,11 @@ def test_connect_when_hardhat_not_installed(networks, mock_web3, install_detecti
     )
     with pytest.raises(HardhatNotInstalledError, match=expected):
         provider.connect()
+
+
+def test_get_virtual_machine_error_when_sol_panic(connected_provider):
+    msg = "Error: VM Exception while processing transaction: reverted with panic code 0x1"
+    err = ValueError(msg)
+    actual = connected_provider.get_virtual_machine_error(err)
+    expected = "0x1"
+    assert actual.revert_message == expected
