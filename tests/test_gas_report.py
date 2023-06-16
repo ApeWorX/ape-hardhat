@@ -21,9 +21,9 @@ EXPECTED_GAS_REPORT = rf"""
 
   Method +Times called +Min. +Max. +Mean +Median
  ─+
+  fooAndBar +\d +\d+ + \d+ + \d+ + \d+
   myNumber +\d +\d+ + \d+ + \d+ + \d+
   setNumber +\d +\d+ + \d+ + \d+ + \d+
-  fooAndBar +\d +\d+ + \d+ + \d+ + \d+
 
  +TokenA Gas
 
