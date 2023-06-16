@@ -76,7 +76,7 @@ setup(
         "hexbytes",  # Use same version as eth-ape
         "web3",  # Use same version as eth-ape
         "chompjs>=1.1.9,<2",  # To help parse hardhat files
-        "yarl",  # Use same version as ape
+        "yarl>=1.9.2,<2",
     ],
     python_requires=">=3.8,<4",
     extras_require=extras_require,

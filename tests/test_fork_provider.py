@@ -149,13 +149,7 @@ def test_transaction_contract_as_sender(
 
     with pytest.raises(ContractLogicError, match="!authorized"):
         # Task failed successfully
-        # NOTE: For some reason, this only fails for estimate gas. Otherwise, the status
-        # is non-failing. This wasn't happened prior to Ape 0.6.9 because a bugfix revealed
-        # that the test config was never getting applied and thus we never hit this problem
-        # because it was estimating gas before (even tho should have been using max).
-        mainnet_fork_contract_instance.setNumber(
-            10, sender=mainnet_fork_contract_instance, gas="auto"
-        )
+        mainnet_fork_contract_instance.setNumber(10, sender=mainnet_fork_contract_instance)
 
 
 @pytest.mark.fork
