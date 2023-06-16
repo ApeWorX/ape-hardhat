@@ -139,6 +139,19 @@ def test_get_call_tree(connected_provider, sender, receiver):
     assert repr(call_tree) == "0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7.0x()"
 
 
+def test_get_call_tree_deploy(connected_provider, contract_a):
+    txn_hash = contract_a.txn_hash
+    actual = connected_provider.get_call_tree(txn_hash)
+    assert repr(actual) == f"{contract_a.address}.__new__ [1265410 gas]"
+
+    # Show the enriched version.
+    expected = (
+        f"{contract_a.contract_type.name}.__new__(addrb=ContractB, addrc=ContractC) [1265410 gas]"
+    )
+    actual.enrich()
+    assert repr(actual) == expected
+
+
 def test_request_timeout(connected_provider, config):
     # Test value set in `ape-config.yaml`
     expected = 29
