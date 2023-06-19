@@ -223,8 +223,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def chain_id(self) -> int:
         return self.web3.eth.chain_id if hasattr(self.web3, "eth") else HARDHAT_CHAIN_ID
 
-    @property
-    def npx_bin(self) -> str:
+    @cached_property
+    def node_bin(self) -> str:
         npx = shutil.which("npx")
         suffix = "See ape-hardhat README for install steps."
         if not npx:
@@ -254,7 +254,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         # This actually ensures it is installed.
         self._detected_correct_install = "hardhat" in data.get("dependencies", {})
-        return npx
+        node = shutil.which("node")
+        if not node:
+            raise HardhatSubprocessError(f"Could not locate `node` executable. {suffix}")
+
+        return node
 
     @property
     def project_folder(self) -> Path:
@@ -434,9 +438,15 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         super().disconnect()
 
     def build_command(self) -> List[str]:
+        # Run `node` on the actual binary.
+        # This allows the process mgmt to function and prevents dangling nodes.
+        bin_path = self.project_folder / "node_modules" / ".bin" / "hardhat"
+        if not bin_path.is_file():
+            raise HardhatSubprocessError("Unable to find Hardhat binary. Is it installed?")
+
         return [
-            self.npx_bin,
-            "hardhat",
+            self.node_bin,
+            str(bin_path),
             "node",
             "--hostname",
             "127.0.0.1",
