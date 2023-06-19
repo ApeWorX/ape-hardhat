@@ -12,7 +12,11 @@ from ape.types import CallTreeNode, TraceFrame
 from evm_trace import CallType
 from hexbytes import HexBytes
 
-from ape_hardhat.exceptions import HardhatNotInstalledError, HardhatProviderError
+from ape_hardhat.exceptions import (
+    HardhatNotInstalledError,
+    HardhatProviderError,
+    HardhatSubprocessError,
+)
 from ape_hardhat.provider import HARDHAT_CHAIN_ID
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
@@ -263,7 +267,11 @@ def test_use_different_config(temp_config, networks):
     with temp_config(data):
         provider = networks.ethereum.local.get_provider("hardhat")
         assert provider.hardhat_config_file.name == "hardhat.config.ts"
-        assert "--config" in provider.build_command()
+        assert "--config" in provider._get_command()
+
+        with pytest.raises(HardhatSubprocessError):
+            # This raises because Hardhat is not installed in the temp project.
+            provider.build_command()
 
 
 def test_connect_when_hardhat_not_installed(networks, mock_web3, install_detection_fail):

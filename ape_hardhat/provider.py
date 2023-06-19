@@ -284,6 +284,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return self._web3 is not None
 
     @property
+    def bin_path(self) -> Path:
+        return self.project_folder / "node_modules" / ".bin" / "hardhat"
+
+    @property
     def hardhat_config_file(self) -> Path:
         if self.config.hardhat_config_file and self.config.hardhat_config_file.is_dir():
             path = self.config.hardhat_config_file / DEFAULT_HARDHAT_CONFIG_FILE_NAME
@@ -440,13 +444,15 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def build_command(self) -> List[str]:
         # Run `node` on the actual binary.
         # This allows the process mgmt to function and prevents dangling nodes.
-        bin_path = self.project_folder / "node_modules" / ".bin" / "hardhat"
-        if not bin_path.is_file():
+        if not self.bin_path.is_file():
             raise HardhatSubprocessError("Unable to find Hardhat binary. Is it installed?")
 
+        return self._get_command()
+
+    def _get_command(self) -> List[str]:
         return [
             self.node_bin,
-            str(bin_path),
+            str(self.bin_path),
             "node",
             "--hostname",
             "127.0.0.1",
