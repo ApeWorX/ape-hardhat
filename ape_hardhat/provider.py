@@ -385,7 +385,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             self._host = self.provider_settings["host"]
 
         elif self._host is None:
-            self._host = self.config.host or f"http://127.0.0.1:{DEFAULT_PORT}"
+            self._host = self.uri
 
         if self.is_connected:
             # Connects to already running process
