@@ -285,9 +285,13 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def uri(self) -> str:
         if self._host is None:
             if self.config.host:
-                if "127.0.0.1" in self.config.host and "http" not in self.config.host:
+                if "http" not in self.config.host and (
+                    "127.0.0.1" in self.config.host or "localhost" in self.config.host
+                ):
                     self._host = f"http://{self.config.host}"
-                elif "127.0.0.1" not in self.config.host and "https" not in self.config.host:
+                elif "https" not in self.config.host and (
+                    "127.0.0.1" not in self.config.host or "localhost" not in self.config.host
+                ):
                     self._host = f"https://{self.config.host}"
                 else:
                     self._host = self.config.host
