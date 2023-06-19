@@ -172,7 +172,7 @@ class HardhatNetworkConfig(PluginConfig):
 
     manage_process: bool = True
     """
-    If ``True`` and the host is local and Anvil is not running, will attempt to start.
+    If ``True`` and the host is local and Hardhat is not running, will attempt to start.
     Defaults to ``True``. If ``host`` is remote, will not be able to start.
     """
 
@@ -434,7 +434,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             self._web3.eth.set_gas_price_strategy(rpc_gas_price_strategy)
         elif self._port is not None:
             raise HardhatProviderError(
-                f"Port '{self._port}' already in use by another process that isn't a Hardhat node."
+                f"A process that is not a Hardhat node is running at host {self._clean_uri}."
             )
         else:
             # Not sure if possible to get here.
