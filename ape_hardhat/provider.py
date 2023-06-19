@@ -283,11 +283,16 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def uri(self) -> str:
-        if self.config.host:
-            if "https" not in self.config.host or "http" not in self.config.host:
-                self.config.host = "http://" + self.config.host  # type: ignore
         if self._host is None:
-            self._host = self.config.host or f"http://127.0.0.1:{DEFAULT_PORT}"
+            if self.config.host:
+                if "127.0.0.1" in self.config.host and "http" not in self.config.host:
+                    self._host = f"http://{self.config.host}"
+                elif "127.0.0.1" not in self.config.host and "https" not in self.config.host:
+                    self._host = f"https://{self.config.host}"
+                else:
+                    self._host = self.config.host
+            else:
+                self._host = f"http://127.0.0.1:{DEFAULT_PORT}"
         return self._host
 
     @property
