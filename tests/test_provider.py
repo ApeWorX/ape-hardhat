@@ -2,6 +2,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+import requests
 from ape.api import ReceiptAPI
 from ape.api.accounts import ImpersonatedAccount
 from ape.contracts import ContractContainer
@@ -26,6 +27,9 @@ def test_connect_and_disconnect(disconnected_provider):
 
     disconnected_provider.port = 8555
     disconnected_provider.connect()
+    uri = f"{disconnected_provider.uri}/eth_getClientVersion"
+    response = requests.get(uri)
+    response.raise_for_status()
 
     try:
         assert disconnected_provider.is_connected
@@ -35,6 +39,10 @@ def test_connect_and_disconnect(disconnected_provider):
 
     assert not disconnected_provider.is_connected
     assert disconnected_provider.process is None
+
+    # Proof it is really disconnected.
+    with pytest.raises(Exception):
+        requests.get(uri)
 
 
 def test_gas_price(connected_provider):
