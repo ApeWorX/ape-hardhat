@@ -254,8 +254,9 @@ def test_revert_error_from_impersonated_account(error_contract, accounts):
     assert err.value.txn.txn_hash.startswith("0x")
 
 
-def test_host(temp_config, networks):
-    data = {"hardhat": {"host": "https://example.com"}}
+@pytest.mark.parametrize("host", ("https://example.com", "example.com"))
+def test_host(temp_config, networks, host):
+    data = {"hardhat": {"host": host}}
     with temp_config(data):
         provider = networks.ethereum.local.get_provider("hardhat")
         assert provider.uri == "https://example.com"
