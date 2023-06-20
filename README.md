@@ -101,6 +101,17 @@ hardhat:
 ape plugins install alchemy
 ```
 
+## Remote Hardhat Node
+
+To connect to a Hardhat node, set up your config like this:
+
+```yaml
+hardhat:
+  host: https://hardhat.example.com
+```
+
+Now, instead of launching a local process, it will attempt to connect to the remote Hardhat node and use this plugin as the ape interace.
+
 ## Custom Hardhat Config File
 
 By default, Ape generates and uses a basic config file for starting up a Hardhat node and having the same test accounts that Ape expects.
