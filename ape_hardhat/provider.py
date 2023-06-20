@@ -178,7 +178,7 @@ class HardhatNetworkConfig(PluginConfig):
 
     request_timeout: int = 30
     fork_request_timeout: int = 300
-    process_attempts: int = 0
+    process_attempts: int = 5
 
     hardhat_config_file: Optional[Path] = None
     """
@@ -290,6 +290,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if self._host is not None:
             return self._host
         if config_host := self.config.host:
+            if config_host == "auto":
+                self._host = "auto"
+                return self._host
+
             if not config_host.startswith("http"):
                 if "127.0.0.1" in config_host or "localhost" in config_host:
                     self._host = f"http://{config_host}"
@@ -500,7 +504,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                 self.attempted_ports.append(port)
                 self._host = f"http://127.0.0.1:{port}"
 
-        elif ":" in self._host and self._port is not None:
+        elif self._host is not None and ":" in self._host and self._port is not None:
             # Append the one and only port to the attempted ports list, for honest keeping.
             self.attempted_ports.append(self._port)
 
