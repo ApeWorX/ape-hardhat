@@ -708,6 +708,17 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         # (21_000 + 4 gas per 0-byte and 16 gas per non-zero byte).
         data_gas = sum([4 if x == 0 else 16 for x in receipt.data])
         method_gas_cost = receipt.gas_used - 21_000 - data_gas
+
+        if receipt.receiver:
+            address = receipt.receiver
+            call_type = CallType.CALL
+        elif receipt.contract_address:
+            address = receipt.contract_address
+            call_type = CallType.CREATE
+        else:
+            # Not sure if this is possible.
+            address = None
+
         address = receipt.receiver or receipt.contract_address
         evm_call = get_calltree_from_geth_trace(
             self._get_transaction_trace(txn_hash),
@@ -716,7 +727,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             address=address,
             calldata=receipt.data,
             value=receipt.value,
-            call_type=CallType.CALL,
+            call_type=call_type,
             failed=receipt.failed,
         )
         return self._create_call_tree_node(evm_call, txn_hash=txn_hash)
