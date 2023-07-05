@@ -718,6 +718,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         else:
             # Not sure if this is possible.
             address = None
+            call_type = None
 
         address = receipt.receiver or receipt.contract_address
         evm_call = get_calltree_from_geth_trace(
