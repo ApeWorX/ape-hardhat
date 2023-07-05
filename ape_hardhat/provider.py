@@ -577,6 +577,44 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def unlock_account(self, address: AddressType) -> bool:
         return self._make_request("hardhat_impersonateAccount", [address])
 
+    def send_call(self, txn: TransactionAPI, **kwargs) -> bytes:
+        result = super().send_call(txn, **kwargs)
+
+        # Hardhat does not support call tracing yet.
+        # But we are still able to incremenet func hits.
+        self._increment_call_func_coverage_hit_count(txn)
+
+        return result
+
+    def _increment_call_func_coverage_hit_count(self, txn: TransactionAPI):
+        """
+        A helper method for increment a method call function hit count in a
+        non-orthodox way. This is because Hardhat does support call traces yet.
+        """
+        if (
+            not txn.receiver
+            or not self._test_runner
+            or not self._test_runner.config_wrapper.track_coverage
+        ):
+            return
+
+        cov_data = self._test_runner.coverage_tracker.data
+        if not cov_data:
+            return
+
+        contract_type = self.chain_manager.contracts.get(txn.receiver)
+        if not contract_type:
+            return
+
+        contract_src = self.project_manager._create_contract_source(contract_type)
+        if not contract_src:
+            return
+
+        method_id = txn.data[:4]
+        if method_id in contract_type.view_methods:
+            method = contract_type.methods[method_id]
+            self._test_runner.coverage_tracker.hit_function(contract_src, method)
+
     def send_transaction(self, txn: TransactionAPI) -> ReceiptAPI:
         """
         Creates a new message call transaction or a contract creation
@@ -671,14 +709,26 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         data_gas = sum([4 if x == 0 else 16 for x in receipt.data])
         method_gas_cost = receipt.gas_used - 21_000 - data_gas
 
+        if receipt.receiver:
+            address = receipt.receiver
+            call_type = CallType.CALL
+        elif receipt.contract_address:
+            address = receipt.contract_address
+            call_type = CallType.CREATE
+        else:
+            # Not sure if this is possible.
+            address = None
+            call_type = None
+
+        address = receipt.receiver or receipt.contract_address
         evm_call = get_calltree_from_geth_trace(
             self._get_transaction_trace(txn_hash),
             gas_cost=method_gas_cost,
             gas_limit=receipt.gas_limit,
-            address=receipt.receiver,
+            address=address,
             calldata=receipt.data,
             value=receipt.value,
-            call_type=CallType.CALL,
+            call_type=call_type,
             failed=receipt.failed,
         )
         return self._create_call_tree_node(evm_call, txn_hash=txn_hash)
