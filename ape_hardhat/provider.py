@@ -53,9 +53,9 @@ HARDHAT_CHAIN_ID = 31337
 HARDHAT_CONFIG = """
 // See https://hardhat.org/config/ for config options.
 module.exports = {{
+  hardfork: "{hard_fork}",
   networks: {{
     hardhat: {{
-      hardfork: "{hard_fork}",
       // Base fee of 0 allows use of 0 gas price when testing
       initialBaseFeePerGas: 0,
       accounts: {{
@@ -234,7 +234,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def _clean_uri(self) -> str:
-        return str(URL(self.uri).with_user(None).with_password(None))
+        try:
+            return str(URL(self.uri).with_user(None).with_password(None))
+        except ValueError:
+            # Likely isn't a real URI.
+            return self.uri
 
     @property
     def _port(self) -> Optional[int]:
@@ -327,7 +331,15 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def bin_path(self) -> Path:
-        return self.project_folder / "node_modules" / ".bin" / "hardhat"
+        suffix = Path("node_modules") / ".bin" / "hardhat"
+        options = (self.project_folder, Path.home())
+        for base in options:
+            path = base / suffix
+            if path.exists():
+                return path
+
+        # Default to the expected path suffx (relative).
+        return suffix
 
     @property
     def hardhat_config_file(self) -> Path:
@@ -367,6 +379,15 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             plugins.extend(filter(package_is_plugin, self._package_json.dev_dependencies.keys()))
 
         return plugins
+
+    @property
+    def gas_price(self) -> int:
+        # TODO: Remove this once Ape > 0.6.13
+        result = super().gas_price
+        if isinstance(result, str) and is_0x_prefixed(result):
+            return int(result, 16)
+
+        return result
 
     def _has_hardhat_plugin(self, plugin_name: str) -> bool:
         return next((True for plugin in self._hardhat_plugins if plugin == plugin_name), False)
@@ -413,8 +434,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if self.is_connected:
             # Connects to already running process
             self._start()
-        elif self.config.manage_process:
+        elif self.config.manage_process and (
+            "localhost" in self._host or "127.0.0.1" in self._host or self._host == "auto"
+        ):
             # Only do base-process setup if not connecting to already-running process
+            # and is running on localhost.
             super().connect()
 
             if self._host:
@@ -438,9 +462,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                     except SubprocessError as exc:
                         logger.info("Retrying Hardhat subprocess startup: %r", exc)
                         self._host = None
-        else:
+
+        elif not self.is_connected:
             raise HardhatProviderError(
-                f"Failed to connect to remote Hardhat node at {self._clean_uri}`"
+                f"Failed to connect to remote Hardhat node at '{self._clean_uri}'."
             )
 
     def _set_web3(self):
@@ -448,7 +473,14 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             return
 
         self._web3 = _create_web3(self.uri, self.timeout)
-        if not self._web3.is_connected():
+
+        try:
+            is_connected = self._web3.is_connected()
+        except Exception:
+            self._web3 = None
+            return
+
+        if not is_connected:
             self._web3 = None
             return
 

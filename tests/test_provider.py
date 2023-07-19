@@ -1,3 +1,4 @@
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -12,7 +13,7 @@ from ape.types import CallTreeNode, TraceFrame
 from evm_trace import CallType
 from hexbytes import HexBytes
 
-from ape_hardhat.exceptions import HardhatNotInstalledError, HardhatSubprocessError
+from ape_hardhat.exceptions import HardhatNotInstalledError, HardhatProviderError
 from ape_hardhat.provider import HARDHAT_CHAIN_ID
 
 TEST_WALLET_ADDRESS = "0xD9b7fdb3FC0A0Aa3A507dCf0976bc23D49a9C7A3"
@@ -262,16 +263,18 @@ def test_host(temp_config, networks, host):
         assert provider.uri == "https://example.com"
 
 
-def test_use_different_config(temp_config, networks):
+def test_use_different_config(temp_config, networks, project):
     data = {"hardhat": {"hardhat_config_file": "./hardhat.config.ts"}}
     with temp_config(data):
         provider = networks.ethereum.local.get_provider("hardhat")
         assert provider.hardhat_config_file.name == "hardhat.config.ts"
         assert "--config" in provider._get_command()
 
-        with pytest.raises(HardhatSubprocessError):
-            # This raises because Hardhat is not installed in the temp project.
-            provider.build_command()
+        actual = provider._get_command()
+        assert "npx" in actual[0]
+        # Will either be home dir hardhat if installed there
+        # or just the relative suffix (like in CI).
+        assert actual[1].endswith("node_modules/.bin/hardhat")
 
 
 def test_connect_when_hardhat_not_installed(networks, mock_web3, install_detection_fail):
@@ -299,3 +302,30 @@ def test_get_virtual_machine_error_when_sol_panic(connected_provider):
     actual = connected_provider.get_virtual_machine_error(err)
     expected = "0x1"
     assert actual.revert_message == expected
+
+
+def test_bin_path(connected_provider, project):
+    actual = connected_provider.bin_path
+    expected = project.path / "node_modules" / ".bin" / "hardhat"
+    assert actual == expected
+
+    bin_cp = project.path / "node_modules" / ".bin" / "hardhat-2"
+    shutil.move(expected, bin_cp)
+
+    try:
+        actual = connected_provider.bin_path
+        assert actual.as_posix().endswith("node_modules/.bin/hardhat")
+
+    finally:
+        shutil.move(bin_cp, expected)
+
+
+def test_remote_host(temp_config, networks, no_hardhat_bin, project):
+    data = {"hardhat": {"host": "https://example.com"}}
+    with temp_config(data):
+        with pytest.raises(
+            HardhatProviderError,
+            match=r"Failed to connect to remote Hardhat node at 'https://example.com'\.",
+        ):
+            with networks.ethereum.local.use_provider("hardhat"):
+                pass
