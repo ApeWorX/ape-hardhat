@@ -1,4 +1,5 @@
 import json
+import shutil
 import subprocess
 import tempfile
 from contextlib import contextmanager
@@ -282,3 +283,15 @@ def install_detection_fail(mocker):
     check_output_mock = mocker.patch("ape_hardhat.provider.check_output")
     check_output_mock.side_effect = side_effect
     return check_output_mock
+
+
+@pytest.fixture
+def no_hardhat_bin(project):
+    bin_path = project.path / "node_modules" / ".bin" / "hardhat"
+    bin_copy = project.path / "node_modules" / ".bin" / "hardhat-2"
+    shutil.move(bin_path, bin_copy)
+
+    try:
+        yield
+    finally:
+        shutil.move(bin_copy, bin_path)
