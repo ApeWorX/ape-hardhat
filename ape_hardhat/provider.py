@@ -53,9 +53,9 @@ HARDHAT_CHAIN_ID = 31337
 HARDHAT_CONFIG = """
 // See https://hardhat.org/config/ for config options.
 module.exports = {{
-  hardfork: "{hard_fork}",
   networks: {{
     hardhat: {{
+      hardfork: "{hard_fork}",
       // Base fee of 0 allows use of 0 gas price when testing
       initialBaseFeePerGas: 0,
       accounts: {{
