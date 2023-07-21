@@ -36,6 +36,7 @@ from evm_trace import TraceFrame as EvmTraceFrame
 from evm_trace import get_calltree_from_geth_trace
 from hexbytes import HexBytes
 from pydantic import BaseModel, Field
+from semantic_version import Version  # type: ignore
 from web3 import HTTPProvider, Web3
 from web3.exceptions import ExtraDataLengthError
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
@@ -53,9 +54,9 @@ HARDHAT_CHAIN_ID = 31337
 HARDHAT_CONFIG = """
 // See https://hardhat.org/config/ for config options.
 module.exports = {{
-  hardfork: "{hard_fork}",
   networks: {{
     hardhat: {{
+      hardfork: "{hard_fork}",
       // Base fee of 0 allows use of 0 gas price when testing
       initialBaseFeePerGas: 0,
       accounts: {{
@@ -71,7 +72,6 @@ HARDHAT_HD_PATH = "m/44'/60'/0'"
 DEFAULT_HARDHAT_CONFIG_FILE_NAME = "hardhat.config.js"
 HARDHAT_CONFIG_FILE_NAME_OPTIONS = (DEFAULT_HARDHAT_CONFIG_FILE_NAME, "hardhat.config.ts")
 HARDHAT_PLUGIN_PATTERN = re.compile(r"hardhat-[A-Za-z0-9-]+$")
-DEFAULT_HARDHAT_HARD_FORK = "shanghai"
 _NO_REASON_REVERT_MESSAGE = "Transaction reverted without a reason string"
 _REVERT_REASON_PREFIX = (
     "Error: VM Exception while processing transaction: reverted with reason string "
@@ -82,7 +82,8 @@ def _validate_hardhat_config_file(
     path: Path,
     mnemonic: str,
     num_of_accounts: int,
-    hard_fork: str = DEFAULT_HARDHAT_HARD_FORK,
+    hardhat_version: str,
+    hard_fork: Optional[str] = None,
 ):
     if not path.is_file() and path.is_dir():
         path = path / DEFAULT_HARDHAT_CONFIG_FILE_NAME
@@ -92,6 +93,15 @@ def _validate_hardhat_config_file(
             f"Expecting file name to be one of '{', '.join(HARDHAT_CONFIG_FILE_NAME_OPTIONS)}'. "
             f"Receiver '{path.name}'."
         )
+
+    if not hard_fork:
+        # Figure out hardfork to use.
+        shanghai_cutoff = Version("2.14.0")
+        vers = Version(hardhat_version)
+        if vers < shanghai_cutoff:
+            hard_fork = "merge"
+        else:
+            hard_fork = "shanghai"
 
     content = HARDHAT_CONFIG.format(
         hd_path=HARDHAT_HD_PATH,
@@ -248,6 +258,14 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def chain_id(self) -> int:
         return self.web3.eth.chain_id if hasattr(self.web3, "eth") else HARDHAT_CHAIN_ID
 
+    @property
+    def hardhat_version(self) -> str:
+        # NOTE: Even if a version appears in this output, Hardhat still may not be installed
+        # because of how NPM works.
+        npx = shutil.which("npx") or "npx"
+        result = check_output([npx, "hardhat", "--version"])
+        return result.decode("utf8").strip()
+
     @cached_property
     def node_bin(self) -> str:
         npx = shutil.which("npx")
@@ -258,9 +276,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         elif _call(npx, "--version") != 0:
             raise HardhatSubprocessError(f"`npm` executable returned error code. {suffix}.")
 
-        # NOTE: Even if a version appears in this output, Hardhat still may not be installed
-        # because of how NPM works.
-        hardhat_version = check_output([npx, "hardhat", "--version"]).decode("utf8").strip()
+        hardhat_version = self.hardhat_version
         logger.debug(f"Using Hardhat version '{hardhat_version}'.")
         if not hardhat_version or not hardhat_version[0].isnumeric():
             raise HardhatNotInstalledError()
@@ -398,7 +414,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         """
 
         _validate_hardhat_config_file(
-            self.hardhat_config_file, self.mnemonic, self.number_of_accounts
+            self.hardhat_config_file,
+            self.mnemonic,
+            self.number_of_accounts,
+            self.hardhat_version,
         )
 
         # NOTE: Must set port before calling 'super().connect()'.
