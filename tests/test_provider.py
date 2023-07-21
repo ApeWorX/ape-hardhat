@@ -335,4 +335,4 @@ def test_hardfork(temp_config, networks):
     data = {"hardhat": {"hardfork": "london"}}
     with temp_config(data):
         with networks.ethereum.local.use_provider("hardhat") as provider:
-            assert provider.config.hardfork == "londond"
+            assert provider.config.hardfork == "london"
