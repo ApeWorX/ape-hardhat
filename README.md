@@ -42,15 +42,17 @@ This network provider takes additional Hardhat-specific configuration options. T
 
 ```yaml
 hardhat:
-  port: 8555
+  host: 127.0.0.1:8555
 ```
 
 To select a random port, use a value of "auto":
 
 ```yaml
 hardhat:
-  port: auto
+  host: auto
 ```
+
+**NOTE**: If you plan on running multiple Hardhat nodes of any kind, you likely will want to use `auto`.
 
 This is useful for multiprocessing and starting up multiple providers.
 

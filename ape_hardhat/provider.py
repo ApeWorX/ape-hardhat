@@ -33,7 +33,7 @@ from eth_typing import HexStr
 from eth_utils import is_0x_prefixed, is_hex, to_hex
 from evm_trace import CallType
 from evm_trace import TraceFrame as EvmTraceFrame
-from evm_trace import get_calltree_from_geth_trace
+from evm_trace import get_calltree_from_geth_trace, create_trace_frames
 from hexbytes import HexBytes
 from pydantic import BaseModel, Field
 from semantic_version import Version  # type: ignore
@@ -396,15 +396,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         return plugins
 
-    @property
-    def gas_price(self) -> int:
-        # TODO: Remove this once Ape > 0.6.13
-        result = super().gas_price
-        if isinstance(result, str) and is_0x_prefixed(result):
-            return int(result, 16)
-
-        return result
-
     def _has_hardhat_plugin(self, plugin_name: str) -> bool:
         return next((True for plugin in self._hardhat_plugins if plugin == plugin_name), False)
 
@@ -749,8 +740,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def _get_transaction_trace(self, txn_hash: str) -> Iterator[EvmTraceFrame]:
         result = self._make_request("debug_traceTransaction", [txn_hash])
         frames = result.get("structLogs", [])
-        for frame in frames:
-            yield EvmTraceFrame(**frame)
+        yield from create_trace_frames(frames)
 
     def get_call_tree(self, txn_hash: str) -> CallTreeNode:
         receipt = self.chain_manager.get_receipt(txn_hash)
