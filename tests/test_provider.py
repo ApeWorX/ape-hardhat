@@ -216,7 +216,7 @@ def test_set_balance(connected_provider, owner, convert, amount):
 def test_set_code(connected_provider, contract_instance):
     provider = connected_provider
     code = provider.get_code(contract_instance.address)
-    assert type(code) == HexBytes
+    assert type(code) is HexBytes
     assert provider.set_code(contract_instance.address, "0x00") is True
     assert provider.get_code(contract_instance.address) != code
     assert provider.set_code(contract_instance.address, code) is True

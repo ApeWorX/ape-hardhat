@@ -33,7 +33,7 @@ from eth_typing import HexStr
 from eth_utils import is_0x_prefixed, is_hex, to_hex
 from evm_trace import CallType
 from evm_trace import TraceFrame as EvmTraceFrame
-from evm_trace import get_calltree_from_geth_trace, create_trace_frames
+from evm_trace import create_trace_frames, get_calltree_from_geth_trace
 from hexbytes import HexBytes
 from pydantic import BaseModel, Field
 from semantic_version import Version  # type: ignore
