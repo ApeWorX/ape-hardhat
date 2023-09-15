@@ -54,7 +54,7 @@ hardhat:
   host: auto
 ```
 
-**NOTE**: If you plan on running multiple Hardhat nodes of any kind, you likely will want to use `auto`.
+**NOTE**: If you plan on running multiple Hardhat nodes of any kind, you likely will want to use `auto` or configure multiple hosts (see examples below).
 
 This is useful for multiprocessing and starting up multiple providers.
 
@@ -89,6 +89,21 @@ hardhat:
 Otherwise, it defaults to the default mainnet provider plugin. You can also specify a `block_number`.
 
 **NOTE**: Make sure you have the upstream provider plugin installed for ape.
+
+If you wish to run both a forked network and the local Hardhat network simultaneously, you may configure a separate host for the forked network(s).
+
+```yaml
+hardhat:
+  fork:
+    ethereum:
+      mainnet:
+        upstream_provider: alchemy
+        host: 127.0.0.1:8555
+    polygon:
+      mainnet:
+        upstream_provider: alchemy
+        host: 127.0.0.1:8556
+```
 
 [Hardhat deployments](https://github.com/wighawag/hardhat-deploy#deploy-scripts-tags-and-dependencies) are disabled for forks for performance reasons. If you want your contract deployments to run on your fork, you can set `enable_hardhat_deployments` to `true` in your config:
 
