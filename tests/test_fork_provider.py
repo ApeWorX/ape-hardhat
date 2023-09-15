@@ -229,7 +229,6 @@ def test_hardhat_command(
         provider._host = f"http://127.0.0.1:{port}"
         actual = provider.build_command()
         expected = [
-            name,
             "node",
             "--hostname",
             "127.0.0.1",
@@ -246,7 +245,8 @@ def test_hardhat_command(
             expected.extend(("--fork-block-number", str(fork_block_number)))
 
         assert actual[0].endswith("npx")
-        assert actual[1:] == expected
+        assert actual[1].endswith("hardhat")
+        assert actual[2:] == expected
 
 
 @pytest.mark.fork
