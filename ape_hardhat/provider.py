@@ -967,28 +967,15 @@ class HardhatForkProvider(HardhatProvider):
     def connect(self):
         super().connect()
 
-        # Verify that we're connected to a Hardhat node with mainnet-fork mode.
-        self._upstream_provider.connect()
-
-        try:
-            upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
-        except ExtraDataLengthError as err:
-            if isinstance(self._upstream_provider, Web3Provider):
-                logger.error(
-                    f"Upstream provider '{self._upstream_provider.name}' "
-                    f"missing Geth PoA middleware."
-                )
-                self._upstream_provider.web3.middleware_onion.inject(geth_poa_middleware, layer=0)
-                upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
-            else:
-                raise HardhatProviderError(f"Unable to get genesis block: {err}.") from err
-
-        self._upstream_provider.disconnect()
-
-        if self.get_block(0).hash != upstream_genesis_block_hash:
-            logger.warning(
-                "Upstream network has mismatching genesis block. "
-                "This could be an issue with hardhat."
+        if not self.metadata.forked_network:
+            # This will fail when trying to connect hardhat-fork to
+            # a non-forked network.
+            raise HardhatProviderError(
+                "Network is no a fork. "
+                "Hardhat is likely already running on the local network. "
+                "Try using config:\n\n(ape-config.yaml)\n```\nhardhat:\n  "
+                "host: auto\n```\n\nso that multiple processes can automatically "
+                "use different ports."
             )
 
     def build_command(self) -> List[str]:
