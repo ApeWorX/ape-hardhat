@@ -1,6 +1,8 @@
 # Quick Start
 
-Hardhat network provider plugin for Ape. Hardhat is a development framework written in Node.js for Ethereum that includes a local network implementation.
+This is a Hardhat network provider plugin for Ape.
+Hardhat is a development framework written in Node.js for Ethereum that includes a local network implementation.
+Use this plugin to manage a Hardhat node process or connect to an existing one.
 
 ## Dependencies
 
