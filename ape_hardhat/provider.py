@@ -207,6 +207,54 @@ class HardhatNetworkConfig(PluginConfig):
         extra = "allow"
 
 
+class ForkedNetworkMetadata(BaseModel):
+    """
+    Metadata from the RPC ``hardhat_metadata``.
+    """
+
+    chain_id: int = Field(alias="chainId")
+    """
+    The chain ID of the network being forked.
+    """
+
+    fork_block_number: int = Field(alias="forkBlockNumber")
+    """
+    The number of the block that the network forked from.
+    """
+
+    fork_block_hash: str = Field(alias="forkBlockHash")
+    """
+    The hash of the block that the network forked from.
+    """
+
+
+class NetworkMetadata(BaseModel):
+    """
+    Metadata from the RPC ``hardhat_metadata``.
+    """
+
+    client_version: str = Field(alias="clientVersion")
+    """
+    A string identifying the version of Hardhat, for debugging purposes,
+    not meant to be displayed to users.
+    """
+
+    instance_id: str = Field(alias="instanceId")
+    """
+    A 0x-prefixed hex-encoded 32 bytes id which uniquely identifies an
+    instance/run of Hardhat Network. Running Hardhat Network more than
+    once (even with the same version and parameters) will always result
+    in different instanceIds. Running hardhat_reset will change the
+    instanceId of an existing Hardhat Network.
+    """
+
+    forked_network: Optional[ForkedNetworkMetadata] = Field(None, alias="forkedNetwork")
+    """
+    An object with information about the forked network. This field is
+    only present when Hardhat Network is forking another chain.
+    """
+
+
 def _call(*args):
     return call([*args], stderr=PIPE, stdout=PIPE, stdin=PIPE)
 
@@ -367,6 +415,17 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             path = self.config_manager.DATA_FOLDER / "hardhat" / DEFAULT_HARDHAT_CONFIG_FILE_NAME
 
         return path.expanduser().absolute()
+
+    @property
+    def metadata(self) -> NetworkMetadata:
+        """
+        Get network metadata, including an object about forked-metadata.
+        If the network is not a fork, it will be ``None``.
+        This is a helpful way of determing if a Hardhat node is a fork or not
+        when connecting to a remote Hardhat network.
+        """
+        metadata = self._make_request("hardhat_metadata", [])
+        return NetworkMetadata.parse_obj(metadata)
 
     @cached_property
     def _test_config(self) -> TestConfig:
