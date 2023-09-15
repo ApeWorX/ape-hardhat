@@ -253,6 +253,7 @@ def test_hardhat_command(
 def test_connect_to_polygon(networks, owner, contract_container):
     """
     Ensures we don't get PoA middleware issue.
+    Also, ensure that we using a different host (via config).
     """
     with networks.polygon.mumbai_fork.use_provider("hardhat"):
         contract = owner.deploy(contract_container)
