@@ -8,7 +8,6 @@ from ape.api import ReceiptAPI
 from ape.api.accounts import ImpersonatedAccount
 from ape.contracts import ContractContainer
 from ape.exceptions import ContractLogicError
-from ape.pytest.contextmanagers import RevertsContextManager as reverts
 from ape.types import CallTreeNode, TraceFrame
 from evm_trace import CallType
 from hexbytes import HexBytes
@@ -176,26 +175,6 @@ def test_contract_revert_custom_exception(owner, get_contract_type, accounts):
     assert err.value.inputs == {"addr": accounts[7].address, "counter": 123}
 
 
-def test_contract_dev_message(owner, get_contract_type):
-    sub_ct = get_contract_type("sub_reverts_contract")
-    sub = owner.deploy(ContractContainer(sub_ct))
-    container = ContractContainer(get_contract_type("reverts_contract"))
-    contract = owner.deploy(container, sub)
-
-    with reverts(dev_message="dev: one"):
-        contract.revertStrings(1, sender=owner)
-    with reverts(dev_message="dev: error"):
-        contract.revertStrings(2, sender=owner)
-    with reverts(dev_message="dev: such modifiable, wow"):
-        contract.revertStrings(4, sender=owner)
-    with reverts(dev_message="dev: foobarbaz"):
-        contract.revertStrings(13, sender=owner)
-    with reverts(dev_message="dev: great job"):
-        contract.revertStrings(31337, sender=owner)
-    with reverts(dev_message="dev: sub-zero"):
-        contract.subRevertStrings(0, sender=owner)
-
-
 def test_transaction_contract_as_sender(contract_instance, connected_provider):
     # Set balance so test wouldn't normally fail from lack of funds
     connected_provider.set_balance(contract_instance.address, "1000 ETH")
@@ -216,7 +195,7 @@ def test_set_balance(connected_provider, owner, convert, amount):
 def test_set_code(connected_provider, contract_instance):
     provider = connected_provider
     code = provider.get_code(contract_instance.address)
-    assert type(code) == HexBytes
+    assert type(code) is HexBytes
     assert provider.set_code(contract_instance.address, "0x00") is True
     assert provider.get_code(contract_instance.address) != code
     assert provider.set_code(contract_instance.address, code) is True

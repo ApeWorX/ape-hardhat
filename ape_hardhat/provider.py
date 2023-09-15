@@ -33,7 +33,7 @@ from eth_typing import HexStr
 from eth_utils import is_0x_prefixed, is_hex, to_hex
 from evm_trace import CallType
 from evm_trace import TraceFrame as EvmTraceFrame
-from evm_trace import get_calltree_from_geth_trace
+from evm_trace import create_trace_frames, get_calltree_from_geth_trace
 from hexbytes import HexBytes
 from pydantic import BaseModel, Field
 from semantic_version import Version  # type: ignore
@@ -168,9 +168,28 @@ class PackageJson(BaseModel):
 
 
 class HardhatForkConfig(PluginConfig):
+    host: Optional[Union[str, Literal["auto"]]] = None
+    """
+    The host address or ``"auto"`` to use localhost with a random port (with attempts).
+    If ``host`` is specified in the root config, this will take precendence for this
+    network.
+    """
+
     upstream_provider: Optional[str] = None
+    """
+    The name of the upstream provider, such as ``alchemy`` or ``infura``.
+    """
+
     block_number: Optional[int] = None
+    """
+    The block number to fork. It is recommended to set this.
+    """
+
     enable_hardhat_deployments: bool = False
+    """
+    Set to ``True`` if using the ``hardhat-deployments`` plugin and you wish
+    to have those still occur.
+    """
 
 
 class HardhatNetworkConfig(PluginConfig):
@@ -205,6 +224,54 @@ class HardhatNetworkConfig(PluginConfig):
 
     class Config:
         extra = "allow"
+
+
+class ForkedNetworkMetadata(BaseModel):
+    """
+    Metadata from the RPC ``hardhat_metadata``.
+    """
+
+    chain_id: int = Field(alias="chainId")
+    """
+    The chain ID of the network being forked.
+    """
+
+    fork_block_number: int = Field(alias="forkBlockNumber")
+    """
+    The number of the block that the network forked from.
+    """
+
+    fork_block_hash: str = Field(alias="forkBlockHash")
+    """
+    The hash of the block that the network forked from.
+    """
+
+
+class NetworkMetadata(BaseModel):
+    """
+    Metadata from the RPC ``hardhat_metadata``.
+    """
+
+    client_version: str = Field(alias="clientVersion")
+    """
+    A string identifying the version of Hardhat, for debugging purposes,
+    not meant to be displayed to users.
+    """
+
+    instance_id: str = Field(alias="instanceId")
+    """
+    A 0x-prefixed hex-encoded 32 bytes id which uniquely identifies an
+    instance/run of Hardhat Network. Running Hardhat Network more than
+    once (even with the same version and parameters) will always result
+    in different instanceIds. Running hardhat_reset will change the
+    instanceId of an existing Hardhat Network.
+    """
+
+    forked_network: Optional[ForkedNetworkMetadata] = Field(None, alias="forkedNetwork")
+    """
+    An object with information about the forked network. This field is
+    only present when Hardhat Network is forking another chain.
+    """
 
 
 def _call(*args):
@@ -306,10 +373,15 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return self.config_manager.PROJECT_FOLDER
 
     @property
+    def config_host(self) -> Optional[str]:
+        # NOTE: Overriden in Forked networks.
+        return self.config.host
+
+    @property
     def uri(self) -> str:
         if self._host is not None:
             return self._host
-        if config_host := self.config.host:
+        if config_host := self.config_host:
             if config_host == "auto":
                 self._host = "auto"
                 return self._host
@@ -327,6 +399,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                     self._host = f"{self._host}:{DEFAULT_PORT}"
         else:
             self._host = f"http://127.0.0.1:{DEFAULT_PORT}"
+
         return self._host
 
     @property
@@ -368,6 +441,17 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         return path.expanduser().absolute()
 
+    @property
+    def metadata(self) -> NetworkMetadata:
+        """
+        Get network metadata, including an object about forked-metadata.
+        If the network is not a fork, it will be ``None``.
+        This is a helpful way of determing if a Hardhat node is a fork or not
+        when connecting to a remote Hardhat network.
+        """
+        metadata = self._make_request("hardhat_metadata", [])
+        return NetworkMetadata.parse_obj(metadata)
+
     @cached_property
     def _test_config(self) -> TestConfig:
         return cast(TestConfig, self.config_manager.get_config("test"))
@@ -396,15 +480,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         return plugins
 
-    @property
-    def gas_price(self) -> int:
-        # TODO: Remove this once Ape > 0.6.13
-        result = super().gas_price
-        if isinstance(result, str) and is_0x_prefixed(result):
-            return int(result, 16)
-
-        return result
-
     def _has_hardhat_plugin(self, plugin_name: str) -> bool:
         return next((True for plugin in self._hardhat_plugins if plugin == plugin_name), False)
 
@@ -428,7 +503,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             logger.warning(warning)
             self._host = f"http://127.0.0.1:{self.provider_settings['port']}"
 
-        elif self.config.port != DEFAULT_PORT and self.config.host is not None:
+        elif self.config.port != DEFAULT_PORT and self.config_host is not None:
             raise HardhatProviderError(
                 "Cannot use depreciated `port` field with `host`."
                 "Place `port` at end of `host` instead."
@@ -749,8 +824,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def _get_transaction_trace(self, txn_hash: str) -> Iterator[EvmTraceFrame]:
         result = self._make_request("debug_traceTransaction", [txn_hash])
         frames = result.get("structLogs", [])
-        for frame in frames:
-            yield EvmTraceFrame(**frame)
+        yield from create_trace_frames(frames)
 
     def get_call_tree(self, txn_hash: str) -> CallTreeNode:
         receipt = self.chain_manager.get_receipt(txn_hash)
@@ -915,31 +989,26 @@ class HardhatForkProvider(HardhatProvider):
         # NOTE: if 'upstream_provider_name' is 'None', this gets the default mainnet provider.
         return upstream_network.get_provider(provider_name=upstream_provider_name)
 
+    @property
+    def config_host(self) -> Optional[str]:
+        # First, attempt to get the host from the forked config.
+        if host := self._fork_config.host:
+            return host
+
+        return super().config_host
+
     def connect(self):
         super().connect()
 
-        # Verify that we're connected to a Hardhat node with mainnet-fork mode.
-        self._upstream_provider.connect()
-
-        try:
-            upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
-        except ExtraDataLengthError as err:
-            if isinstance(self._upstream_provider, Web3Provider):
-                logger.error(
-                    f"Upstream provider '{self._upstream_provider.name}' "
-                    f"missing Geth PoA middleware."
-                )
-                self._upstream_provider.web3.middleware_onion.inject(geth_poa_middleware, layer=0)
-                upstream_genesis_block_hash = self._upstream_provider.get_block(0).hash
-            else:
-                raise HardhatProviderError(f"Unable to get genesis block: {err}.") from err
-
-        self._upstream_provider.disconnect()
-
-        if self.get_block(0).hash != upstream_genesis_block_hash:
-            logger.warning(
-                "Upstream network has mismatching genesis block. "
-                "This could be an issue with hardhat."
+        if not self.metadata.forked_network:
+            # This will fail when trying to connect hardhat-fork to
+            # a non-forked network.
+            raise HardhatProviderError(
+                "Network is no a fork. "
+                "Hardhat is likely already running on the local network. "
+                "Try using config:\n\n(ape-config.yaml)\n```\nhardhat:\n  "
+                "host: auto\n```\n\nso that multiple processes can automatically "
+                "use different ports."
             )
 
     def build_command(self) -> List[str]:
