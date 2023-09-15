@@ -153,9 +153,11 @@ def test_request_timeout(connected_provider, config):
             assert connected_provider.timeout == 30
 
 
-def test_send_transaction(contract_instance, owner):
-    contract_instance.setNumber(10, sender=owner)
-    assert contract_instance.myNumber() == 10
+def test_send_transaction_and_send_call(contract_instance, owner):
+    number = 10
+    contract_instance.setNumber(number, sender=owner)  # send tx
+    actual = contract_instance.myNumber(show_trace=True)  # send call
+    assert actual == number
 
 
 def test_contract_revert_no_message(owner, contract_instance):
@@ -216,7 +218,7 @@ def test_set_balance(connected_provider, owner, convert, amount):
 def test_set_code(connected_provider, contract_instance):
     provider = connected_provider
     code = provider.get_code(contract_instance.address)
-    assert type(code) == HexBytes
+    assert type(code) is HexBytes
     assert provider.set_code(contract_instance.address, "0x00") is True
     assert provider.get_code(contract_instance.address) != code
     assert provider.set_code(contract_instance.address, code) is True

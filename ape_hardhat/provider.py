@@ -2,9 +2,10 @@ import json
 import random
 import re
 import shutil
+from itertools import tee
 from pathlib import Path
 from subprocess import PIPE, CalledProcessError, call, check_output
-from typing import Dict, Iterator, List, Literal, Optional, Union, cast
+from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast
 
 from ape.api import (
     PluginConfig,
@@ -25,16 +26,23 @@ from ape.exceptions import (
     VirtualMachineError,
 )
 from ape.logging import logger
-from ape.types import AddressType, CallTreeNode, ContractCode, SnapshotID, TraceFrame
+from ape.types import (
+    AddressType,
+    CallTreeNode,
+    ContractCode,
+    SnapshotID,
+    SourceTraceback,
+    TraceFrame,
+)
 from ape.utils import cached_property
 from ape_test import Config as TestConfig
 from chompjs import parse_js_object  # type: ignore
 from eth_typing import HexStr
 from eth_utils import is_0x_prefixed, is_hex, to_hex
+from ethpm_types import HexBytes
 from evm_trace import CallType
 from evm_trace import TraceFrame as EvmTraceFrame
-from evm_trace import get_calltree_from_geth_trace, create_trace_frames
-from hexbytes import HexBytes
+from evm_trace import create_trace_frames, get_calltree_from_geth_trace
 from pydantic import BaseModel, Field
 from semantic_version import Version  # type: ignore
 from web3 import HTTPProvider, Web3
@@ -619,10 +627,96 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def unlock_account(self, address: AddressType) -> bool:
         return self._make_request("hardhat_impersonateAccount", [address])
 
-    def send_call(self, txn: TransactionAPI, **kwargs) -> bytes:
+    def send_call(self, txn: TransactionAPI, **kwargs: Any) -> bytes:
+        skip_trace = kwargs.pop("skip_trace", False)
+        arguments = self._prepare_call(txn, **kwargs)
+        if skip_trace:
+            return self._send_call_legacy(txn, **kwargs)
+
+        show_gas = kwargs.pop("show_gas_report", False)
+        show_trace = kwargs.pop("show_trace", False)
+
+        if self._test_runner is not None:
+            track_gas = self._test_runner.gas_tracker.enabled
+            track_coverage = self._test_runner.coverage_tracker.enabled
+        else:
+            track_gas = False
+            track_coverage = False
+
+        needs_trace = track_gas or track_coverage or show_gas or show_trace
+        if not needs_trace:
+            return self._send_call_legacy(txn, **kwargs)
+
+        # The user is requesting information related to a call's trace,
+        # such as gas usage data.
+        try:
+            result, trace_frames = self._trace_call(arguments)
+        except Exception as err:
+            logger.error(f"Error when tracing call: {err}")
+            return self._send_call_legacy(txn, **kwargs)
+
+        trace_frames, frames_copy = tee(trace_frames)
+        return_value = HexBytes(result["returnValue"])
+        root_node_kwargs = {
+            "gas_cost": result.get("gas", 0),
+            "address": txn.receiver,
+            "calldata": txn.data,
+            "value": txn.value,
+            "call_type": CallType.CALL,
+            "failed": False,
+            "returndata": return_value,
+        }
+
+        evm_call_tree = get_calltree_from_geth_trace(trace_frames, **root_node_kwargs)
+
+        # NOTE: Don't pass txn_hash here, as it will fail (this is not a real txn).
+        call_tree = self._create_call_tree_node(evm_call_tree)
+
+        if track_gas and show_gas and not show_trace and call_tree:
+            # Optimization to enrich early and in_place=True.
+            call_tree.enrich()
+
+        if track_gas and call_tree and self._test_runner is not None and txn.receiver:
+            # Gas report being collected, likely for showing a report
+            # at the end of a test run.
+            # Use `in_place=False` in case also `show_trace=True`
+            enriched_call_tree = call_tree.enrich(in_place=False)
+            self._test_runner.gas_tracker.append_gas(enriched_call_tree, txn.receiver)
+
+        if track_coverage and self._test_runner is not None and txn.receiver:
+            contract_type = self.chain_manager.contracts.get(txn.receiver)
+            if contract_type:
+                traceframes = (self._create_trace_frame(x) for x in frames_copy)
+                method_id = HexBytes(txn.data)
+                selector = (
+                    contract_type.methods[method_id].selector
+                    if method_id in contract_type.methods
+                    else None
+                )
+                source_traceback = SourceTraceback.create(contract_type, traceframes, method_id)
+                self._test_runner.coverage_tracker.cover(
+                    source_traceback, function=selector, contract=contract_type.name
+                )
+
+        if show_gas:
+            enriched_call_tree = call_tree.enrich(in_place=False)
+            self.chain_manager._reports.show_gas(enriched_call_tree)
+
+        if show_trace:
+            call_tree = call_tree.enrich(use_symbol_for_tokens=True)
+            self.chain_manager._reports.show_trace(call_tree)
+
+        return return_value
+
+    def _trace_call(self, arguments: List[Any]) -> Tuple[Dict, Iterator[EvmTraceFrame]]:
+        result = self._make_request("debug_traceCall", arguments)
+        trace_data = result.get("structLogs", [])
+        return result, create_trace_frames(trace_data)
+
+    def _send_call_legacy(self, txn, **kwargs) -> bytes:
         result = super().send_call(txn, **kwargs)
 
-        # Hardhat does not support call tracing yet.
+        # Older versions of Hardhat does not support call tracing yet.
         # But we are still able to incremenet func hits.
         self._increment_call_func_coverage_hit_count(txn)
 
