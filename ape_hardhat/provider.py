@@ -168,9 +168,28 @@ class PackageJson(BaseModel):
 
 
 class HardhatForkConfig(PluginConfig):
+    host: Optional[Union[str, Literal["auto"]]] = None
+    """
+    The host address or ``"auto"`` to use localhost with a random port (with attempts).
+    If ``host`` is specified in the root config, this will take precendence for this
+    network.
+    """
+
     upstream_provider: Optional[str] = None
+    """
+    The name of the upstream provider, such as ``alchemy`` or ``infura``.
+    """
+
     block_number: Optional[int] = None
+    """
+    The block number to fork. It is recommended to set this.
+    """
+
     enable_hardhat_deployments: bool = False
+    """
+    Set to ``True`` if using the ``hardhat-deployments`` plugin and you wish
+    to have those still occur.
+    """
 
 
 class HardhatNetworkConfig(PluginConfig):
@@ -354,10 +373,15 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return self.config_manager.PROJECT_FOLDER
 
     @property
+    def config_host(self) -> Optional[str]:
+        # NOTE: Overriden in Forked networks.
+        return self.config.host
+
+    @property
     def uri(self) -> str:
         if self._host is not None:
             return self._host
-        if config_host := self.config.host:
+        if config_host := self.config_host:
             if config_host == "auto":
                 self._host = "auto"
                 return self._host
@@ -375,6 +399,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                     self._host = f"{self._host}:{DEFAULT_PORT}"
         else:
             self._host = f"http://127.0.0.1:{DEFAULT_PORT}"
+
         return self._host
 
     @property
@@ -478,7 +503,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             logger.warning(warning)
             self._host = f"http://127.0.0.1:{self.provider_settings['port']}"
 
-        elif self.config.port != DEFAULT_PORT and self.config.host is not None:
+        elif self.config.port != DEFAULT_PORT and self.config_host is not None:
             raise HardhatProviderError(
                 "Cannot use depreciated `port` field with `host`."
                 "Place `port` at end of `host` instead."
@@ -963,6 +988,14 @@ class HardhatForkProvider(HardhatProvider):
         upstream_provider_name = self._fork_config.upstream_provider
         # NOTE: if 'upstream_provider_name' is 'None', this gets the default mainnet provider.
         return upstream_network.get_provider(provider_name=upstream_provider_name)
+
+    @property
+    def config_host(self) -> Optional[str]:
+        # First, attempt to get the host from the forked config.
+        if host := self._fork_config.host:
+            return host
+
+        return super().config_host
 
     def connect(self):
         super().connect()
