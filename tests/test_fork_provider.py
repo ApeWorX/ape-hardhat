@@ -229,7 +229,6 @@ def test_hardhat_command(
         provider._host = f"http://127.0.0.1:{port}"
         actual = provider.build_command()
         expected = [
-            name,
             "node",
             "--hostname",
             "127.0.0.1",
@@ -246,13 +245,15 @@ def test_hardhat_command(
             expected.extend(("--fork-block-number", str(fork_block_number)))
 
         assert actual[0].endswith("npx")
-        assert actual[1:] == expected
+        assert actual[1].endswith("hardhat")
+        assert actual[2:] == expected
 
 
 @pytest.mark.fork
 def test_connect_to_polygon(networks, owner, contract_container):
     """
     Ensures we don't get PoA middleware issue.
+    Also, ensure that we using a different host (via config).
     """
     with networks.polygon.mumbai_fork.use_provider("hardhat"):
         contract = owner.deploy(contract_container)
