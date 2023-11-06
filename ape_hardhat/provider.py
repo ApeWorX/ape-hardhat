@@ -307,7 +307,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def timeout(self) -> int:
-        return self.config.request_timeout
+        return self.settings.request_timeout
 
     @property
     def _clean_uri(self) -> str:
@@ -375,7 +375,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     @property
     def config_host(self) -> Optional[str]:
         # NOTE: Overriden in Forked networks.
-        return self.config.host
+        return self.settings.host
 
     @property
     def uri(self) -> str:
@@ -432,10 +432,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def hardhat_config_file(self) -> Path:
-        if self.config.hardhat_config_file and self.config.hardhat_config_file.is_dir():
-            path = self.config.hardhat_config_file / DEFAULT_HARDHAT_CONFIG_FILE_NAME
-        elif self.config.hardhat_config_file:
-            path = self.config.hardhat_config_file
+        if self.settings.hardhat_config_file and self.settings.hardhat_config_file.is_dir():
+            path = self.settings.hardhat_config_file / DEFAULT_HARDHAT_CONFIG_FILE_NAME
+        elif self.settings.hardhat_config_file:
+            path = self.settings.hardhat_config_file
         else:
             path = self.config_manager.DATA_FOLDER / "hardhat" / DEFAULT_HARDHAT_CONFIG_FILE_NAME
 
@@ -503,18 +503,18 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             logger.warning(warning)
             self._host = f"http://127.0.0.1:{self.provider_settings['port']}"
 
-        elif self.config.port != DEFAULT_PORT and self.config_host is not None:
+        elif self.settings.port != DEFAULT_PORT and self.config_host is not None:
             raise HardhatProviderError(
                 "Cannot use depreciated `port` field with `host`."
                 "Place `port` at end of `host` instead."
             )
 
-        elif self.config.port != DEFAULT_PORT:
+        elif self.settings.port != DEFAULT_PORT:
             # We only get here if the user configured a port without a host,
             # the old way of doing it. TODO: Can remove after 0.7.
             logger.warning(warning)
-            if self.config.port not in (None, "auto"):
-                self._host = f"http://127.0.0.1:{self.config.port}"
+            if self.settings.port not in (None, "auto"):
+                self._host = f"http://127.0.0.1:{self.settings.port}"
             else:
                 # This will trigger selecting a random port on localhost and trying.
                 self._host = "auto"
@@ -528,7 +528,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if self.is_connected:
             # Connects to already running process
             self._start()
-        elif self.config.manage_process and (
+        elif self.settings.manage_process and (
             "localhost" in self._host or "127.0.0.1" in self._host or self._host == "auto"
         ):
             # Only do base-process setup if not connecting to already-running process
@@ -545,7 +545,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                         f"Connecting to existing '{self.process_name}' at host '{self._clean_uri}'."
                     )
             else:
-                for _ in range(self.config.process_attempts):
+                for _ in range(self.settings.process_attempts):
                     try:
                         self._start()
                         break
@@ -982,7 +982,7 @@ class HardhatForkProvider(HardhatProvider):
 
     @property
     def timeout(self) -> int:
-        return self.config.fork_request_timeout
+        return self.settings.fork_request_timeout
 
     @property
     def _upstream_network_name(self) -> str:
