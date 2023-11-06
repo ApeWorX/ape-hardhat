@@ -6,14 +6,14 @@ from pathlib import Path
 from subprocess import PIPE, CalledProcessError, call, check_output
 from typing import Dict, Iterator, List, Literal, Optional, Union, cast
 
+from ape._pydantic_compat import root_validator
 from ape.api import (
+    ForkedNetworkAPI,
     PluginConfig,
-    ProviderAPI,
     ReceiptAPI,
     SubprocessProvider,
     TestProviderAPI,
     TransactionAPI,
-    UpstreamProvider,
     Web3Provider,
 )
 from ape.exceptions import (
@@ -943,14 +943,34 @@ class HardhatForkProvider(HardhatProvider):
     to use as your archive node.
     """
 
-    @property
-    def fork_url(self) -> str:
-        if not isinstance(self._upstream_provider, UpstreamProvider):
-            raise HardhatProviderError(
-                f"Provider '{self._upstream_provider.name}' is not an upstream provider."
+    @root_validator()
+    def set_upstream_provider(cls, value):
+        network = value["network"]
+        adhoc_settings = value.get("provider_settings", {}).get("fork", {})
+        ecosystem_name = network.ecosystem.name
+        plugin_config = cls.config_manager.get_config(value["name"])
+        config_settings = plugin_config.get("fork", {})
+
+        def _get_upstream(data: Dict) -> Optional[str]:
+            return (
+                data.get(ecosystem_name, {})
+                .get(network.name.replace("-fork", ""), {})
+                .get("upstream_provider")
             )
 
-        return self._upstream_provider.connection_str
+        # If upstream provider set anywhere in provider settings, ignore.
+        if name := (_get_upstream(adhoc_settings) or _get_upstream(config_settings)):
+            getattr(network.ecosystem.config, network.name).upstream_provider = name
+
+        return value
+
+    @property
+    def forked_network(self) -> ForkedNetworkAPI:
+        return cast(ForkedNetworkAPI, self.network)
+
+    @property
+    def fork_url(self) -> str:
+        return self.forked_network.upstream_provider.connection_str
 
     @property
     def fork_block_number(self) -> Optional[int]:
@@ -981,13 +1001,6 @@ class HardhatForkProvider(HardhatProvider):
             return HardhatForkConfig()  # Just use default
 
         return config.fork[ecosystem_name][network_name]
-
-    @cached_property
-    def _upstream_provider(self) -> ProviderAPI:
-        upstream_network = self.network.ecosystem.networks[self._upstream_network_name]
-        upstream_provider_name = self._fork_config.upstream_provider
-        # NOTE: if 'upstream_provider_name' is 'None', this gets the default mainnet provider.
-        return upstream_network.get_provider(provider_name=upstream_provider_name)
 
     @property
     def config_host(self) -> Optional[str]:
