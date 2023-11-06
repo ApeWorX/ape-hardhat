@@ -232,6 +232,12 @@ def temp_config(config):
             config._cached_configs = {}
             config_file = temp_dir / CONFIG_FILE_NAME
             config_file.touch()
+
+            # Default to using the normal bin to avoid a temp installation.
+            data["bin_path"] = data.get(
+                "bin_path", (Path(__file__).parent / "node_modules" / ".bin" / "hardhat").as_posix()
+            )
+
             config_file.write_text(yaml.dump(data))
             config.load(force_reload=True)
 

@@ -205,6 +205,13 @@ class HardhatNetworkConfig(PluginConfig):
     Defaults to ``True``. If ``host`` is remote, will not be able to start.
     """
 
+    bin_path: Optional[Path] = None
+    """
+    The path to the Hardhat node binary.
+    Only needed when using a non-standard path;
+    otherwise, uses the binary from the installed Hardhat package.
+    """
+
     request_timeout: int = 30
     fork_request_timeout: int = 300
     process_attempts: int = 5
@@ -420,6 +427,9 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def bin_path(self) -> Path:
+        if self.settings.bin_path:
+            return self.settings.bin_path
+
         suffix = Path("node_modules") / ".bin" / "hardhat"
         options = (self.project_folder, Path.home())
         for base in options:
