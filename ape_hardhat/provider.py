@@ -995,6 +995,10 @@ class HardhatForkProvider(HardhatProvider):
         return self.settings.fork_request_timeout
 
     @property
+    def connection_id(self) -> Optional[str]:
+        return f"{self.network_choice}:{self._host}"
+
+    @property
     def _upstream_network_name(self) -> str:
         return self.network.name.replace("-fork", "")
 
