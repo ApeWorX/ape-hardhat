@@ -6,14 +6,14 @@ from pathlib import Path
 from subprocess import PIPE, CalledProcessError, call, check_output
 from typing import Dict, Iterator, List, Literal, Optional, Union, cast
 
+from ape._pydantic_compat import root_validator
 from ape.api import (
+    ForkedNetworkAPI,
     PluginConfig,
-    ProviderAPI,
     ReceiptAPI,
     SubprocessProvider,
     TestProviderAPI,
     TransactionAPI,
-    UpstreamProvider,
     Web3Provider,
 )
 from ape.exceptions import (
@@ -205,6 +205,13 @@ class HardhatNetworkConfig(PluginConfig):
     Defaults to ``True``. If ``host`` is remote, will not be able to start.
     """
 
+    bin_path: Optional[Path] = None
+    """
+    The path to the Hardhat node binary.
+    Only needed when using a non-standard path;
+    otherwise, uses the binary from the installed Hardhat package.
+    """
+
     request_timeout: int = 30
     fork_request_timeout: int = 300
     process_attempts: int = 5
@@ -307,7 +314,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def timeout(self) -> int:
-        return self.config.request_timeout
+        return self.settings.request_timeout
+
+    @property
+    def connection_id(self) -> Optional[str]:
+        return f"{self.network_choice}:{self._host}"
 
     @property
     def _clean_uri(self) -> str:
@@ -375,7 +386,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     @property
     def config_host(self) -> Optional[str]:
         # NOTE: Overriden in Forked networks.
-        return self.config.host
+        return self.settings.host
 
     @property
     def uri(self) -> str:
@@ -420,6 +431,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def bin_path(self) -> Path:
+        if self.settings.bin_path:
+            # NOTE: Don't resolve symlinks
+            return Path(self.settings.bin_path).expanduser().absolute()
+
         suffix = Path("node_modules") / ".bin" / "hardhat"
         options = (self.project_folder, Path.home())
         for base in options:
@@ -432,10 +447,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def hardhat_config_file(self) -> Path:
-        if self.config.hardhat_config_file and self.config.hardhat_config_file.is_dir():
-            path = self.config.hardhat_config_file / DEFAULT_HARDHAT_CONFIG_FILE_NAME
-        elif self.config.hardhat_config_file:
-            path = self.config.hardhat_config_file
+        if self.settings.hardhat_config_file and self.settings.hardhat_config_file.is_dir():
+            path = self.settings.hardhat_config_file / DEFAULT_HARDHAT_CONFIG_FILE_NAME
+        elif self.settings.hardhat_config_file:
+            path = self.settings.hardhat_config_file
         else:
             path = self.config_manager.DATA_FOLDER / "hardhat" / DEFAULT_HARDHAT_CONFIG_FILE_NAME
 
@@ -503,18 +518,18 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             logger.warning(warning)
             self._host = f"http://127.0.0.1:{self.provider_settings['port']}"
 
-        elif self.config.port != DEFAULT_PORT and self.config_host is not None:
+        elif self.settings.port != DEFAULT_PORT and self.config_host is not None:
             raise HardhatProviderError(
                 "Cannot use depreciated `port` field with `host`."
                 "Place `port` at end of `host` instead."
             )
 
-        elif self.config.port != DEFAULT_PORT:
+        elif self.settings.port != DEFAULT_PORT:
             # We only get here if the user configured a port without a host,
             # the old way of doing it. TODO: Can remove after 0.7.
             logger.warning(warning)
-            if self.config.port not in (None, "auto"):
-                self._host = f"http://127.0.0.1:{self.config.port}"
+            if self.settings.port not in (None, "auto"):
+                self._host = f"http://127.0.0.1:{self.settings.port}"
             else:
                 # This will trigger selecting a random port on localhost and trying.
                 self._host = "auto"
@@ -528,7 +543,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if self.is_connected:
             # Connects to already running process
             self._start()
-        elif self.config.manage_process and (
+        elif self.settings.manage_process and (
             "localhost" in self._host or "127.0.0.1" in self._host or self._host == "auto"
         ):
             # Only do base-process setup if not connecting to already-running process
@@ -545,7 +560,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                         f"Connecting to existing '{self.process_name}' at host '{self._clean_uri}'."
                     )
             else:
-                for _ in range(self.config.process_attempts):
+                for _ in range(self.settings.process_attempts):
                     try:
                         self._start()
                         break
@@ -943,14 +958,34 @@ class HardhatForkProvider(HardhatProvider):
     to use as your archive node.
     """
 
-    @property
-    def fork_url(self) -> str:
-        if not isinstance(self._upstream_provider, UpstreamProvider):
-            raise HardhatProviderError(
-                f"Provider '{self._upstream_provider.name}' is not an upstream provider."
+    @root_validator()
+    def set_upstream_provider(cls, value):
+        network = value["network"]
+        adhoc_settings = value.get("provider_settings", {}).get("fork", {})
+        ecosystem_name = network.ecosystem.name
+        plugin_config = cls.config_manager.get_config(value["name"])
+        config_settings = plugin_config.get("fork", {})
+
+        def _get_upstream(data: Dict) -> Optional[str]:
+            return (
+                data.get(ecosystem_name, {})
+                .get(network.name.replace("-fork", ""), {})
+                .get("upstream_provider")
             )
 
-        return self._upstream_provider.connection_str
+        # If upstream provider set anywhere in provider settings, ignore.
+        if name := (_get_upstream(adhoc_settings) or _get_upstream(config_settings)):
+            getattr(network.ecosystem.config, network.name).upstream_provider = name
+
+        return value
+
+    @property
+    def forked_network(self) -> ForkedNetworkAPI:
+        return cast(ForkedNetworkAPI, self.network)
+
+    @property
+    def fork_url(self) -> str:
+        return self.forked_network.upstream_provider.connection_str
 
     @property
     def fork_block_number(self) -> Optional[int]:
@@ -962,7 +997,7 @@ class HardhatForkProvider(HardhatProvider):
 
     @property
     def timeout(self) -> int:
-        return self.config.fork_request_timeout
+        return self.settings.fork_request_timeout
 
     @property
     def _upstream_network_name(self) -> str:
@@ -981,13 +1016,6 @@ class HardhatForkProvider(HardhatProvider):
             return HardhatForkConfig()  # Just use default
 
         return config.fork[ecosystem_name][network_name]
-
-    @cached_property
-    def _upstream_provider(self) -> ProviderAPI:
-        upstream_network = self.network.ecosystem.networks[self._upstream_network_name]
-        upstream_provider_name = self._fork_config.upstream_provider
-        # NOTE: if 'upstream_provider_name' is 'None', this gets the default mainnet provider.
-        return upstream_network.get_provider(provider_name=upstream_provider_name)
 
     @property
     def config_host(self) -> Optional[str]:
