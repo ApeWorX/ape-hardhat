@@ -317,6 +317,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return self.settings.request_timeout
 
     @property
+    def connection_id(self) -> Optional[str]:
+        return f"{self.network_choice}:{self._host}"
+
+    @property
     def _clean_uri(self) -> str:
         try:
             return str(URL(self.uri).with_user(None).with_password(None))
@@ -428,7 +432,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     @property
     def bin_path(self) -> Path:
         if self.settings.bin_path:
-            return self.settings.bin_path
+            # NOTE: Don't resolve symlinks
+            return Path(self.settings.bin_path).expanduser().absolute()
 
         suffix = Path("node_modules") / ".bin" / "hardhat"
         options = (self.project_folder, Path.home())
@@ -993,10 +998,6 @@ class HardhatForkProvider(HardhatProvider):
     @property
     def timeout(self) -> int:
         return self.settings.fork_request_timeout
-
-    @property
-    def connection_id(self) -> Optional[str]:
-        return f"{self.network_choice}:{self._host}"
 
     @property
     def _upstream_network_name(self) -> str:

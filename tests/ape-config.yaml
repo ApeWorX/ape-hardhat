@@ -13,6 +13,7 @@ polygon:
 hardhat:
   request_timeout: 29
   fork_request_timeout: 360
+  bin_path: "./node_modules/.bin/hardhat"
 
   fork:
     ethereum:
