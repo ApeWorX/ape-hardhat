@@ -815,7 +815,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def _send_call_legacy(self, txn, **kwargs) -> bytes:
         result = super().send_call(txn, **kwargs)
 
-        # Older versions of Hardhat does not support call tracing yet.
+        # Older versions of Hardhat do not support call tracing.
         # But we are still able to incremenet func hits.
         self._increment_call_func_coverage_hit_count(txn)
 
