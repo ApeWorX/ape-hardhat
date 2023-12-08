@@ -15,8 +15,8 @@ extras_require = {
         "rich",  # Needed for trace tests
     ],
     "lint": [
-        "black>=23.9.1,<24",  # auto-formatter and linter
-        "mypy>=1.5.1,<2",  # Static type analyzer
+        "black>=23.11.0,<24",  # auto-formatter and linter
+        "mypy>=1.7.1,<2",  # Static type analyzer
         "types-PyYAML",  # Needed due to mypy typeshed
         "types-setuptools",  # Needed for mypy typeshed
         "types-requests",  # Needed due to mypy typeshed
