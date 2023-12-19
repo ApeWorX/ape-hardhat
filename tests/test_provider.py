@@ -313,7 +313,7 @@ def test_remote_host(temp_config, networks, no_hardhat_bin, project):
 
 
 def test_hardfork(temp_config, networks):
-    data = {"hardhat": {"hardfork": "london"}}
+    data = {"hardhat": {"evm_version": "london"}}
     with temp_config(data):
         with networks.ethereum.local.use_provider("hardhat") as provider:
-            assert provider.config.hardfork == "london"
+            assert provider.config.evm_version == "london"
