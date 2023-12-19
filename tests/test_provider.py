@@ -136,7 +136,7 @@ def test_get_call_tree(connected_provider, sender, receiver):
     call_tree = connected_provider.get_call_tree(transfer.txn_hash)
     assert isinstance(call_tree, CallTreeNode)
     assert call_tree.call_type == CallType.CALL.value
-    assert repr(call_tree) == "0xc89D42189f0450C2b2c3c61f58Ec5d628176A1E7.0x()"
+    assert repr(call_tree) == "0x70997970C51812dc3A010C7d01b50e0d17dc79C8.0x()"
 
 
 def test_request_timeout(connected_provider, config):
@@ -313,7 +313,7 @@ def test_remote_host(temp_config, networks, no_hardhat_bin, project):
 
 
 def test_hardfork(temp_config, networks):
-    data = {"hardhat": {"hardfork": "london"}}
+    data = {"hardhat": {"evm_version": "london"}}
     with temp_config(data):
         with networks.ethereum.local.use_provider("hardhat") as provider:
-            assert provider.config.hardfork == "london"
+            assert provider.config.evm_version == "london"

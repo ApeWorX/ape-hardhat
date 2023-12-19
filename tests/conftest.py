@@ -128,7 +128,8 @@ def contract_type(request, get_contract_type) -> ContractType:
 @pytest.fixture
 def get_contract_type():
     def fn(name: str):
-        return ContractType.parse_file(LOCAL_CONTRACTS_PATH / f"{name}.json")
+        path = LOCAL_CONTRACTS_PATH / f"{name}.json"
+        return ContractType.model_validate_json(path.read_text())
 
     return fn
 

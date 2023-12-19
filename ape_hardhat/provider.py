@@ -7,7 +7,6 @@ from pathlib import Path
 from subprocess import PIPE, CalledProcessError, call, check_output
 from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast
 
-from ape._pydantic_compat import root_validator
 from ape.api import (
     ForkedNetworkAPI,
     PluginConfig,
@@ -15,7 +14,6 @@ from ape.api import (
     SubprocessProvider,
     TestProviderAPI,
     TransactionAPI,
-    Web3Provider,
 )
 from ape.exceptions import (
     ContractLogicError,
@@ -28,23 +26,26 @@ from ape.exceptions import (
 from ape.logging import logger
 from ape.types import (
     AddressType,
+    BlockID,
     CallTreeNode,
     ContractCode,
     SnapshotID,
     SourceTraceback,
     TraceFrame,
 )
-from ape.utils import cached_property
-from ape_test import Config as TestConfig
+from ape.utils import DEFAULT_TEST_HD_PATH, cached_property
+from ape_ethereum.provider import Web3Provider
+from ape_test import ApeTestConfig
 from chompjs import parse_js_object  # type: ignore
+from eth_pydantic_types import HexBytes
 from eth_typing import HexStr
 from eth_utils import is_0x_prefixed, is_hex, to_hex
-from ethpm_types import HexBytes
 from evm_trace import CallType
 from evm_trace import TraceFrame as EvmTraceFrame
 from evm_trace import create_trace_frames, get_calltree_from_geth_trace
-from pydantic import BaseModel, Field
-from semantic_version import Version  # type: ignore
+from packaging.version import Version
+from pydantic import BaseModel, Field, model_validator
+from pydantic_settings import SettingsConfigDict
 from web3 import HTTPProvider, Web3
 from web3.exceptions import ExtraDataLengthError
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
@@ -76,7 +77,6 @@ module.exports = {{
   }},
 }};
 """.lstrip()
-HARDHAT_HD_PATH = "m/44'/60'/0'"
 DEFAULT_HARDHAT_CONFIG_FILE_NAME = "hardhat.config.js"
 HARDHAT_CONFIG_FILE_NAME_OPTIONS = (DEFAULT_HARDHAT_CONFIG_FILE_NAME, "hardhat.config.ts")
 HARDHAT_PLUGIN_PATTERN = re.compile(r"hardhat-[A-Za-z0-9-]+$")
@@ -92,7 +92,8 @@ def _validate_hardhat_config_file(
     num_of_accounts: int,
     hardhat_version: str,
     hard_fork: Optional[str] = None,
-):
+    hd_path: Optional[str] = None,
+) -> Path:
     if not path.is_file() and path.is_dir():
         path = path / DEFAULT_HARDHAT_CONFIG_FILE_NAME
 
@@ -111,8 +112,9 @@ def _validate_hardhat_config_file(
         else:
             hard_fork = "shanghai"
 
+    hd_path = hd_path or DEFAULT_TEST_HD_PATH
     content = HARDHAT_CONFIG.format(
-        hd_path=HARDHAT_HD_PATH,
+        hd_path=hd_path,
         mnemonic=mnemonic,
         number_of_accounts=num_of_accounts,
         hard_fork=hard_fork,
@@ -146,7 +148,7 @@ def _validate_hardhat_config_file(
             if not accounts_config or (
                 accounts_config.get("mnemonic") != mnemonic
                 or accounts_config.get("count") != num_of_accounts
-                or accounts_config.get("path") != HARDHAT_HD_PATH
+                or accounts_config.get("path") != hd_path
             ):
                 logger.warning(invalid_config_warning)
 
@@ -155,7 +157,7 @@ def _validate_hardhat_config_file(
             content = path.read_text()
             if (
                 mnemonic not in content
-                or HARDHAT_HD_PATH not in content
+                or hd_path not in content
                 or str(num_of_accounts) not in content
             ):
                 logger.warning(invalid_config_warning)
@@ -166,12 +168,14 @@ def _validate_hardhat_config_file(
             f"Some features may not work as intended."
         )
 
+    return path
+
 
 class PackageJson(BaseModel):
-    name: Optional[str]
-    version: Optional[str]
-    description: Optional[str]
-    dependencies: Optional[Dict[str, str]]
+    name: Optional[str] = None
+    version: Optional[str] = None
+    description: Optional[str] = None
+    dependencies: Optional[Dict[str, str]] = None
     dev_dependencies: Optional[Dict[str, str]] = Field(None, alias="devDependencies")
 
 
@@ -201,8 +205,8 @@ class HardhatForkConfig(PluginConfig):
 
 
 class HardhatNetworkConfig(PluginConfig):
-    port: Optional[Union[int, Literal["auto"]]] = DEFAULT_PORT
-    """Depreciated. Use ``host`` config."""
+    evm_version: Optional[str] = None
+    """The EVM hardfork to use. Defaults to letting Hardhat decide."""
 
     host: Optional[Union[str, Literal["auto"]]] = None
     """The host address or ``"auto"`` to use localhost with a random port (with attempts)."""
@@ -237,8 +241,7 @@ class HardhatNetworkConfig(PluginConfig):
     # Mapping of ecosystem_name => network_name => HardhatForkConfig
     fork: Dict[str, Dict[str, HardhatForkConfig]] = {}
 
-    class Config:
-        extra = "allow"
+    model_config = SettingsConfigDict(extra="allow")
 
 
 class ForkedNetworkMetadata(BaseModel):
@@ -454,13 +457,17 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return suffix
 
     @property
+    def _ape_managed_hardhat_config_file(self):
+        return self.config_manager.DATA_FOLDER / "hardhat" / DEFAULT_HARDHAT_CONFIG_FILE_NAME
+
+    @property
     def hardhat_config_file(self) -> Path:
         if self.settings.hardhat_config_file and self.settings.hardhat_config_file.is_dir():
             path = self.settings.hardhat_config_file / DEFAULT_HARDHAT_CONFIG_FILE_NAME
         elif self.settings.hardhat_config_file:
             path = self.settings.hardhat_config_file
         else:
-            path = self.config_manager.DATA_FOLDER / "hardhat" / DEFAULT_HARDHAT_CONFIG_FILE_NAME
+            path = self._ape_managed_hardhat_config_file
 
         return path.expanduser().absolute()
 
@@ -473,11 +480,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         when connecting to a remote Hardhat network.
         """
         metadata = self._make_request("hardhat_metadata", [])
-        return NetworkMetadata.parse_obj(metadata)
+        return NetworkMetadata.model_validate(metadata)
 
     @cached_property
-    def _test_config(self) -> TestConfig:
-        return cast(TestConfig, self.config_manager.get_config("test"))
+    def _test_config(self) -> ApeTestConfig:
+        return cast(ApeTestConfig, self.config_manager.get_config("test"))
 
     @cached_property
     def _package_json(self) -> PackageJson:
@@ -486,7 +493,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if not json_path.is_file():
             return PackageJson()
 
-        return PackageJson.parse_file(json_path)
+        return PackageJson.model_validate_json(json_path.read_text())
 
     @cached_property
     def _hardhat_plugins(self) -> List[str]:
@@ -511,38 +518,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         Start the hardhat process and verify it's up and accepting connections.
         """
 
-        _validate_hardhat_config_file(
-            self.hardhat_config_file,
-            self.mnemonic,
-            self.number_of_accounts,
-            self.hardhat_version,
-        )
-
         # NOTE: Must set port before calling 'super().connect()'.
-        warning = "`port` setting is depreciated. Please use `host` key that includes the port."
-
-        if "port" in self.provider_settings:
-            # TODO: Can remove after 0.7.
-            logger.warning(warning)
-            self._host = f"http://127.0.0.1:{self.provider_settings['port']}"
-
-        elif self.settings.port != DEFAULT_PORT and self.config_host is not None:
-            raise HardhatProviderError(
-                "Cannot use depreciated `port` field with `host`."
-                "Place `port` at end of `host` instead."
-            )
-
-        elif self.settings.port != DEFAULT_PORT:
-            # We only get here if the user configured a port without a host,
-            # the old way of doing it. TODO: Can remove after 0.7.
-            logger.warning(warning)
-            if self.settings.port not in (None, "auto"):
-                self._host = f"http://127.0.0.1:{self.settings.port}"
-            else:
-                # This will trigger selecting a random port on localhost and trying.
-                self._host = "auto"
-
-        elif "host" in self.provider_settings:
+        if "host" in self.provider_settings:
             self._host = self.provider_settings["host"]
 
         elif self._host is None:
@@ -682,6 +659,20 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return self._get_command()
 
     def _get_command(self) -> List[str]:
+        if self.hardhat_config_file == self._ape_managed_hardhat_config_file:
+            # If we are using the Ape managed file. regenerated before launch.
+            self._ape_managed_hardhat_config_file.unlink(missing_ok=True)
+
+        # Validate (and create if needed) the user-given path.
+        hh_config_path = _validate_hardhat_config_file(
+            self.hardhat_config_file,
+            self.mnemonic,
+            self.number_of_accounts,
+            self.hardhat_version,
+            hard_fork=self.config.evm_version,
+            hd_path=self.test_config.hd_path or DEFAULT_TEST_HD_PATH,
+        )
+
         return [
             self.node_bin,
             str(self.bin_path),
@@ -691,7 +682,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             "--port",
             f"{self._port or DEFAULT_PORT}",
             "--config",
-            str(self.hardhat_config_file),
+            str(hh_config_path),
         ]
 
     def set_block_gas_limit(self, gas_limit: int) -> bool:
@@ -726,8 +717,19 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     def unlock_account(self, address: AddressType) -> bool:
         return self._make_request("hardhat_impersonateAccount", [address])
 
-    def send_call(self, txn: TransactionAPI, **kwargs: Any) -> bytes:
+    def send_call(
+        self,
+        txn: TransactionAPI,
+        block_id: Optional[BlockID] = None,
+        state: Optional[Dict] = None,
+        **kwargs,
+    ) -> HexBytes:
         skip_trace = kwargs.pop("skip_trace", False)
+        if block_id is not None:
+            kwargs["block_identifier"] = block_id
+        if state is not None:
+            kwargs["state_override"] = state
+
         arguments = self._prepare_call(txn, **kwargs)
         if skip_trace:
             return self._send_call_legacy(txn, **kwargs)
@@ -812,7 +814,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         trace_data = result.get("structLogs", [])
         return result, create_trace_frames(trace_data)
 
-    def _send_call_legacy(self, txn, **kwargs) -> bytes:
+    def _send_call_legacy(self, txn, **kwargs) -> HexBytes:
         result = super().send_call(txn, **kwargs)
 
         # Older versions of Hardhat do not support call tracing.
@@ -864,7 +866,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if sender_address in self.unlocked_accounts:
             # Allow for an unsigned transaction
             txn = self.prepare_transaction(txn)
-            txn_dict = txn.dict()
+            txn_dict = txn.model_dump(by_alias=True, mode="json")
             if isinstance(txn_dict.get("type"), int):
                 txn_dict["type"] = HexBytes(txn_dict["type"]).hex()
 
@@ -1052,7 +1054,8 @@ class HardhatForkProvider(HardhatProvider):
     to use as your archive node.
     """
 
-    @root_validator()
+    @model_validator(mode="before")
+    @classmethod
     def set_upstream_provider(cls, value):
         network = value["network"]
         adhoc_settings = value.get("provider_settings", {}).get("fork", {})
