@@ -1009,7 +1009,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                 ContractLogicError(revert_message=message, **kwargs)
             )
 
-            if enriched.message == TransactionError.DEFAULT_MESSAGE:
+            if enriched.message == TransactionError.DEFAULT_MESSAGE and revert_message:
                 # Since input data is always missing, and to preserve backwards compat,
                 # use the selector as the message still.
                 enriched.message = revert_message
