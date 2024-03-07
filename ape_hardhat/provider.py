@@ -1006,7 +1006,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                 revert_message = TransactionError.DEFAULT_MESSAGE
 
             enriched = self.compiler_manager.enrich_error(
-                ContractLogicError(revert_message=message, **kwargs)
+                ContractLogicError(revert_message=revert_message, **kwargs)
             )
 
             if enriched.message == TransactionError.DEFAULT_MESSAGE and revert_message:
