@@ -1001,29 +1001,44 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         elif message.startswith("execution reverted: "):
             message = message.replace("execution reverted: ", "")
 
+        def _handle_execution_reverted(revert_message: Optional[str] = None, **kwargs):
+            if revert_message in ("", "0x", None):
+                revert_message = TransactionError.DEFAULT_MESSAGE
+
+            enriched = self.compiler_manager.enrich_error(
+                ContractLogicError(revert_message=revert_message, **kwargs)
+            )
+
+            if enriched.message == TransactionError.DEFAULT_MESSAGE and revert_message:
+                # Since input data is always missing, and to preserve backwards compat,
+                # use the selector as the message still.
+                enriched.message = revert_message
+
+            # Show call trace if availble
+            if enriched.txn:
+                # Unlikely scenario where a transaction is on the error even though a receipt
+                # exists.
+                if isinstance(enriched.txn, TransactionAPI) and enriched.txn.receipt:
+                    enriched.txn.receipt.show_trace()
+                elif isinstance(enriched.txn, ReceiptAPI):
+                    enriched.txn.show_trace()
+
+            return enriched
+
         builtin_check = (
             "Error: VM Exception while processing transaction: reverted with panic code "
         )
         if message.startswith(builtin_check):
             message = message.replace(builtin_check, "")
             panic_code = message.split("(")[0].strip()
-            err = ContractLogicError(revert_message=panic_code, **kwargs)
-            enriched_err = self.compiler_manager.enrich_error(err)
-            if enriched_err != err:
-                # It was enriched.
-                return enriched_err
-
-            # Use full message.
-            return ContractLogicError(revert_message=message, **kwargs)
+            return _handle_execution_reverted(panic_code, **kwargs)
 
         if message.startswith(_REVERT_REASON_PREFIX):
             message = message.replace(_REVERT_REASON_PREFIX, "").strip("'")
-            err = ContractLogicError(revert_message=message, **kwargs)
-            return self.compiler_manager.enrich_error(err)
+            return _handle_execution_reverted(message, **kwargs)
 
         elif _NO_REASON_REVERT_MESSAGE in message:
-            err = ContractLogicError(**kwargs)
-            return self.compiler_manager.enrich_error(err)
+            return _handle_execution_reverted(**kwargs)
 
         elif message == "Transaction ran out of gas":
             return OutOfGasError(**kwargs)
@@ -1031,15 +1046,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         elif "reverted with an unrecognized custom error" in message and "(return data:" in message:
             # Happens during custom Solidity exceptions.
             message = message.split("(return data:")[-1].rstrip("/)").strip()
-            err = ContractLogicError(revert_message=message, **kwargs)
-            enriched_error = self.compiler_manager.enrich_error(err)
-
-            if enriched_error.message == TransactionError.DEFAULT_MESSAGE:
-                # Since input data is always missing, and to preserve backwards compat,
-                # use the selector as the message still.
-                enriched_error.message = message
-
-            return enriched_error
+            return _handle_execution_reverted(message, **kwargs)
 
         return VirtualMachineError(message, **kwargs)
 
