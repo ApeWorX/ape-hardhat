@@ -39,7 +39,7 @@ def providers():
 
     yield "fantom", LOCAL_NETWORK_NAME, HardhatProvider
     yield "fantom", "opera-fork", HardhatForkProvider
-    yield "fantom", "testnet-fork", HardhatForkProviderhardhat
+    yield "fantom", "testnet-fork", HardhatForkProvider
 
     yield "optimism", LOCAL_NETWORK_NAME, HardhatProvider
     yield "optimism", "mainnet-fork", HardhatForkProvider
