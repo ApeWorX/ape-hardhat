@@ -47,6 +47,10 @@ def providers():
     yield "optimism", "goerli-fork", HardhatForkProvider
     yield "optimism", "sepolia-fork", HardhatForkProvider
 
+    yield "base", LOCAL_NETWORK_NAME, HardhatProvider
+    yield "base", "mainnet-fork", HardhatForkProvider
+    yield "base", "sepolia-fork", HardhatForkProvider
+
     yield "polygon", LOCAL_NETWORK_NAME, HardhatProvider
     yield "polygon", "mainnet-fork", HardhatForkProvider
     yield "polygon", "mumbai-fork", HardhatForkProvider
