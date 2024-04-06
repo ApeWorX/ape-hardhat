@@ -25,8 +25,6 @@ def providers():
 
     yield "arbitrum", LOCAL_NETWORK_NAME, HardhatProvider
     yield "arbitrum", "mainnet-fork", HardhatForkProvider
-    # TODO: Remove when goerli is sunset
-    yield "arbitrum", "goerli-fork", HardhatForkProvider
     yield "arbitrum", "sepolia-fork", HardhatForkProvider
 
     yield "avalanche", LOCAL_NETWORK_NAME, HardhatProvider
@@ -43,8 +41,6 @@ def providers():
 
     yield "optimism", LOCAL_NETWORK_NAME, HardhatProvider
     yield "optimism", "mainnet-fork", HardhatForkProvider
-    # TODO: Remove when goerli is sunset
-    yield "optimism", "goerli-fork", HardhatForkProvider
     yield "optimism", "sepolia-fork", HardhatForkProvider
 
     yield "base", LOCAL_NETWORK_NAME, HardhatProvider

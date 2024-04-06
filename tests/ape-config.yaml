@@ -21,10 +21,6 @@ hardhat:
         upstream_provider: alchemy
         block_number: 17040366
         host: 127.0.0.1:7110
-      goerli:
-        upstream_provider: alchemy
-        block_number: 7849922
-        host: 127.0.0.1:7111
       sepolia:
         upstream_provider: alchemy
         block_number: 3091950
