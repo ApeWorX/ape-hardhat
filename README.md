@@ -6,7 +6,7 @@ Use this plugin to manage a Hardhat node process or connect to an existing one.
 
 ## Dependencies
 
-- [python3](https://www.python.org/downloads) version 3.8 up to 3.11.
+- [python3](https://www.python.org/downloads) version 3.8 up to 3.12.
 - Node.js, NPM, and Hardhat 2.12.0 or greater. See Hardhat's [Installation](https://hardhat.org/getting-started/#installation%3E) documentation for steps.
 
 ## Installation
