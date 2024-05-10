@@ -1,7 +1,6 @@
 import json
 import shutil
 import subprocess
-import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import mkdtemp
@@ -14,6 +13,7 @@ from _pytest.runner import pytest_runtest_makereport as orig_pytest_runtest_make
 from ape.contracts import ContractContainer
 from ape.exceptions import APINotImplementedError, UnknownSnapshotError
 from ape.managers.config import CONFIG_FILE_NAME
+from ape.utils import create_tempdir
 from ethpm_types import ContractType
 
 from ape_hardhat import HardhatProvider
@@ -227,9 +227,7 @@ def sepolia_fork_provider(name, networks, sepolia_fork_port):
 def temp_config(config):
     @contextmanager
     def func(data: Dict, package_json: Optional[Dict] = None):
-        with tempfile.TemporaryDirectory() as temp_dir_str:
-            temp_dir = Path(temp_dir_str)
-
+        with create_tempdir() as temp_dir:
             config._cached_configs = {}
             config_file = temp_dir / CONFIG_FILE_NAME
             config_file.touch()

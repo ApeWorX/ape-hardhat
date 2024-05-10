@@ -1,10 +1,10 @@
-import tempfile
 from pathlib import Path
 
 import pytest
 from ape.api.networks import LOCAL_NETWORK_NAME
 from ape.contracts import ContractInstance
 from ape.exceptions import ContractLogicError
+from ape.utils import create_tempdir
 from ape_ethereum.ecosystem import NETWORKS
 
 from ape_hardhat.provider import HardhatForkProvider
@@ -84,8 +84,7 @@ def test_request_timeout(networks, config, mainnet_fork_provider):
     assert actual == expected
 
     # Test default behavior
-    with tempfile.TemporaryDirectory() as temp_dir_str:
-        temp_dir = Path(temp_dir_str)
+    with create_tempdir() as temp_dir:
         with config.using_project(temp_dir):
             assert networks.active_provider.timeout == 300
 
