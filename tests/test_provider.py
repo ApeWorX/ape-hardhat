@@ -1,6 +1,4 @@
 import shutil
-import tempfile
-from pathlib import Path
 
 import pytest
 import requests
@@ -9,6 +7,7 @@ from ape.api.accounts import ImpersonatedAccount
 from ape.contracts import ContractContainer
 from ape.exceptions import ContractLogicError
 from ape.types import CallTreeNode, TraceFrame
+from ape.utils import create_tempdir
 from evm_trace import CallType
 from hexbytes import HexBytes
 
@@ -146,8 +145,7 @@ def test_request_timeout(connected_provider, config):
     assert actual == expected
 
     # Test default behavior
-    with tempfile.TemporaryDirectory() as temp_dir_str:
-        temp_dir = Path(temp_dir_str)
+    with create_tempdir() as temp_dir:
         with config.using_project(temp_dir):
             assert connected_provider.timeout == 30
 

@@ -1,7 +1,6 @@
 import json
 import shutil
 import subprocess
-import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import mkdtemp
@@ -14,6 +13,7 @@ from _pytest.runner import pytest_runtest_makereport as orig_pytest_runtest_make
 from ape.contracts import ContractContainer
 from ape.exceptions import APINotImplementedError, UnknownSnapshotError
 from ape.managers.config import CONFIG_FILE_NAME
+from ape.utils import create_tempdir
 from ethpm_types import ContractType
 
 from ape_hardhat import HardhatProvider
@@ -29,7 +29,7 @@ NAME = "hardhat"
 # Needed to test tracing support in core `ape test` command.
 pytest_plugins = ["pytester"]
 MAINNET_FORK_PORT = 9001
-GOERLI_FORK_PORT = 9002
+SEPOLIA_FORK_PORT = 9002
 
 
 def pytest_runtest_makereport(item, call):
@@ -211,14 +211,14 @@ def mainnet_fork_provider(name, networks, mainnet_fork_port):
 
 
 @pytest.fixture
-def goerli_fork_port():
-    return GOERLI_FORK_PORT
+def sepolia_fork_port():
+    return SEPOLIA_FORK_PORT
 
 
 @pytest.fixture
-def goerli_fork_provider(name, networks, goerli_fork_port):
-    with networks.ethereum.goerli_fork.use_provider(
-        name, provider_settings={"host": f"http://127.0.0.1:{goerli_fork_port}"}
+def sepolia_fork_provider(name, networks, sepolia_fork_port):
+    with networks.ethereum.sepolia_fork.use_provider(
+        name, provider_settings={"host": f"http://127.0.0.1:{sepolia_fork_port}"}
     ) as provider:
         yield provider
 
@@ -227,9 +227,7 @@ def goerli_fork_provider(name, networks, goerli_fork_port):
 def temp_config(config):
     @contextmanager
     def func(data: Dict, package_json: Optional[Dict] = None):
-        with tempfile.TemporaryDirectory() as temp_dir_str:
-            temp_dir = Path(temp_dir_str)
-
+        with create_tempdir() as temp_dir:
             config._cached_configs = {}
             config_file = temp_dir / CONFIG_FILE_NAME
             config_file.touch()
