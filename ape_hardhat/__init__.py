@@ -50,6 +50,7 @@ def providers():
     yield "polygon", LOCAL_NETWORK_NAME, HardhatProvider
     yield "polygon", "mainnet-fork", HardhatForkProvider
     yield "polygon", "mumbai-fork", HardhatForkProvider
+    yield "polygon", "amoy-fork", HardhatForkProvider
 
     yield "gnosis", LOCAL_NETWORK_NAME, HardhatProvider
     yield "gnosis", "mainnet-fork", HardhatForkProvider
