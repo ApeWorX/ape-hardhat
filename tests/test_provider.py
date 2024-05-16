@@ -2,13 +2,11 @@ import shutil
 
 import pytest
 import requests
-from ape.api import ReceiptAPI
+from ape.api import ReceiptAPI, TraceAPI
 from ape.api.accounts import ImpersonatedAccount
 from ape.contracts import ContractContainer
 from ape.exceptions import ContractLogicError
-from ape.types import CallTreeNode, TraceFrame
 from ape.utils import create_tempdir
-from evm_trace import CallType
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatNotInstalledError, HardhatProviderError
@@ -88,15 +86,15 @@ def test_mine_many_blocks(connected_provider):
     assert next_block_num >= block_num + 12
 
 
-def test_revert_failure(connected_provider):
-    assert connected_provider.revert(0xFFFF) is False
+def test_restore_failure(connected_provider):
+    assert connected_provider.restore(0xFFFF) is False
 
 
 def test_get_balance(connected_provider, owner):
     assert connected_provider.get_balance(owner.address)
 
 
-def test_snapshot_and_revert(connected_provider):
+def test_snapshot_and_restore(connected_provider):
     snap = connected_provider.snapshot()
 
     block_1 = connected_provider.get_block("latest")
@@ -105,7 +103,7 @@ def test_snapshot_and_revert(connected_provider):
     assert block_2.number > block_1.number
     assert block_1.hash != block_2.hash
 
-    connected_provider.revert(snap)
+    connected_provider.restore(snap)
     block_3 = connected_provider.get_block("latest")
     assert block_1.number == block_3.number
     assert block_1.hash == block_3.hash
@@ -125,17 +123,8 @@ def test_unlock_account(connected_provider, owner, contract_a, accounts):
 
 def test_get_transaction_trace(connected_provider, sender, receiver):
     transfer = sender.transfer(receiver, 1)
-    frame_data = connected_provider.get_transaction_trace(transfer.txn_hash)
-    for frame in frame_data:
-        assert isinstance(frame, TraceFrame)
-
-
-def test_get_call_tree(connected_provider, sender, receiver):
-    transfer = sender.transfer(receiver, 1)
-    call_tree = connected_provider.get_call_tree(transfer.txn_hash)
-    assert isinstance(call_tree, CallTreeNode)
-    assert call_tree.call_type == CallType.CALL.value
-    assert repr(call_tree) == "0x70997970C51812dc3A010C7d01b50e0d17dc79C8.0x()"
+    trace = connected_provider.get_transaction_trace(transfer.txn_hash)
+    assert isinstance(trace, TraceAPI)
 
 
 def test_request_timeout(connected_provider, config):
@@ -273,6 +262,14 @@ def test_connect_when_hardhat_not_installed(networks, mock_web3, install_detecti
     )
     with pytest.raises(HardhatNotInstalledError, match=expected):
         provider.connect()
+
+
+def test_auto_mine(connected_provider):
+    assert connected_provider.auto_mine is True
+    connected_provider.auto_mine = False
+    assert connected_provider.auto_mine is False
+    connected_provider.auto_mine = True
+    assert connected_provider.auto_mine is True
 
 
 def test_get_virtual_machine_error_when_sol_panic(connected_provider):

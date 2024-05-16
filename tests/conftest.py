@@ -4,7 +4,7 @@ import subprocess
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import mkdtemp
-from typing import Dict, Optional
+from typing import Optional
 
 import ape
 import pytest
@@ -226,16 +226,17 @@ def sepolia_fork_provider(name, networks, sepolia_fork_port):
 @pytest.fixture(scope="session")
 def temp_config(config):
     @contextmanager
-    def func(data: Dict, package_json: Optional[Dict] = None):
+    def func(data: dict, package_json: Optional[dict] = None):
         with create_tempdir() as temp_dir:
             config._cached_configs = {}
             config_file = temp_dir / CONFIG_FILE_NAME
             config_file.touch()
 
             # Default to using the normal bin to avoid a temp installation.
-            data["bin_path"] = data.get(
+            bin_path = data.get(
                 "bin_path", (Path(__file__).parent / "node_modules" / ".bin" / "hardhat").as_posix()
             )
+            data["hardhat"] = {**data.get("hardhat", {}), "bin_path": bin_path}
 
             config_file.write_text(yaml.dump(data))
             config.load(force_reload=True)

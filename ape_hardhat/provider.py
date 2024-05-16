@@ -2,10 +2,9 @@ import json
 import random
 import re
 import shutil
-from itertools import tee
 from pathlib import Path
 from subprocess import PIPE, CalledProcessError, call, check_output
-from typing import Any, Dict, Iterator, List, Literal, Optional, Tuple, Union, cast
+from typing import Literal, Optional, Union, cast
 
 from ape.api import (
     ForkedNetworkAPI,
@@ -13,6 +12,7 @@ from ape.api import (
     ReceiptAPI,
     SubprocessProvider,
     TestProviderAPI,
+    TraceAPI,
     TransactionAPI,
 )
 from ape.exceptions import (
@@ -24,25 +24,14 @@ from ape.exceptions import (
     VirtualMachineError,
 )
 from ape.logging import logger
-from ape.types import (
-    AddressType,
-    BlockID,
-    CallTreeNode,
-    ContractCode,
-    SnapshotID,
-    SourceTraceback,
-    TraceFrame,
-)
+from ape.types import AddressType, ContractCode, SnapshotID
 from ape.utils import DEFAULT_TEST_HD_PATH, cached_property
 from ape_ethereum.provider import Web3Provider
+from ape_ethereum.trace import TraceApproach, TransactionTrace
 from ape_test import ApeTestConfig
 from chompjs import parse_js_object  # type: ignore
 from eth_pydantic_types import HexBytes
-from eth_typing import HexStr
 from eth_utils import is_0x_prefixed, is_hex, to_hex
-from evm_trace import CallType
-from evm_trace import TraceFrame as EvmTraceFrame
-from evm_trace import create_trace_frames, get_calltree_from_geth_trace
 from packaging.version import Version
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import SettingsConfigDict
@@ -175,8 +164,8 @@ class PackageJson(BaseModel):
     name: Optional[str] = None
     version: Optional[str] = None
     description: Optional[str] = None
-    dependencies: Optional[Dict[str, str]] = None
-    dev_dependencies: Optional[Dict[str, str]] = Field(None, alias="devDependencies")
+    dependencies: Optional[dict[str, str]] = None
+    dev_dependencies: Optional[dict[str, str]] = Field(None, alias="devDependencies")
 
 
 class HardhatForkConfig(PluginConfig):
@@ -239,7 +228,7 @@ class HardhatNetworkConfig(PluginConfig):
     # For setting the values in --fork and --fork-block-number command arguments.
     # Used only in HardhatForkProvider.
     # Mapping of ecosystem_name => network_name => HardhatForkConfig
-    fork: Dict[str, Dict[str, HardhatForkConfig]] = {}
+    fork: dict[str, dict[str, HardhatForkConfig]] = {}
 
     model_config = SettingsConfigDict(extra="allow")
 
@@ -298,7 +287,7 @@ def _call(*args):
 
 class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     _host: Optional[str] = None
-    attempted_ports: List[int] = []
+    attempted_ports: list[int] = []
     _did_warn_wrong_node = False
 
     # Will get set to False if notices not installed correctly.
@@ -307,8 +296,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     # such when running via `pytester`.
     _detected_correct_install: bool = True
 
+    # Hardhat supports `debug_trceCall`.
+    _supports_debug_trace_call: Optional[bool] = True
+
     @property
-    def unlocked_accounts(self) -> List[AddressType]:
+    def unlocked_accounts(self) -> list[AddressType]:
         return list(self.account_manager.test_accounts._impersonated_accounts)
 
     @property
@@ -479,12 +471,21 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         This is a helpful way of determing if a Hardhat node is a fork or not
         when connecting to a remote Hardhat network.
         """
-        metadata = self._make_request("hardhat_metadata", [])
+        metadata = self.make_request("hardhat_metadata", [])
         return NetworkMetadata.model_validate(metadata)
 
     @cached_property
     def _test_config(self) -> ApeTestConfig:
         return cast(ApeTestConfig, self.config_manager.get_config("test"))
+
+    @property
+    def auto_mine(self) -> bool:
+        return self.make_request("hardhat_getAutomine", [])
+
+    @auto_mine.setter
+    def auto_mine(self, value) -> None:
+        # NOTE: The prefix is for `evm_` instead of `hardhat_` for some reason!
+        return self.make_request("evm_setAutomine", [value])
 
     @cached_property
     def _package_json(self) -> PackageJson:
@@ -496,8 +497,8 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return PackageJson.model_validate_json(json_path.read_text())
 
     @cached_property
-    def _hardhat_plugins(self) -> List[str]:
-        plugins: List[str] = []
+    def _hardhat_plugins(self) -> list[str]:
+        plugins: list[str] = []
 
         def package_is_plugin(package: str) -> bool:
             return re.search(HARDHAT_PLUGIN_PATTERN, package) is not None
@@ -650,7 +651,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         self._host = None
         super().disconnect()
 
-    def build_command(self) -> List[str]:
+    def build_command(self) -> list[str]:
         # Run `node` on the actual binary.
         # This allows the process mgmt to function and prevents dangling nodes.
         if not self.bin_path.is_file():
@@ -658,7 +659,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         return self._get_command()
 
-    def _get_command(self) -> List[str]:
+    def _get_command(self) -> list[str]:
         if self.hardhat_config_file == self._ape_managed_hardhat_config_file:
             # If we are using the Ape managed file. regenerated before launch.
             self._ape_managed_hardhat_config_file.unlink(missing_ok=True)
@@ -686,7 +687,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         ]
 
     def set_block_gas_limit(self, gas_limit: int) -> bool:
-        return self._make_request("evm_setBlockGasLimit", [hex(gas_limit)]) is True
+        return self.make_request("evm_setBlockGasLimit", [hex(gas_limit)]) is True
 
     def set_code(self, address: AddressType, code: ContractCode) -> bool:
         if isinstance(code, bytes):
@@ -695,133 +696,27 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         elif not is_hex(code):
             raise ValueError(f"Value {code} is not convertible to hex")
 
-        return self._make_request("hardhat_setCode", [address, code])
+        return self.make_request("hardhat_setCode", [address, code])
 
     def set_timestamp(self, new_timestamp: int):
-        self._make_request("evm_setNextBlockTimestamp", [new_timestamp])
+        self.make_request("evm_setNextBlockTimestamp", [new_timestamp])
 
     def mine(self, num_blocks: int = 1):
         # NOTE: Request fails when given numbers with any left padded 0s.
         num_blocks_arg = f"0x{HexBytes(num_blocks).hex().replace('0x', '').lstrip('0')}"
-        self._make_request("hardhat_mine", [num_blocks_arg])
+        self.make_request("hardhat_mine", [num_blocks_arg])
 
     def snapshot(self) -> str:
-        return self._make_request("evm_snapshot", [])
+        return self.make_request("evm_snapshot", [])
 
-    def revert(self, snapshot_id: SnapshotID) -> bool:
+    def restore(self, snapshot_id: SnapshotID) -> bool:
         if isinstance(snapshot_id, int):
             snapshot_id = HexBytes(snapshot_id).hex()
 
-        return self._make_request("evm_revert", [snapshot_id]) is True
+        return self.make_request("evm_revert", [snapshot_id]) is True
 
     def unlock_account(self, address: AddressType) -> bool:
-        return self._make_request("hardhat_impersonateAccount", [address])
-
-    def send_call(
-        self,
-        txn: TransactionAPI,
-        block_id: Optional[BlockID] = None,
-        state: Optional[Dict] = None,
-        **kwargs,
-    ) -> HexBytes:
-        skip_trace = kwargs.pop("skip_trace", False)
-        if block_id is not None:
-            kwargs["block_identifier"] = block_id
-        if state is not None:
-            kwargs["state_override"] = state
-
-        arguments = self._prepare_call(txn, **kwargs)
-        if skip_trace:
-            return self._send_call_legacy(txn, **kwargs)
-
-        show_gas = kwargs.pop("show_gas_report", False)
-        show_trace = kwargs.pop("show_trace", False)
-
-        if self._test_runner is not None:
-            track_gas = self._test_runner.gas_tracker.enabled
-            track_coverage = self._test_runner.coverage_tracker.enabled
-        else:
-            track_gas = False
-            track_coverage = False
-
-        needs_trace = track_gas or track_coverage or show_gas or show_trace
-        if not needs_trace:
-            return self._send_call_legacy(txn, **kwargs)
-
-        # The user is requesting information related to a call's trace,
-        # such as gas usage data.
-        try:
-            result, trace_frames = self._trace_call(arguments)
-        except Exception as err:
-            logger.error(f"Error when tracing call: {err}")
-            return self._send_call_legacy(txn, **kwargs)
-
-        trace_frames, frames_copy = tee(trace_frames)
-        return_value = HexBytes(result["returnValue"])
-        root_node_kwargs = {
-            "gas_cost": result.get("gas", 0),
-            "address": txn.receiver,
-            "calldata": txn.data,
-            "value": txn.value,
-            "call_type": CallType.CALL,
-            "failed": False,
-            "returndata": return_value,
-        }
-
-        evm_call_tree = get_calltree_from_geth_trace(trace_frames, **root_node_kwargs)
-
-        # NOTE: Don't pass txn_hash here, as it will fail (this is not a real txn).
-        call_tree = self._create_call_tree_node(evm_call_tree)
-
-        if track_gas and show_gas and not show_trace and call_tree:
-            # Optimization to enrich early and in_place=True.
-            call_tree.enrich()
-
-        if track_gas and call_tree and self._test_runner is not None and txn.receiver:
-            # Gas report being collected, likely for showing a report
-            # at the end of a test run.
-            # Use `in_place=False` in case also `show_trace=True`
-            enriched_call_tree = call_tree.enrich(in_place=False)
-            self._test_runner.gas_tracker.append_gas(enriched_call_tree, txn.receiver)
-
-        if track_coverage and self._test_runner is not None and txn.receiver:
-            contract_type = self.chain_manager.contracts.get(txn.receiver)
-            if contract_type:
-                traceframes = (self._create_trace_frame(x) for x in frames_copy)
-                method_id = HexBytes(txn.data)
-                selector = (
-                    contract_type.methods[method_id].selector
-                    if method_id in contract_type.methods
-                    else None
-                )
-                source_traceback = SourceTraceback.create(contract_type, traceframes, method_id)
-                self._test_runner.coverage_tracker.cover(
-                    source_traceback, function=selector, contract=contract_type.name
-                )
-
-        if show_gas:
-            enriched_call_tree = call_tree.enrich(in_place=False)
-            self.chain_manager._reports.show_gas(enriched_call_tree)
-
-        if show_trace:
-            call_tree = call_tree.enrich(use_symbol_for_tokens=True)
-            self.chain_manager._reports.show_trace(call_tree)
-
-        return return_value
-
-    def _trace_call(self, arguments: List[Any]) -> Tuple[Dict, Iterator[EvmTraceFrame]]:
-        result = self._make_request("debug_traceCall", arguments)
-        trace_data = result.get("structLogs", [])
-        return result, create_trace_frames(trace_data)
-
-    def _send_call_legacy(self, txn, **kwargs) -> HexBytes:
-        result = super().send_call(txn, **kwargs)
-
-        # Older versions of Hardhat do not support call tracing.
-        # But we are still able to incremenet func hits.
-        self._increment_call_func_coverage_hit_count(txn)
-
-        return result
+        return self.make_request("hardhat_impersonateAccount", [address])
 
     def _increment_call_func_coverage_hit_count(self, txn: TransactionAPI):
         """
@@ -903,71 +798,39 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         return receipt
 
-    def get_receipt(
-        self,
-        txn_hash: str,
-        required_confirmations: int = 0,
-        timeout: Optional[int] = None,
-        **kwargs,
-    ) -> ReceiptAPI:
-        try:
-            # Try once without waiting first.
-            # NOTE: This is required for txn sent with an impersonated account.
-            receipt_data = dict(self.web3.eth.get_transaction_receipt(HexStr(txn_hash)))
-        except Exception:
-            return super().get_receipt(
-                txn_hash, required_confirmations=required_confirmations, timeout=timeout
-            )
+    # def get_receipt(
+    #     self,
+    #     txn_hash: str,
+    #     required_confirmations: int = 0,
+    #     timeout: Optional[int] = None,
+    #     **kwargs,
+    # ) -> ReceiptAPI:
+    #     try:
+    #         # Try once without waiting first.
+    #         # NOTE: This is required for txn sent with an impersonated account.
+    #         receipt_data = dict(self.web3.eth.get_transaction_receipt(HexStr(txn_hash)))
+    #     except Exception:
+    #         return super().get_receipt(
+    #             txn_hash, required_confirmations=required_confirmations, timeout=timeout
+    #         )
+    #
+    #     txn = kwargs.get("txn", dict(self.web3.eth.get_transaction(HexStr(txn_hash))))
+    #     data: dict = {"txn_hash": txn_hash, **receipt_data, **txn}
+    #     if "gas_price" not in data:
+    #         data["gas_price"] = self.gas_price
+    #
+    #     receipt = self.network.ecosystem.decode_receipt(data)
+    #     self.chain_manager.history.append(receipt)
+    #     return receipt
 
-        txn = kwargs.get("txn", dict(self.web3.eth.get_transaction(HexStr(txn_hash))))
-        data: Dict = {"txn_hash": txn_hash, **receipt_data, **txn}
-        if "gas_price" not in data:
-            data["gas_price"] = self.gas_price
+    def get_transaction_trace(self, transaction_hash: str, **kwargs) -> TraceAPI:
+        if "debug_trace_transaction_parameters" not in kwargs:
+            kwargs["debug_trace_transaction_parameters"] = {}
 
-        receipt = self.network.ecosystem.decode_receipt(data)
-        self.chain_manager.history.append(receipt)
-        return receipt
+        if "call_trace_approach" not in kwargs:
+            kwargs["call_trace_approach"] = TraceApproach.GETH_STRUCT_LOG_PARSE
 
-    def get_transaction_trace(self, txn_hash: str) -> Iterator[TraceFrame]:
-        for trace in self._get_transaction_trace(txn_hash):
-            yield self._create_trace_frame(trace)
-
-    def _get_transaction_trace(self, txn_hash: str) -> Iterator[EvmTraceFrame]:
-        result = self._make_request("debug_traceTransaction", [txn_hash])
-        frames = result.get("structLogs", [])
-        yield from create_trace_frames(frames)
-
-    def get_call_tree(self, txn_hash: str) -> CallTreeNode:
-        receipt = self.chain_manager.get_receipt(txn_hash)
-
-        # Subtract base gas costs.
-        # (21_000 + 4 gas per 0-byte and 16 gas per non-zero byte).
-        data_gas = sum([4 if x == 0 else 16 for x in receipt.data])
-        method_gas_cost = receipt.gas_used - 21_000 - data_gas
-
-        if receipt.receiver:
-            address = receipt.receiver
-            call_type = CallType.CALL
-        elif receipt.contract_address:
-            address = receipt.contract_address
-            call_type = CallType.CREATE
-        else:
-            # Not sure if this is possible.
-            address = None
-            call_type = None
-
-        address = receipt.receiver or receipt.contract_address
-        evm_call = get_calltree_from_geth_trace(
-            self._get_transaction_trace(txn_hash),
-            gas_cost=method_gas_cost,
-            gas_limit=receipt.gas_limit,
-            address=address,
-            calldata=receipt.data,
-            value=receipt.value,
-            call_type=call_type,
-            failed=receipt.failed,
-        )
-        return self._create_call_tree_node(evm_call, txn_hash=txn_hash)
+        return _get_transaction_trace(transaction_hash, **kwargs)
 
     def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
         is_str = isinstance(amount, str)
@@ -986,7 +849,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         elif isinstance(amount, int) or isinstance(amount, bytes):
             amount_hex_str = to_hex(amount)
 
-        self._make_request("hardhat_setBalance", [account, amount_hex_str])
+        self.make_request("hardhat_setBalance", [account, amount_hex_str])
 
     def get_virtual_machine_error(self, exception: Exception, **kwargs) -> VirtualMachineError:
         if not len(exception.args):
@@ -1070,7 +933,7 @@ class HardhatForkProvider(HardhatProvider):
         plugin_config = cls.config_manager.get_config(value["name"])
         config_settings = plugin_config.get("fork", {})
 
-        def _get_upstream(data: Dict) -> Optional[str]:
+        def _get_upstream(data: dict) -> Optional[str]:
             return (
                 data.get(ecosystem_name, {})
                 .get(network.name.replace("-fork", ""), {})
@@ -1136,14 +999,14 @@ class HardhatForkProvider(HardhatProvider):
             # This will fail when trying to connect hardhat-fork to
             # a non-forked network.
             raise HardhatProviderError(
-                "Network is no a fork. "
+                "Network is not a fork. "
                 "Hardhat is likely already running on the local network. "
                 "Try using config:\n\n(ape-config.yaml)\n```\nhardhat:\n  "
                 "host: auto\n```\n\nso that multiple processes can automatically "
                 "use different ports."
             )
 
-    def build_command(self) -> List[str]:
+    def build_command(self) -> list[str]:
         if not self.fork_url:
             raise HardhatProviderError("Upstream provider does not have a ``connection_str``.")
 
@@ -1164,14 +1027,19 @@ class HardhatForkProvider(HardhatProvider):
         return cmd
 
     def reset_fork(self, block_number: Optional[int] = None):
-        forking_params: Dict[str, Union[str, int]] = {"jsonRpcUrl": self.fork_url}
+        forking_params: dict[str, Union[str, int]] = {"jsonRpcUrl": self.fork_url}
         block_number = block_number if block_number is not None else self.fork_block_number
         if block_number is not None:
             forking_params["blockNumber"] = block_number
 
-        return self._make_request("hardhat_reset", [{"forking": forking_params}])
+        return self.make_request("hardhat_reset", [{"forking": forking_params}])
 
 
 def _create_web3(uri: str, timeout: int) -> Web3:
     # NOTE: This method exists so can be mocked in testing.
     return Web3(HTTPProvider(uri, request_kwargs={"timeout": timeout}))
+
+
+def _get_transaction_trace(transaction_hash: str, **kwargs) -> TraceAPI:
+    # Abstracted for testing purposes.
+    return TransactionTrace(transaction_hash=transaction_hash, **kwargs)

@@ -85,7 +85,7 @@ def run_gas_test(result, expected_report: str = EXPECTED_GAS_REPORT):
 
 
 def test_gas_flag_in_tests(ape_pytester):
-    result = ape_pytester.runpytest("--gas")
+    result = ape_pytester.runpytest("--gas", "--network", "ethereum:local:hardhat")
     run_gas_test(result)
 
     # Verify can happen more than once.
@@ -97,5 +97,11 @@ def test_gas_flag_exclude_method_using_cli_option(ape_pytester):
     expected = filter_expected_methods("fooAndBar", "myNumber")
     # Also ensure can filter out whole class
     expected = expected.replace(TOKEN_B_GAS_REPORT, "")
-    result = ape_pytester.runpytest("--gas", "--gas-exclude", "*:fooAndBar,*:myNumber,tokenB:*")
+    result = ape_pytester.runpytest(
+        "--gas",
+        "--gas-exclude",
+        "*:fooAndBar,*:myNumber,tokenB:*",
+        "--network",
+        "ethereum:local:hardhat",
+    )
     run_gas_test(result, expected_report=expected)

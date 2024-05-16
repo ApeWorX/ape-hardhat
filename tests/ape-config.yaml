@@ -7,7 +7,7 @@ ethereum:
 polygon:
   local:
     default_provider: hardhat
-  mumbai:
+  amoy:
     default_provider: alchemy
 
 hardhat:
@@ -27,7 +27,7 @@ hardhat:
         host: 127.0.0.1:7112
 
     polygon:
-      mumbai:
+      amoy:
         host: 127.0.0.1:7113
 
 test:
