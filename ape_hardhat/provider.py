@@ -33,7 +33,7 @@ from chompjs import parse_js_object  # type: ignore
 from eth_pydantic_types import HexBytes
 from eth_utils import is_0x_prefixed, is_hex, to_hex
 from packaging.version import Version
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 from pydantic_settings import SettingsConfigDict
 from web3 import HTTPProvider, Web3
 from web3.exceptions import ExtraDataLengthError
@@ -232,6 +232,16 @@ class HardhatNetworkConfig(PluginConfig):
 
     model_config = SettingsConfigDict(extra="allow")
 
+    @field_validator("bin_path", mode="before")
+    @classmethod
+    def resolve_bin_path(cls, value):
+        if not value:
+            return None
+
+        # NOTE: Don't resolve symlinks because CLI bin will turn
+        # into a .js file otherwise.
+        return Path(value).expanduser().absolute()
+
 
 class ForkedNetworkMetadata(BaseModel):
     """
@@ -383,10 +393,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return node
 
     @property
-    def project_folder(self) -> Path:
-        return self.config_manager.PROJECT_FOLDER
-
-    @property
     def config_host(self) -> Optional[str]:
         # NOTE: Overriden in Forked networks.
         return self.settings.host
@@ -434,12 +440,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @property
     def bin_path(self) -> Path:
-        if self.settings.bin_path:
-            # NOTE: Don't resolve symlinks
-            return Path(self.settings.bin_path).expanduser().absolute()
+        if path := self.settings.bin_path:
+            return path
 
         suffix = Path("node_modules") / ".bin" / "hardhat"
-        options = (self.project_folder, Path.home())
+        options = (self.local_project.path, Path.home())
         for base in options:
             path = base / suffix
             if path.exists():
@@ -489,7 +494,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @cached_property
     def _package_json(self) -> PackageJson:
-        json_path = self.project_folder / "package.json"
+        json_path = self.local_project.path / "package.json"
 
         if not json_path.is_file():
             return PackageJson()
@@ -661,7 +666,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     def _get_command(self) -> list[str]:
         if self.hardhat_config_file == self._ape_managed_hardhat_config_file:
-            # If we are using the Ape managed file. regenerated before launch.
+            # If we are using the Ape managed file, regenerate before launch.
             self._ape_managed_hardhat_config_file.unlink(missing_ok=True)
 
         # Validate (and create if needed) the user-given path.
@@ -738,7 +743,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if not contract_type:
             return
 
-        contract_src = self.project_manager._create_contract_source(contract_type)
+        contract_src = self.local_project._create_contract_source(contract_type)
         if not contract_src:
             return
 

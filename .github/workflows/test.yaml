@@ -80,7 +80,7 @@ jobs:
               node-version: '18'
 
         - name: Install Node Dependencies
-          run: pushd tests && npm install --save-dev hardhat && popd
+          run: npm install --save-dev hardhat
 
         - name: Run Async Tests
           run: pytest -m "not fork and not manual and not fuzzing"
