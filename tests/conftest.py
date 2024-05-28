@@ -44,6 +44,12 @@ def project():
     return ape.project
 
 
+@pytest.fixture(autouse=True, scope="session")
+def clean_datafolder():
+    yield  # Run all collected tests.
+    shutil.rmtree(DATA_FOLDER, ignore_errors=True)
+
+
 @pytest.fixture(scope="session")
 def name():
     return NAME
