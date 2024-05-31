@@ -25,6 +25,10 @@ hardhat:
         upstream_provider: alchemy
         block_number: 3091950
         host: 127.0.0.1:7112
+      holesky:
+        upstream_provider: alchemy
+        block_number: 100
+        host: 127.0.0.1:7116
 
     polygon:
       amoy:
