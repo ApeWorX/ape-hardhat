@@ -33,7 +33,7 @@ from chompjs import parse_js_object  # type: ignore
 from eth_pydantic_types import HexBytes
 from eth_utils import is_0x_prefixed, is_hex, to_hex
 from packaging.version import Version
-from pydantic import BaseModel, Field, model_validator, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import SettingsConfigDict
 from web3 import HTTPProvider, Web3
 from web3.exceptions import ExtraDataLengthError

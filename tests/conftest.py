@@ -1,11 +1,8 @@
-import json
-import os
 import shutil
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import mkdtemp
-from typing import Optional
 
 import ape
 import pytest
