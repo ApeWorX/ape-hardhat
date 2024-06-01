@@ -1,19 +1,14 @@
-import json
 import shutil
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import mkdtemp
-from typing import Dict, Optional
 
 import ape
 import pytest
-import yaml
 from _pytest.runner import pytest_runtest_makereport as orig_pytest_runtest_makereport
 from ape.contracts import ContractContainer
 from ape.exceptions import APINotImplementedError, UnknownSnapshotError
-from ape.managers.config import CONFIG_FILE_NAME
-from ape.utils import create_tempdir
 from ethpm_types import ContractType
 
 from ape_hardhat import HardhatProvider
@@ -41,6 +36,17 @@ def pytest_runtest_makereport(item, call):
     return tr
 
 
+@pytest.fixture(autouse=True, scope="session")
+def project():
+    return ape.project
+
+
+@pytest.fixture(autouse=True, scope="session")
+def clean_datafolder():
+    yield  # Run all collected tests.
+    shutil.rmtree(DATA_FOLDER, ignore_errors=True)
+
+
 @pytest.fixture(scope="session")
 def name():
     return NAME
@@ -49,12 +55,6 @@ def name():
 @pytest.fixture(scope="session")
 def data_folder():
     return DATA_FOLDER
-
-
-@pytest.fixture(scope="session", autouse=True)
-def in_tests_dir(config):
-    with config.using_project(Path(__file__).parent):
-        yield
 
 
 @contextmanager
@@ -98,11 +98,6 @@ def main_provider_isolation(connected_provider):
 @pytest.fixture(scope="session")
 def config():
     return ape.config
-
-
-@pytest.fixture(scope="session")
-def project():
-    return ape.project
 
 
 @pytest.fixture(scope="session")
@@ -182,6 +177,9 @@ def local_network_api(networks):
 
 @pytest.fixture
 def connected_provider(name, networks, local_network_api):
+    """
+    The main HH local-network (non-fork) instance.
+    """
     with networks.ethereum.local.use_provider(name) as provider:
         yield provider
 
@@ -221,36 +219,6 @@ def sepolia_fork_provider(name, networks, sepolia_fork_port):
         name, provider_settings={"host": f"http://127.0.0.1:{sepolia_fork_port}"}
     ) as provider:
         yield provider
-
-
-@pytest.fixture(scope="session")
-def temp_config(config):
-    @contextmanager
-    def func(data: Dict, package_json: Optional[Dict] = None):
-        with create_tempdir() as temp_dir:
-            config._cached_configs = {}
-            config_file = temp_dir / CONFIG_FILE_NAME
-            config_file.touch()
-
-            # Default to using the normal bin to avoid a temp installation.
-            data["bin_path"] = data.get(
-                "bin_path", (Path(__file__).parent / "node_modules" / ".bin" / "hardhat").as_posix()
-            )
-
-            config_file.write_text(yaml.dump(data))
-            config.load(force_reload=True)
-
-            if package_json:
-                package_json_file = temp_dir / "package.json"
-                package_json_file.write_text(json.dumps(package_json))
-
-            with config.using_project(temp_dir):
-                yield temp_dir
-
-            config_file.unlink()
-            config._cached_configs = {}
-
-    return func
 
 
 @pytest.fixture

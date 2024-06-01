@@ -119,7 +119,8 @@ dmypy.json
 version.py
 
 # Ape stuff
-tests/hardhat.config.js
+hardhat.config.js
+hardhat.config.ts
 
 # NPM
 package.json
@@ -127,7 +128,7 @@ package-lock.json
 node_modules/
 
 # Hardhat
-tests/**/cache
+**/cache
 
 **/.DS_Store
 *.swp

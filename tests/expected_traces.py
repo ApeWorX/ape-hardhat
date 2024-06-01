@@ -1,7 +1,7 @@
 LOCAL_TRACE = r"""
 Call trace for '0x([A-Fa-f0-9]{64})'
 tx\.origin=0x[a-fA-F0-9]{40}
-ContractA\.methodWithoutArguments\(\) -> 0x00..5174 \[\d+ gas\]
+ContractA\.methodWithoutArguments\(\) -> 0x00..93bc \[\d+ gas\]
 ├── SYMBOL\.methodB1\(lolol="ice-cream", dynamo=36\)
 │   ├── ContractC\.getSomeList\(\) -> \[
 │   │     3425311345134513461345134534531452345,
@@ -58,7 +58,7 @@ MAINNET_FAIL_TRACE_LAST_10_LINES = r"""
 MAINNET_TRACE_FIRST_10_LINES = r"""
 Call trace for '0xb7d7f1d5ce7743e821d3026647df486f517946ef1342a1ae93c96e4a8016eab7'
 tx\.origin=0x5668EAd1eDB8E2a4d724C8fb9cB5fFEabEB422dc
-DSProxy\.execute\(_target=LoanShifterTaker, _data=0x35\.\.0000\) -> "" \[1249147 gas\]
+DSProxy\.execute\(_target=LoanShifterTaker, _data=0x35\.\.0000\) -> 0 \[\d+ gas\]
 └── \(delegate\) LoanShifterTaker\.moveLoan\(
       _exchangeData=\[
         0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE,

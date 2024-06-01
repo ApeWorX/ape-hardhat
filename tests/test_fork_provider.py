@@ -1,10 +1,10 @@
+import json
 from pathlib import Path
 
 import pytest
 from ape.api.networks import LOCAL_NETWORK_NAME
 from ape.contracts import ContractInstance
 from ape.exceptions import ContractLogicError
-from ape.utils import create_tempdir
 from ape_ethereum.ecosystem import NETWORKS
 
 from ape_hardhat.provider import HardhatForkProvider
@@ -52,7 +52,7 @@ def test_multiple_providers(
     assert networks.active_provider.uri == default_host
 
 
-@pytest.mark.parametrize("network", [k for k in NETWORKS.keys() if k != "goerli"])
+@pytest.mark.parametrize("network", NETWORKS)
 def test_fork_config(name, config, network):
     plugin_config = config.get_config(name)
     network_config = plugin_config["fork"].get("ethereum", {}).get(network, {})
@@ -78,15 +78,17 @@ def test_mainnet_impersonate(accounts, mainnet_fork_provider):
 
 
 @pytest.mark.fork
-def test_request_timeout(networks, config, mainnet_fork_provider):
+def test_request_timeout(networks, project, mainnet_fork_provider):
+    # Is set in ape-config.yaml
+    expected = 360
+    assert networks.active_provider.timeout == expected
     actual = mainnet_fork_provider.web3.provider._request_kwargs["timeout"]
-    expected = 360  # Value set in `ape-config.yaml`
     assert actual == expected
 
-    # Test default behavior
-    with create_tempdir() as temp_dir:
-        with config.using_project(temp_dir):
-            assert networks.active_provider.timeout == 300
+    # Test default behavior.
+    with project.temp_config(hardhat={}):
+        actual = mainnet_fork_provider.timeout
+        assert actual == 300
 
 
 @pytest.mark.fork
@@ -182,7 +184,7 @@ def test_get_receipt(mainnet_fork_provider, mainnet_fork_contract_instance, owne
     ],
 )
 def test_hardhat_command(
-    temp_config,
+    project,
     networks,
     port,
     upstream_network,
@@ -192,16 +194,14 @@ def test_hardhat_command(
     name,
     data_folder,
 ):
-    eth_config = {
-        name: {
-            "fork": {
-                "ethereum": {
-                    upstream_network: {
-                        "enable_hardhat_deployments": enable_hardhat_deployments,
-                        "block_number": fork_block_number,
-                    }
+    hh_ape_config = {
+        "fork": {
+            "ethereum": {
+                upstream_network: {
+                    "enable_hardhat_deployments": enable_hardhat_deployments,
+                    "block_number": fork_block_number,
                 }
-            },
+            }
         },
     }
     package_json = {
@@ -216,7 +216,10 @@ def test_hardhat_command(
     if has_hardhat_deploy:
         package_json["devDependencies"] = {"hardhat-deploy": "^0.8.10"}
 
-    with temp_config(eth_config, package_json):
+    with project.temp_config(hardhat=hh_ape_config):
+        package_json_path = project.path / "package.json"
+        package_json_path.unlink(missing_ok=True)
+        package_json_path.write_text(json.dumps(package_json, indent=2))
         network_api = networks.ethereum[f"{upstream_network}-fork"]
         provider = HardhatForkProvider(
             name=name,
@@ -243,7 +246,7 @@ def test_hardhat_command(
         if fork_block_number:
             expected.extend(("--fork-block-number", str(fork_block_number)))
 
-        assert actual[0].endswith("npx")
+        assert actual[0].endswith("npx") or actual[0].endswith("node")  # depends on node version
         assert actual[1].endswith("hardhat")
         assert actual[2:] == expected
 
@@ -254,6 +257,6 @@ def test_connect_to_polygon(networks, owner, contract_container):
     Ensures we don't get PoA middleware issue.
     Also, ensure that we using a different host (via config).
     """
-    with networks.polygon.mumbai_fork.use_provider("hardhat"):
+    with networks.polygon.amoy_fork.use_provider("hardhat"):
         contract = owner.deploy(contract_container)
         assert isinstance(contract, ContractInstance)  # Didn't fail

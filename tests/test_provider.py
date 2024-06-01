@@ -2,13 +2,10 @@ import shutil
 
 import pytest
 import requests
-from ape.api import ReceiptAPI
+from ape.api import ReceiptAPI, TraceAPI
 from ape.api.accounts import ImpersonatedAccount
 from ape.contracts import ContractContainer
 from ape.exceptions import ContractLogicError
-from ape.types import CallTreeNode, TraceFrame
-from ape.utils import create_tempdir
-from evm_trace import CallType
 from hexbytes import HexBytes
 
 from ape_hardhat.exceptions import HardhatNotInstalledError, HardhatProviderError
@@ -88,15 +85,15 @@ def test_mine_many_blocks(connected_provider):
     assert next_block_num >= block_num + 12
 
 
-def test_revert_failure(connected_provider):
-    assert connected_provider.revert(0xFFFF) is False
+def test_restore_failure(connected_provider):
+    assert connected_provider.restore(0xFFFF) is False
 
 
 def test_get_balance(connected_provider, owner):
     assert connected_provider.get_balance(owner.address)
 
 
-def test_snapshot_and_revert(connected_provider):
+def test_snapshot_and_restore(connected_provider):
     snap = connected_provider.snapshot()
 
     block_1 = connected_provider.get_block("latest")
@@ -105,7 +102,7 @@ def test_snapshot_and_revert(connected_provider):
     assert block_2.number > block_1.number
     assert block_1.hash != block_2.hash
 
-    connected_provider.revert(snap)
+    connected_provider.restore(snap)
     block_3 = connected_provider.get_block("latest")
     assert block_1.number == block_3.number
     assert block_1.hash == block_3.hash
@@ -125,29 +122,19 @@ def test_unlock_account(connected_provider, owner, contract_a, accounts):
 
 def test_get_transaction_trace(connected_provider, sender, receiver):
     transfer = sender.transfer(receiver, 1)
-    frame_data = connected_provider.get_transaction_trace(transfer.txn_hash)
-    for frame in frame_data:
-        assert isinstance(frame, TraceFrame)
+    trace = connected_provider.get_transaction_trace(transfer.txn_hash)
+    assert isinstance(trace, TraceAPI)
 
 
-def test_get_call_tree(connected_provider, sender, receiver):
-    transfer = sender.transfer(receiver, 1)
-    call_tree = connected_provider.get_call_tree(transfer.txn_hash)
-    assert isinstance(call_tree, CallTreeNode)
-    assert call_tree.call_type == CallType.CALL.value
-    assert repr(call_tree) == "0x70997970C51812dc3A010C7d01b50e0d17dc79C8.0x()"
-
-
-def test_request_timeout(connected_provider, config):
-    # Test value set in `ape-config.yaml`
-    expected = 29
+def test_request_timeout(connected_provider, project):
+    # Value set from config.
+    assert connected_provider.timeout == 29
     actual = connected_provider.web3.provider._request_kwargs["timeout"]
-    assert actual == expected
+    assert actual == 29
 
-    # Test default behavior
-    with create_tempdir() as temp_dir:
-        with config.using_project(temp_dir):
-            assert connected_provider.timeout == 30
+    with project.temp_config(hardhat={}):
+        actual = connected_provider.timeout
+        assert actual == 30  # default
 
 
 def test_send_transaction_and_send_call(contract_instance, owner):
@@ -235,22 +222,20 @@ def test_revert_error_from_impersonated_account(error_contract, accounts):
 
 
 @pytest.mark.parametrize("host", ("https://example.com", "example.com"))
-def test_host(temp_config, networks, host):
-    data = {"hardhat": {"host": host}}
-    with temp_config(data):
+def test_host(project, networks, host):
+    with project.temp_config(hardhat={"host": host}):
         provider = networks.ethereum.local.get_provider("hardhat")
         assert provider.uri == "https://example.com"
 
 
-def test_use_different_config(temp_config, networks, project):
-    data = {"hardhat": {"hardhat_config_file": "./hardhat.config.ts"}}
-    with temp_config(data):
+def test_use_different_config(project, networks):
+    with project.temp_config(hardhat={"hardhat_config_file": "./hardhat.config.ts"}):
         provider = networks.ethereum.local.get_provider("hardhat")
         assert provider.hardhat_config_file.name == "hardhat.config.ts"
         assert "--config" in provider._get_command()
 
         actual = provider._get_command()
-        assert "npx" in actual[0]
+        assert "npx" in actual[0] or "node" in actual[0]  # depends on node version.
         # Will either be home dir hardhat if installed there
         # or just the relative suffix (like in CI).
         assert actual[1].endswith("node_modules/.bin/hardhat")
@@ -273,6 +258,14 @@ def test_connect_when_hardhat_not_installed(networks, mock_web3, install_detecti
     )
     with pytest.raises(HardhatNotInstalledError, match=expected):
         provider.connect()
+
+
+def test_auto_mine(connected_provider):
+    assert connected_provider.auto_mine is True
+    connected_provider.auto_mine = False
+    assert connected_provider.auto_mine is False
+    connected_provider.auto_mine = True
+    assert connected_provider.auto_mine is True
 
 
 def test_get_virtual_machine_error_when_sol_panic(connected_provider):
@@ -299,9 +292,8 @@ def test_bin_path(connected_provider, project):
         shutil.move(bin_cp, expected)
 
 
-def test_remote_host(temp_config, networks, no_hardhat_bin, project):
-    data = {"hardhat": {"host": "https://example.com"}}
-    with temp_config(data):
+def test_remote_host(networks, no_hardhat_bin, project):
+    with project.temp_config(hardhat={"host": "https://example.com"}):
         with pytest.raises(
             HardhatProviderError,
             match=r"Failed to connect to remote Hardhat node at 'https://example.com'\.",
@@ -310,8 +302,7 @@ def test_remote_host(temp_config, networks, no_hardhat_bin, project):
                 pass
 
 
-def test_hardfork(temp_config, networks):
-    data = {"hardhat": {"evm_version": "london"}}
-    with temp_config(data):
+def test_hardfork(project, networks):
+    with project.temp_config(hardhat={"evm_version": "london"}):
         with networks.ethereum.local.use_provider("hardhat") as provider:
             assert provider.config.evm_version == "london"
