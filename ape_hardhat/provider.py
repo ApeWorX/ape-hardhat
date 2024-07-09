@@ -60,7 +60,8 @@ module.exports = {{
       accounts: {{
         mnemonic: "{mnemonic}",
         path: "{hd_path}",
-        count: {number_of_accounts}
+        count: {number_of_accounts},
+        accountsBalance: "{initial_balance}",
       }}
     }},
   }},
@@ -79,6 +80,7 @@ def _validate_hardhat_config_file(
     path: Path,
     mnemonic: str,
     num_of_accounts: int,
+    initial_balance: int,
     hardhat_version: str,
     hard_fork: Optional[str] = None,
     hd_path: Optional[str] = None,
@@ -107,6 +109,7 @@ def _validate_hardhat_config_file(
         mnemonic=mnemonic,
         number_of_accounts=num_of_accounts,
         hard_fork=hard_fork,
+        initial_balance=initial_balance,
     )
     if not path.is_file():
         # Create default '.js' file.
@@ -674,6 +677,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             self.hardhat_config_file,
             self.mnemonic,
             self.number_of_accounts,
+            self._test_config.balance,
             self.hardhat_version,
             hard_fork=self.config.evm_version,
             hd_path=self.test_config.hd_path or DEFAULT_TEST_HD_PATH,
