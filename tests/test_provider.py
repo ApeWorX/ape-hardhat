@@ -2,6 +2,7 @@ import shutil
 
 import pytest
 import requests
+from ape import convert
 from ape.api import ReceiptAPI, TraceAPI
 from ape.api.accounts import ImpersonatedAccount
 from ape.contracts import ContractContainer
@@ -306,3 +307,10 @@ def test_hardfork(project, networks):
     with project.temp_config(hardhat={"evm_version": "london"}):
         with networks.ethereum.local.use_provider("hardhat") as provider:
             assert provider.config.evm_version == "london"
+
+
+def test_initial_balance(accounts):
+    # We configured it to be 100_000 ETH but the default is 10_000 ETH and
+    # we may have spent some, so just assert its in between those two ranges.
+    acct = accounts[9]
+    assert convert("10_000 ETH", int) < acct.balance <= convert("100_000 ETH", int)

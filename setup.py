@@ -76,7 +76,7 @@ setup(
     url="https://github.com/ApeWorX/ape-hardhat",
     include_package_data=True,
     install_requires=[
-        "eth-ape>=0.8.1,<0.9",
+        "eth-ape>=0.8.9,<0.9",
         "ethpm-types",  # Use same version as eth-ape
         "evm-trace",  # Use same version as eth-ape
         "web3",  # Use same version as eth-ape
