@@ -19,6 +19,7 @@ from ape.exceptions import (
     ContractLogicError,
     OutOfGasError,
     RPCTimeoutError,
+    SignatureError,
     SubprocessError,
     TransactionError,
     VirtualMachineError,
@@ -28,6 +29,7 @@ from ape.types import AddressType, ContractCode, SnapshotID
 from ape.utils import DEFAULT_TEST_HD_PATH, cached_property
 from ape_ethereum.provider import Web3Provider
 from ape_ethereum.trace import TraceApproach, TransactionTrace
+from ape_ethereum.transactions import TransactionStatusEnum
 from ape_test import ApeTestConfig
 from chompjs import parse_js_object  # type: ignore
 from eth_pydantic_types import HexBytes
@@ -761,7 +763,6 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         Creates a new message call transaction or a contract creation
         for signed transactions.
         """
-
         sender = txn.sender
         if sender:
             sender = self.conversion_manager.convert(txn.sender, AddressType)
@@ -775,6 +776,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                 txn_dict["type"] = HexBytes(txn_dict["type"]).hex()
 
             txn_params = cast(TxParams, txn_dict)
+            vm_err = None
             try:
                 txn_hash = self.web3.eth.send_transaction(txn_params)
             except ValueError as err:
@@ -795,42 +797,41 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                 else:
                     tx = txn
 
-                raise self.get_virtual_machine_error(err, txn=tx) from err
+                vm_err = self.get_virtual_machine_error(err, txn=tx)
+                if txn.raise_on_revert:
+                    raise vm_err from err
 
-            receipt = self.get_receipt(
-                txn_hash.hex(), required_confirmations=txn.required_confirmations or 0, txn=txn_dict
-            )
-            receipt.raise_for_status()
+                try:
+                    txn_hash = txn.txn_hash
+                except SignatureError:
+                    txn_hash = None
+
+            required_confirmations = txn.required_confirmations or 0
+            if txn_hash is not None:
+                receipt = self.get_receipt(
+                    txn_hash.hex(), required_confirmations=required_confirmations, txn=txn_dict
+                )
+                if vm_err:
+                    receipt.error = vm_err
+                if txn.raise_on_revert:
+                    receipt.raise_for_status()
+
+            else:
+                # If we get here, likely was a failed (but allowed-fail)
+                # impersonated-sender receipt.
+                receipt = self._create_receipt(
+                    block_number=-1,  # Not in a block.
+                    error=vm_err,
+                    required_confirmations=required_confirmations,
+                    status=TransactionStatusEnum.FAILING,
+                    txn_hash="",  # No hash exists, likely from impersonated sender.
+                    **txn_dict,
+                )
 
         else:
             receipt = super().send_transaction(txn)
 
         return receipt
-
-    # def get_receipt(
-    #     self,
-    #     txn_hash: str,
-    #     required_confirmations: int = 0,
-    #     timeout: Optional[int] = None,
-    #     **kwargs,
-    # ) -> ReceiptAPI:
-    #     try:
-    #         # Try once without waiting first.
-    #         # NOTE: This is required for txn sent with an impersonated account.
-    #         receipt_data = dict(self.web3.eth.get_transaction_receipt(HexStr(txn_hash)))
-    #     except Exception:
-    #         return super().get_receipt(
-    #             txn_hash, required_confirmations=required_confirmations, timeout=timeout
-    #         )
-    #
-    #     txn = kwargs.get("txn", dict(self.web3.eth.get_transaction(HexStr(txn_hash))))
-    #     data: dict = {"txn_hash": txn_hash, **receipt_data, **txn}
-    #     if "gas_price" not in data:
-    #         data["gas_price"] = self.gas_price
-    #
-    #     receipt = self.network.ecosystem.decode_receipt(data)
-    #     self.chain_manager.history.append(receipt)
-    #     return receipt
 
     def get_transaction_trace(self, transaction_hash: str, **kwargs) -> TraceAPI:
         if "debug_trace_transaction_parameters" not in kwargs:
