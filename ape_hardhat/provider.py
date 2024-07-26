@@ -813,7 +813,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
                 )
                 if vm_err:
                     receipt.error = vm_err
-                if tx.raise_on_revert:
+                if txn.raise_on_revert:
                     receipt.raise_for_status()
 
             else:
