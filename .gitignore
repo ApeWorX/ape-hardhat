@@ -123,8 +123,6 @@ hardhat.config.js
 hardhat.config.ts
 
 # NPM
-package.json
-package-lock.json
 node_modules/
 
 # Hardhat

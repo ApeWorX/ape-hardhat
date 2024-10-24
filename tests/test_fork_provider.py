@@ -209,7 +209,7 @@ def test_hardhat_command(
         "version": "0.1.0",
         "dependencies": {
             "hardhat": "^2.13.1",
-            "hardhat-ethers": "^2.0.2",
+            "@nomicfoundation/hardhat-ethers": "^3.0.8"
         },
     }
 

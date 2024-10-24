@@ -8,11 +8,11 @@ ContractA\.methodWithoutArguments\(\) -> 0x00..93bc \[\d+ gas\]
 │   │     111344445534535353,
 │   │     993453434534534534534977788884443333
 │   │   \]
-│   └── ContractC\.methodC1\(windows95="simpler", jamaica=36, cardinal=ContractA\)
+│   └── ContractC\.methodC1\(windows95="simpler", jamaica=36, cardinal=Contract[A|C]\)
 ├── SYMBOL\.callMe\(blue=tx.origin\) -> tx\.origin
 ├── SYMBOL\.methodB2\(trombone=tx.origin\)
-│   ├── ContractC\.paperwork\(ContractA\) -> \(os="simpler", country=36, wings=ContractA\)
-│   ├── ContractC\.methodC1\(windows95="simpler", jamaica=0, cardinal=ContractC\)
+│   ├── ContractC\.paperwork\(Contract[A|C]\) -> \(os="simpler", country=36, wings=Contract[A|C]\)
+│   ├── ContractC\.methodC1\(windows95="simpler", jamaica=0, cardinal=Contract[A|C]\)
 │   ├── ContractC\.methodC2\(\)
 │   └── ContractC\.methodC2\(\)
 ├── ContractC\.addressToValue\(tx\.origin\) -> 0
@@ -23,14 +23,14 @@ ContractA\.methodWithoutArguments\(\) -> 0x00..93bc \[\d+ gas\]
 │   │     111344445534535353,
 │   │     993453434534534534534977788884443333
 │   │   \]
-│   └── ContractC.methodC1\(windows95="simpler", jamaica=0, cardinal=ContractA\)
+│   └── ContractC.methodC1\(windows95="simpler", jamaica=0, cardinal=Contract[A|C]\)
 └── SYMBOL\.methodB1\(lolol="snitches_get_stiches", dynamo=111\)
     ├── ContractC\.getSomeList\(\) -> \[
     │     3425311345134513461345134534531452345,
     │     111344445534535353,
     │     993453434534534534534977788884443333
     │   \]
-    └── ContractC\.methodC1\(windows95="simpler", jamaica=111, cardinal=ContractA\)
+    └── ContractC\.methodC1\(windows95="simpler", jamaica=111, cardinal=Contract[A|C]\)
 """
 MAINNET_FAIL_TRACE_FIRST_10_LINES = r"""
 Call trace for '0x053cba5c12172654d894f66d5670bab6215517a94189a9ffc09bc40a589ec04d'
