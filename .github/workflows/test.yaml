@@ -78,7 +78,7 @@ jobs:
               node-version: '18'
 
         - name: Install Node Dependencies
-          run: npm install --save-dev hardhat
+          run: npm install
 
         - name: Run Async Tests
           run: pytest -m "not fork and not manual and not fuzzing"
