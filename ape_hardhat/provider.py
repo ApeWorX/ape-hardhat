@@ -170,7 +170,7 @@ class PackageJson(BaseModel):
     version: Optional[str] = None
     description: Optional[str] = None
     dependencies: Optional[dict[str, str]] = None
-    dev_dependencies: Optional[dict[str, str]] = Field(None, alias="devDependencies")
+    dev_dependencies: Optional[dict[str, str]] = Field(default=None, alias="devDependencies")
 
 
 class HardhatForkConfig(PluginConfig):
@@ -289,7 +289,7 @@ class NetworkMetadata(BaseModel):
     instanceId of an existing Hardhat Network.
     """
 
-    forked_network: Optional[ForkedNetworkMetadata] = Field(None, alias="forkedNetwork")
+    forked_network: Optional[ForkedNetworkMetadata] = Field(default=None, alias="forkedNetwork")
     """
     An object with information about the forked network. This field is
     only present when Hardhat Network is forking another chain.
