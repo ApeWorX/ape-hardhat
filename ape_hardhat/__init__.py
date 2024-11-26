@@ -60,17 +60,37 @@ def providers():
 
 
 def __getattr__(name: str):
-    if name.endswith("Error"):
-        import ape_hardhat.exceptions as err_module
+    if name == "HardhatForkProvider":
+        from ape_hardhat.provider import HardhatForkProvider
 
-        return getattr(err_module, name)
+        return HardhatForkProvider
 
-    import ape_hardhat.provider as module
+    elif name == "HardhatNetworkConfig":
+        from ape_hardhat.provider import HardhatNetworkConfig
 
-    return getattr(module, name)
+        return HardhatNetworkConfig
+
+    elif name == "HardhatProvider":
+        from ape_hardhat.provider import HardhatProvider
+
+        return HardhatProvider
+
+    elif name == "HardhatProviderError":
+        from ape_hardhat.exceptions import HardhatProviderError
+
+        return HardhatProviderError
+
+    elif name == "HardhatSubprocessError":
+        from ape_hardhat.exceptions import HardhatSubprocessError
+
+        return HardhatSubprocessError
+
+    else:
+        raise AttributeError(name)
 
 
 __all__ = [
+    "HardhatForkProvider",
     "HardhatNetworkConfig",
     "HardhatProvider",
     "HardhatProviderError",
