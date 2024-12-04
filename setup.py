@@ -71,14 +71,14 @@ setup(
     url="https://github.com/ApeWorX/ape-hardhat",
     include_package_data=True,
     install_requires=[
-        "eth-ape>=0.8.10,<0.9",
-        "ethpm-types",  # Use same version as eth-ape
-        "evm-trace",  # Use same version as eth-ape
-        "web3",  # Use same version as eth-ape
+        "eth-ape>=0.8.1,<0.9",
+        "ethpm-types>=0.6.19,<0.7",
+        "evm-trace>=0.2.3,<0.3",
+        "web3>=7.6.0,<8",
         "chompjs>=1.1.9,<2",  # To help parse hardhat files
-        "requests",  # Use same version as eth-ape
-        "hexbytes",  # Use same version as eth-ape
-        "packaging",  # Use same version as eth-ape
+        "requests>=2.32.3,<3",
+        "hexbytes>=1.2.1,<2",
+        "packaging>=23.0,<24",
         "yarl>=1.9.2,<2",
     ],
     python_requires=">=3.8,<4",
