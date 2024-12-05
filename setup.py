@@ -74,7 +74,7 @@ setup(
         "eth-ape>=0.8.21,<0.9",
         "ethpm-types>=0.6.19,<0.7",
         "evm-trace>=0.2.3,<0.3",
-        "web3>=6.20.3,<8",
+        "web3>=6.20.1,<8",
         "chompjs>=1.1.9,<2",  # To help parse hardhat files
         "requests>=2.28.1,<3",
         "hexbytes>=0.3.1,<2",
