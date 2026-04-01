@@ -65,28 +65,27 @@ def __getattr__(name: str):
 
         return HardhatForkProvider
 
-    elif name == "HardhatNetworkConfig":
+    if name == "HardhatNetworkConfig":
         from ape_hardhat.provider import HardhatNetworkConfig
 
         return HardhatNetworkConfig
 
-    elif name == "HardhatProvider":
+    if name == "HardhatProvider":
         from ape_hardhat.provider import HardhatProvider
 
         return HardhatProvider
 
-    elif name == "HardhatProviderError":
+    if name == "HardhatProviderError":
         from ape_hardhat.exceptions import HardhatProviderError
 
         return HardhatProviderError
 
-    elif name == "HardhatSubprocessError":
+    if name == "HardhatSubprocessError":
         from ape_hardhat.exceptions import HardhatSubprocessError
 
         return HardhatSubprocessError
 
-    else:
-        raise AttributeError(name)
+    raise AttributeError(name)
 
 
 __all__ = [

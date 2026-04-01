@@ -227,10 +227,9 @@ def contract_a(owner, connected_provider, get_contract_type):
     contract_b = owner.deploy(
         ContractContainer(get_contract_type("contract_b")), contract_c.address
     )
-    contract_a = owner.deploy(
+    return owner.deploy(
         ContractContainer(get_contract_type("contract_a")), contract_b.address, contract_c.address
     )
-    return contract_a
 
 
 @pytest.fixture

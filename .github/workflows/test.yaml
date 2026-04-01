@@ -3,9 +3,6 @@ on: ["push", "pull_request"]
 name: Test
 
 concurrency:
-  # Cancel older, in-progress jobs from the same PR, same workflow.
-  # use run_id if the job is triggered by a push to ensure
-  # push-triggered jobs to not get canceled.
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
@@ -14,66 +11,63 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-        - uses: actions/checkout@v4
+        - uses: actions/checkout@v6
 
-        - name: Setup Python
-          uses: actions/setup-python@v5
+        - name: Install uv
+          uses: astral-sh/setup-uv@v7
           with:
               python-version: "3.10"
 
         - name: Install Dependencies
-          run: pip install .[lint]
+          run: uv sync --group lint
 
-        - name: Run Black
-          run: black --check .
+        - name: Run Ruff Lint
+          run: uv run ruff check .
 
-        - name: Run isort
-          run: isort --check-only .
-
-        - name: Run flake8
-          run: flake8 .
+        - name: Run Ruff Format
+          run: uv run ruff format --check .
 
         - name: Run mdformat
-          run: mdformat . --check
+          run: uv run mdformat --check README.md CONTRIBUTING.md docs
 
     type-check:
         runs-on: ubuntu-latest
 
         steps:
-        - uses: actions/checkout@v4
+        - uses: actions/checkout@v6
 
-        - name: Setup Python
-          uses: actions/setup-python@v5
+        - name: Install uv
+          uses: astral-sh/setup-uv@v7
           with:
               python-version: "3.10"
 
         - name: Install Dependencies
-          run: pip install .[lint]
+          run: uv sync --group lint --group test
 
         - name: Run MyPy
-          run: mypy .
+          run: uv run mypy .
 
     functional:
         runs-on: ${{ matrix.os }}
 
         strategy:
             matrix:
-                os: [ubuntu-latest, macos-latest]   # eventually add `windows-latest`
-                python-version: [3.9, "3.10", "3.11", "3.12", "3.13"]     
+                os: [ubuntu-latest, macos-latest]
+                python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
         steps:
-        - uses: actions/checkout@v4
+        - uses: actions/checkout@v6
 
-        - name: Setup Python
-          uses: actions/setup-python@v5
+        - name: Install uv
+          uses: astral-sh/setup-uv@v7
           with:
               python-version: ${{ matrix.python-version }}
 
         - name: Install Dependencies
-          run: pip install .[test]
+          run: uv sync --group test
 
         - name: Setup Node
-          uses: actions/setup-node@v3
+          uses: actions/setup-node@v4
           with:
               node-version: '18'
 
@@ -81,32 +75,10 @@ jobs:
           run: npm install
 
         - name: Run Async Tests
-          run: pytest -m "not fork and not manual and not fuzzing"
+          run: uv run ape test -m "not fork and not manual and not fuzzing"
 
         - name: Run Sync Tests
-          # Only run forked-network tests if not from a forked repo (Else it always fails)
           if: github.event.pull_request.head.repo.full_name == github.repository
-          run: pytest -m fork
+          run: uv run ape test -m fork
           env:
             WEB3_ALCHEMY_PROJECT_ID: ${{ secrets.WEB3_ALCHEMY_PROJECT_ID }}
-
-# NOTE: uncomment this block after you've marked tests with @pytest.mark.fuzzing
-#    fuzzing:
-#        runs-on: ubuntu-latest
-#
-#        strategy:
-#            fail-fast: true
-#
-#        steps:
-#        - uses: actions/checkout@v4
-#
-#        - name: Setup Python
-#          uses: actions/setup-python@v5
-#          with:
-#              python-version: "3.10"
-#
-#        - name: Install Dependencies
-#          run: pip install .[test]
-#
-#        - name: Run Tests
-#          run: pytest -m "fuzzing" --no-cov -s

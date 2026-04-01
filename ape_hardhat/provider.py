@@ -4,7 +4,7 @@ import re
 import shutil
 from pathlib import Path
 from subprocess import PIPE, CalledProcessError, call, check_output
-from typing import Literal, Optional, Union, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from ape.api import (
     ForkedNetworkAPI,
@@ -46,10 +46,12 @@ try:
 except ImportError:
     from web3.middleware import geth_poa_middleware as ExtraDataToPOAMiddleware  # type: ignore
 from web3.middleware.validation import MAX_EXTRADATA_LENGTH
-from web3.types import TxParams
 from yarl import URL
 
 from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
+
+if TYPE_CHECKING:
+    from web3.types import TxParams
 
 EPHEMERAL_PORTS_START = 49152
 EPHEMERAL_PORTS_END = 60999
@@ -88,8 +90,8 @@ def _validate_hardhat_config_file(
     num_of_accounts: int,
     initial_balance: int,
     hardhat_version: str,
-    hard_fork: Optional[str] = None,
-    hd_path: Optional[str] = None,
+    hard_fork: str | None = None,
+    hd_path: str | None = None,
 ) -> Path:
     if not path.is_file() and path.is_dir():
         path = path / DEFAULT_HARDHAT_CONFIG_FILE_NAME
@@ -104,10 +106,7 @@ def _validate_hardhat_config_file(
         # Figure out hardfork to use.
         shanghai_cutoff = Version("2.14.0")
         vers = Version(hardhat_version)
-        if vers < shanghai_cutoff:
-            hard_fork = "merge"
-        else:
-            hard_fork = "shanghai"
+        hard_fork = "merge" if vers < shanghai_cutoff else "shanghai"
 
     hd_path = hd_path or DEFAULT_TEST_HD_PATH
     content = HARDHAT_CONFIG.format(
@@ -134,7 +133,7 @@ def _validate_hardhat_config_file(
     )
 
     try:
-        js_obj = {}
+        js_obj: dict = {}
         try:
             js_obj = parse_js_object(path.read_text())
         except Exception:
@@ -170,27 +169,27 @@ def _validate_hardhat_config_file(
 
 
 class PackageJson(BaseModel):
-    name: Optional[str] = None
-    version: Optional[str] = None
-    description: Optional[str] = None
-    dependencies: Optional[dict[str, str]] = None
-    dev_dependencies: Optional[dict[str, str]] = Field(default=None, alias="devDependencies")
+    name: str | None = None
+    version: str | None = None
+    description: str | None = None
+    dependencies: dict[str, str] | None = None
+    dev_dependencies: dict[str, str] | None = Field(default=None, alias="devDependencies")
 
 
 class HardhatForkConfig(PluginConfig):
-    host: Optional[Union[str, Literal["auto"]]] = None
+    host: str | Literal["auto"] | None = None
     """
     The host address or ``"auto"`` to use localhost with a random port (with attempts).
     If ``host`` is specified in the root config, this will take precendence for this
     network.
     """
 
-    upstream_provider: Optional[str] = None
+    upstream_provider: str | None = None
     """
     The name of the upstream provider, such as ``alchemy`` or ``infura``.
     """
 
-    block_number: Optional[int] = None
+    block_number: int | None = None
     """
     The block number to fork. It is recommended to set this.
     """
@@ -203,10 +202,10 @@ class HardhatForkConfig(PluginConfig):
 
 
 class HardhatNetworkConfig(PluginConfig):
-    evm_version: Optional[str] = None
+    evm_version: str | None = None
     """The EVM hardfork to use. Defaults to letting Hardhat decide."""
 
-    host: Optional[Union[str, Literal["auto"]]] = None
+    host: str | Literal["auto"] | None = None
     """The host address or ``"auto"`` to use localhost with a random port (with attempts)."""
 
     manage_process: bool = True
@@ -215,7 +214,7 @@ class HardhatNetworkConfig(PluginConfig):
     Defaults to ``True``. If ``host`` is remote, will not be able to start.
     """
 
-    bin_path: Optional[Path] = None
+    bin_path: Path | None = None
     """
     The path to the Hardhat node binary.
     Only needed when using a non-standard path;
@@ -226,7 +225,7 @@ class HardhatNetworkConfig(PluginConfig):
     fork_request_timeout: int = 300
     process_attempts: int = 5
 
-    hardhat_config_file: Optional[Path] = None
+    hardhat_config_file: Path | None = None
     """
     Optionally specify a Hardhat config file to use
     (in the case when you don't wish to use the one Ape creates).
@@ -293,7 +292,7 @@ class NetworkMetadata(BaseModel):
     instanceId of an existing Hardhat Network.
     """
 
-    forked_network: Optional[ForkedNetworkMetadata] = Field(default=None, alias="forkedNetwork")
+    forked_network: ForkedNetworkMetadata | None = Field(default=None, alias="forkedNetwork")
     """
     An object with information about the forked network. This field is
     only present when Hardhat Network is forking another chain.
@@ -305,7 +304,7 @@ def _call(*args):
 
 
 class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
-    _host: Optional[str] = None
+    _host: str | None = None
     attempted_ports: list[int] = []
     _did_warn_wrong_node = False
 
@@ -316,7 +315,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
     _detected_correct_install: bool = True
 
     # Hardhat supports `debug_trceCall`.
-    _supports_debug_trace_call: Optional[bool] = True
+    _supports_debug_trace_call: bool | None = True
 
     @property
     def unlocked_accounts(self) -> list[AddressType]:
@@ -339,7 +338,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return self.settings.request_timeout
 
     @property
-    def connection_id(self) -> Optional[str]:
+    def connection_id(self) -> str | None:
         return f"{self.network_choice}:{self._host}"
 
     @property
@@ -351,7 +350,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             return self.uri
 
     @property
-    def _port(self) -> Optional[int]:
+    def _port(self) -> int | None:
         return URL(self.uri).port
 
     @property
@@ -373,7 +372,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if not npx:
             raise HardhatSubprocessError(f"Could not locate `npx` executable. {suffix}")
 
-        elif _call(npx, "--version") != 0:
+        if _call(npx, "--version") != 0:
             raise HardhatSubprocessError(f"`npm` executable returned error code. {suffix}.")
 
         hardhat_version = self.hardhat_version
@@ -402,7 +401,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         return node
 
     @property
-    def config_host(self) -> Optional[str]:
+    def config_host(self) -> str | None:
         # NOTE: Overriden in Forked networks.
         return self.settings.host
 
@@ -490,7 +489,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     @cached_property
     def _test_config(self) -> ApeTestConfig:
-        return cast(ApeTestConfig, self.config_manager.get_config("test"))
+        return cast("ApeTestConfig", self.config_manager.get_config("test"))
 
     @property
     def auto_mine(self) -> bool:
@@ -771,7 +770,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if sender:
             sender = self.conversion_manager.convert(txn.sender, AddressType)
 
-        sender_address = cast(AddressType, sender)
+        sender_address = cast("AddressType", sender)
         if sender_address in self.unlocked_accounts:
             # Allow for an unsigned transaction
             txn = self.prepare_transaction(txn)
@@ -779,13 +778,13 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             if isinstance(txn_dict.get("type"), int):
                 txn_dict["type"] = HexBytes(txn_dict["type"]).hex()
 
-            txn_params = cast(TxParams, txn_dict)
+            txn_params = cast("TxParams", txn_dict)
             vm_err = None
             try:
                 txn_hash = self.web3.eth.send_transaction(txn_params)
             except ValueError as err:
                 err_args = getattr(err, "args", None)
-                tx: Union[TransactionAPI, ReceiptAPI]
+                tx: TransactionAPI | ReceiptAPI
                 if (
                     err_args is not None
                     and isinstance(err_args[0], dict)
@@ -846,7 +845,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         return _get_transaction_trace(transaction_hash, **kwargs)
 
-    def set_balance(self, account: AddressType, amount: Union[int, float, str, bytes]):
+    def set_balance(self, account: AddressType, amount: float | str | bytes):
         is_str = isinstance(amount, str)
         _is_hex = False if not is_str else is_0x_prefixed(str(amount))
         is_key_word = is_str and len(str(amount).split(" ")) > 1
@@ -860,7 +859,7 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         # Convert to hex str
         if is_str and not _is_hex:
             amount_hex_str = to_hex(int(amount))
-        elif isinstance(amount, int) or isinstance(amount, bytes):
+        elif isinstance(amount, (int, bytes)):
             amount_hex_str = to_hex(amount)
 
         self.make_request("hardhat_setBalance", [account, amount_hex_str])
@@ -875,10 +874,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         if not message:
             return VirtualMachineError(base_err=exception, **kwargs)
 
-        elif message.startswith("execution reverted: "):
+        if message.startswith("execution reverted: "):
             message = message.replace("execution reverted: ", "")
 
-        def _handle_execution_reverted(revert_message: Optional[str] = None, **kwargs):
+        def _handle_execution_reverted(revert_message: str | None = None, **kwargs):
             if revert_message in ("", "0x", None):
                 revert_message = TransactionError.DEFAULT_MESSAGE
 
@@ -914,13 +913,13 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             message = message.replace(_REVERT_REASON_PREFIX, "").strip("'")
             return _handle_execution_reverted(message, **kwargs)
 
-        elif _NO_REASON_REVERT_MESSAGE in message:
+        if _NO_REASON_REVERT_MESSAGE in message:
             return _handle_execution_reverted(**kwargs)
 
-        elif message == "Transaction ran out of gas":
+        if message == "Transaction ran out of gas":
             return OutOfGasError(**kwargs)
 
-        elif "reverted with an unrecognized custom error" in message and "(return data:" in message:
+        if "reverted with an unrecognized custom error" in message and "(return data:" in message:
             # Happens during custom Solidity exceptions.
             message = message.split("(return data:")[-1].rstrip("/)").strip()
             return _handle_execution_reverted(message, **kwargs)
@@ -947,7 +946,7 @@ class HardhatForkProvider(HardhatProvider):
         plugin_config = cls.config_manager.get_config(value["name"])
         config_settings = plugin_config.get("fork", {})
 
-        def _get_upstream(data: dict) -> Optional[str]:
+        def _get_upstream(data: dict) -> str | None:
             return (
                 data.get(ecosystem_name, {})
                 .get(network.name.replace("-fork", ""), {})
@@ -962,14 +961,14 @@ class HardhatForkProvider(HardhatProvider):
 
     @property
     def forked_network(self) -> ForkedNetworkAPI:
-        return cast(ForkedNetworkAPI, self.network)
+        return cast("ForkedNetworkAPI", self.network)
 
     @property
     def fork_url(self) -> str:
         return self.forked_network.upstream_provider.connection_str
 
     @property
-    def fork_block_number(self) -> Optional[int]:
+    def fork_block_number(self) -> int | None:
         return self._fork_config.block_number
 
     @property
@@ -986,7 +985,7 @@ class HardhatForkProvider(HardhatProvider):
 
     @cached_property
     def _fork_config(self) -> HardhatForkConfig:
-        config = cast(HardhatNetworkConfig, self.config)
+        config = cast("HardhatNetworkConfig", self.config)
 
         ecosystem_name = self.network.ecosystem.name
         if ecosystem_name not in config.fork:
@@ -999,7 +998,7 @@ class HardhatForkProvider(HardhatProvider):
         return config.fork[ecosystem_name][network_name]
 
     @property
-    def config_host(self) -> Optional[str]:
+    def config_host(self) -> str | None:
         # First, attempt to get the host from the forked config.
         if host := self._fork_config.host:
             return host
@@ -1040,8 +1039,8 @@ class HardhatForkProvider(HardhatProvider):
 
         return cmd
 
-    def reset_fork(self, block_number: Optional[int] = None):
-        forking_params: dict[str, Union[str, int]] = {"jsonRpcUrl": self.fork_url}
+    def reset_fork(self, block_number: int | None = None):
+        forking_params: dict[str, str | int] = {"jsonRpcUrl": self.fork_url}
         block_number = block_number if block_number is not None else self.fork_block_number
         if block_number is not None:
             forking_params["blockNumber"] = block_number

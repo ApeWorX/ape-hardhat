@@ -173,7 +173,7 @@ def test_get_receipt(mainnet_fork_provider, mainnet_fork_contract_instance, owne
 
 @pytest.mark.fork
 @pytest.mark.parametrize(
-    "upstream_network,port,enable_hardhat_deployments,fork_block_number,has_hardhat_deploy",
+    ("upstream_network", "port", "enable_hardhat_deployments", "fork_block_number", "has_hardhat_deploy"),
     [
         ("mainnet", 8994, False, 15_964_699, False),
         ("mainnet", 8995, False, 15_932_345, True),
