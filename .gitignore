@@ -133,3 +133,6 @@ node_modules/
 *.swo
 
 uv.lock
+
+# ruff
+.ruff_cache/

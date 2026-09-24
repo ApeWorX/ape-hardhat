@@ -161,8 +161,7 @@ def _validate_hardhat_config_file(
 
     except Exception as err:
         logger.error(
-            f"Failed to parse Hardhat config file: {err}. "
-            f"Some features may not work as intended."
+            f"Failed to parse Hardhat config file: {err}. Some features may not work as intended."
         )
 
     return path

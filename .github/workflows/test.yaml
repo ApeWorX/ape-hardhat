@@ -3,6 +3,9 @@ on: ["push", "pull_request"]
 name: Test
 
 concurrency:
+  # Cancel older, in-progress jobs from the same PR, same workflow.
+  # use run_id if the job is triggered by a push to ensure
+  # push-triggered jobs to not get canceled.
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
@@ -21,14 +24,14 @@ jobs:
         - name: Install Dependencies
           run: uv sync --group lint
 
-        - name: Run Ruff Lint
+        - name: Run Ruff Linter
           run: uv run ruff check .
 
-        - name: Run Ruff Format
+        - name: Run Ruff Formatter
           run: uv run ruff format --check .
 
         - name: Run mdformat
-          run: uv run mdformat --check README.md CONTRIBUTING.md docs
+          run: uv run mdformat --check *.md
 
     type-check:
         runs-on: ubuntu-latest
@@ -52,11 +55,13 @@ jobs:
 
         strategy:
             matrix:
-                os: [ubuntu-latest, macos-latest]
+                os: [ubuntu-latest, macos-latest]   # eventually add `windows-latest`
                 python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
         steps:
         - uses: actions/checkout@v6
+          with:
+            fetch-depth: 0
 
         - name: Install uv
           uses: astral-sh/setup-uv@v7
@@ -66,19 +71,26 @@ jobs:
         - name: Install Dependencies
           run: uv sync --group test
 
-        - name: Setup Node
-          uses: actions/setup-node@v4
-          with:
-              node-version: '18'
+        - name: Run Tests
+          run: uv run pytest -m "not fuzzing" -s --cov=ape_hardhat -n auto
 
-        - name: Install Node Dependencies
-          run: npm install
-
-        - name: Run Async Tests
-          run: uv run ape test -m "not fork and not manual and not fuzzing"
-
-        - name: Run Sync Tests
-          if: github.event.pull_request.head.repo.full_name == github.repository
-          run: uv run ape test -m fork
-          env:
-            WEB3_ALCHEMY_PROJECT_ID: ${{ secrets.WEB3_ALCHEMY_PROJECT_ID }}
+# NOTE: uncomment this block after you've marked tests with @pytest.mark.fuzzing
+#    fuzzing:
+#        runs-on: ubuntu-latest
+#
+#        strategy:
+#            fail-fast: true
+#
+#        steps:
+#        - uses: actions/checkout@v6
+#
+#        - name: Install uv
+#          uses: astral-sh/setup-uv@v7
+#          with:
+#              python-version: "3.10"
+#
+#        - name: Install Dependencies
+#          run: uv sync --group test
+#
+#        - name: Run Tests
+#          run: uv run pytest -m "fuzzing" --no-cov -s

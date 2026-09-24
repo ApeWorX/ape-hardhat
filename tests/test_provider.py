@@ -309,10 +309,14 @@ def test_bin_path(connected_provider, project):
 
 
 def test_remote_host(networks, no_hardhat_bin, project):
-    with project.temp_config(hardhat={"host": "https://example.com"}), pytest.raises(
-        HardhatProviderError,
-        match=r"Failed to connect to remote Hardhat node at 'https://example.com'\.",
-    ), networks.ethereum.local.use_provider("hardhat"):
+    with (
+        project.temp_config(hardhat={"host": "https://example.com"}),
+        pytest.raises(
+            HardhatProviderError,
+            match=r"Failed to connect to remote Hardhat node at 'https://example.com'\.",
+        ),
+        networks.ethereum.local.use_provider("hardhat"),
+    ):
         pass
 
 
