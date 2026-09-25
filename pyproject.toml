@@ -50,6 +50,11 @@ test = [
     "pytest-xdist",
     "pytest-cov",
     "hypothesis>=6.2.0,<7",
+    "pytest-mock",
+    "ape-alchemy",
+    "ape-polygon",
+    "rich",
+
 ]
 lint = [
     "mypy>=1.15.0,<2",
@@ -116,9 +121,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"ape_hardhat/**/*.py" = ["SIM105", "TC002"]
 "version.py" = ["ALL"]
 "__init__.py" = ["F401"]
-"tests/**/*.py" = ["ARG001", "ARG002"]  # Pytest fixtures may appear unused
+"tests/**/*.py" = ["ARG001", "ARG002", "PT011", "B017", "SIM117"]  # Pytest fixtures may appear unused
 
 [tool.ruff.lint.isort]
 force-wrap-aliases = true
