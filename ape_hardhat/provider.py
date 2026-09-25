@@ -41,19 +41,19 @@ from web3 import HTTPProvider, Web3
 from web3.exceptions import ExtraDataLengthError
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
 
-try:
-    from web3.middleware import ExtraDataToPOAMiddleware  # type: ignore
-except ImportError:
-    from web3.middleware import (
-        geth_poa_middleware as ExtraDataToPOAMiddleware,  # type: ignore  # noqa: N812
-    )
 from web3.middleware.validation import MAX_EXTRADATA_LENGTH
 from yarl import URL
 
 from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
 
 if TYPE_CHECKING:
+    from web3.middleware import ExtraDataToPOAMiddleware
     from web3.types import TxParams
+else:
+    try:
+        from web3.middleware import ExtraDataToPOAMiddleware
+    except ImportError:  # pragma: no cover
+        from web3.middleware import geth_poa_middleware as ExtraDataToPOAMiddleware  # noqa: N812
 
 EPHEMERAL_PORTS_START = 49152
 EPHEMERAL_PORTS_END = 60999

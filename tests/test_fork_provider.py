@@ -63,9 +63,9 @@ EXPECTED_UPSTREAM = {
 def test_fork_config(name, config, network):
     plugin_config = config.get_config(name)
     network_config = plugin_config["fork"].get("ethereum", {}).get(network, {})
-    assert (
-        network_config.get("upstream_provider") == EXPECTED_UPSTREAM[network]
-    ), "config not registered"
+    assert network_config.get("upstream_provider") == EXPECTED_UPSTREAM[network], (
+        "config not registered"
+    )
 
 
 @pytest.mark.fork
