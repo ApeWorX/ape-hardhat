@@ -1,3 +1,4 @@
+import ast
 import json
 import random
 import re
@@ -18,6 +19,7 @@ from ape.api import (
 from ape.exceptions import (
     ContractLogicError,
     OutOfGasError,
+    ProviderError,
     RPCTimeoutError,
     SignatureError,
     SubprocessError,
@@ -44,6 +46,11 @@ from web3.middleware.validation import MAX_EXTRADATA_LENGTH
 from yarl import URL
 
 from .exceptions import HardhatNotInstalledError, HardhatProviderError, HardhatSubprocessError
+
+try:
+    from web3.exceptions import Web3RPCError
+except ImportError:  # pragma: no cover
+    Web3RPCError = ValueError  # type: ignore
 
 if TYPE_CHECKING:
     from web3.middleware import ExtraDataToPOAMiddleware
@@ -705,7 +712,10 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     def set_code(self, address: AddressType, code: ContractCode) -> bool:
         if isinstance(code, bytes):
-            code = code.hex()
+            code = to_hex(code)
+
+        elif isinstance(code, str) and not is_0x_prefixed(code):
+            code = f"0x{code}"
 
         elif not is_hex(code):
             raise ValueError(f"Value {code} is not convertible to hex")
@@ -725,9 +735,13 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
     def restore(self, snapshot_id: SnapshotID) -> bool:
         if isinstance(snapshot_id, int):
-            snapshot_id = HexBytes(snapshot_id).hex()
+            snapshot_id = f"0x{snapshot_id:016x}"
 
-        return self.make_request("evm_revert", [snapshot_id]) is True
+        try:
+            return self.make_request("evm_revert", [snapshot_id]) is True
+        except ProviderError:
+            # invalid / unknown snapshot → False (test_restore_failure)
+            return False
 
     def unlock_account(self, address: AddressType) -> bool:
         return self.make_request("hardhat_impersonateAccount", [address])
@@ -782,23 +796,29 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             vm_err = None
             try:
                 txn_hash = self.web3.eth.send_transaction(txn_params)
-            except ValueError as err:
+            except (ValueError, Web3RPCError) as err:
                 err_args = getattr(err, "args", None)
                 tx: TransactionAPI | ReceiptAPI
+                txn_hash_from_err = None
                 if (
                     err_args is not None
                     and isinstance(err_args[0], dict)
                     and "data" in err_args[0]
                     and "txHash" in err_args[0]["data"]
                 ):
-                    # Txn hash won't work in Ape at this point, but at least
-                    # we have it here. Use the receipt instead of the txn
-                    # for the err, so we can do source tracing.
                     txn_hash_from_err = err_args[0]["data"]["txHash"]
-                    tx = self.get_receipt(txn_hash_from_err)
-
                 else:
-                    tx = txn
+                    # web3 v6+ Web3RPCError: txHash lives on rpc_response["error"]["data"]
+                    rpc_response = getattr(err, "rpc_response", None)
+                    if isinstance(rpc_response, dict):
+                        err_obj = rpc_response.get("error")
+                        if isinstance(err_obj, dict):
+                            data = err_obj.get("data")
+                            if isinstance(data, dict):
+                                txn_hash_from_err = data.get("txHash")
+
+                # Prefer receipt when txHash is present so we can source-trace.
+                tx = self.get_receipt(txn_hash_from_err) if txn_hash_from_err else txn
 
                 vm_err = self.get_virtual_machine_error(err, txn=tx)
                 if txn.raise_on_revert:
@@ -865,12 +885,35 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
         self.make_request("hardhat_setBalance", [account, amount_hex_str])
 
     def get_virtual_machine_error(self, exception: Exception, **kwargs) -> VirtualMachineError:
-        if not len(exception.args):
+        if not len(exception.args) and not getattr(exception, "rpc_response", None):
             return VirtualMachineError(base_err=exception, **kwargs)
 
-        err_data = exception.args[0]
+        message = None
+        # Prefer structured RPC error message (web3 v6+ Web3RPCError).
+        rpc_response = getattr(exception, "rpc_response", None)
+        if isinstance(rpc_response, dict):
+            err_obj = rpc_response.get("error")
+            if isinstance(err_obj, dict) and err_obj.get("message"):
+                message = str(err_obj["message"])
 
-        message = err_data if isinstance(err_data, str) else str(err_data.get("message"))
+        if message is None:
+            err_data = exception.args[0] if exception.args else None
+            if isinstance(err_data, dict):
+                message = str(err_data.get("message") or err_data)
+            elif isinstance(err_data, str):
+                # Web3RPCError often uses repr(error_dict) as args[0].
+                if err_data.startswith("{") and "'message'" in err_data:
+                    try:
+                        parsed = ast.literal_eval(err_data)
+                        if isinstance(parsed, dict) and parsed.get("message"):
+                            message = str(parsed["message"])
+                    except (SyntaxError, ValueError):
+                        message = err_data
+                if message is None:
+                    message = err_data
+            elif err_data is not None:
+                message = str(err_data)
+
         if not message:
             return VirtualMachineError(base_err=exception, **kwargs)
 
@@ -881,9 +924,12 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
             if revert_message in ("", "0x", None):
                 revert_message = TransactionError.DEFAULT_MESSAGE
 
-            enriched = self.compiler_manager.enrich_error(
-                ContractLogicError(revert_message=revert_message, **kwargs)
-            )
+            logic_err = ContractLogicError(revert_message=revert_message, **kwargs)
+            try:
+                enriched = self.compiler_manager.enrich_error(logic_err)
+            except Exception:
+                # enrich_error may raise binascii.Error on dirty custom-error hex
+                return logic_err
 
             if enriched.message == TransactionError.DEFAULT_MESSAGE and revert_message:
                 # Since input data is always missing, and to preserve backwards compat,
@@ -921,7 +967,11 @@ class HardhatProvider(SubprocessProvider, Web3Provider, TestProviderAPI):
 
         if "reverted with an unrecognized custom error" in message and "(return data:" in message:
             # Happens during custom Solidity exceptions.
-            message = message.split("(return data:")[-1].rstrip("/)").strip()
+            raw = message.split("(return data:")[-1].strip()
+            # Only feed a clean 0x… hex (no trailing junk from dict-repr messages).
+            message = raw.split(")")[0].strip()
+            if not message.startswith("0x"):
+                message = f"0x{message}" if message else message
             return _handle_execution_reverted(message, **kwargs)
 
         return VirtualMachineError(message, **kwargs)
