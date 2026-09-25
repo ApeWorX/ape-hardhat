@@ -40,7 +40,6 @@ from pydantic_settings import SettingsConfigDict
 from web3 import HTTPProvider, Web3
 from web3.exceptions import ExtraDataLengthError
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
-
 from web3.middleware.validation import MAX_EXTRADATA_LENGTH
 from yarl import URL
 
