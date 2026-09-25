@@ -2,7 +2,10 @@
   "name": "contracts",
   "version": "0.1.0",
   "dependencies": {
-    "hardhat": "^2.13.1",
-    "@nomicfoundation/hardhat-ethers": "^3.0.8"
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "ethers": "^6.13.4"
+  },
+  "devDependencies": {
+    "hardhat": "^2.22.17"
   }
 }
