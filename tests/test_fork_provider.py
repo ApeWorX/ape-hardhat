@@ -52,11 +52,20 @@ def test_multiple_providers(
     assert networks.active_provider.uri == default_host
 
 
+EXPECTED_UPSTREAM = {
+    "mainnet": "node",
+    "sepolia": "node",
+    "holesky": "node",
+}
+
+
 @pytest.mark.parametrize("network", NETWORKS)
 def test_fork_config(name, config, network):
     plugin_config = config.get_config(name)
     network_config = plugin_config["fork"].get("ethereum", {}).get(network, {})
-    assert network_config.get("upstream_provider") == "alchemy", "config not registered"
+    assert network_config.get("upstream_provider") == EXPECTED_UPSTREAM[network], (
+        "config not registered"
+    )
 
 
 @pytest.mark.fork
@@ -173,7 +182,13 @@ def test_get_receipt(mainnet_fork_provider, mainnet_fork_contract_instance, owne
 
 @pytest.mark.fork
 @pytest.mark.parametrize(
-    "upstream_network,port,enable_hardhat_deployments,fork_block_number,has_hardhat_deploy",
+    (
+        "upstream_network",
+        "port",
+        "enable_hardhat_deployments",
+        "fork_block_number",
+        "has_hardhat_deploy",
+    ),
     [
         ("mainnet", 8994, False, 15_964_699, False),
         ("mainnet", 8995, False, 15_932_345, True),
@@ -254,6 +269,9 @@ def test_connect_to_polygon(networks, owner, contract_container):
     Ensures we don't get PoA middleware issue.
     Also, ensure that we using a different host (via config).
     """
-    with networks.polygon.amoy_fork.use_provider("hardhat"):
+    with networks.polygon.amoy_fork.use_provider("hardhat") as provider:
+        # Amoy fork inherits a ~30M block gas limit; ape's default tx gas
+        # (140M) exceeds it. Raise before deploy so the contract fits.
+        assert provider.set_block_gas_limit(150_000_000) is True
         contract = owner.deploy(contract_container)
         assert isinstance(contract, ContractInstance)  # Didn't fail

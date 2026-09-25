@@ -173,7 +173,7 @@ def test_transaction_contract_as_sender(contract_instance, connected_provider):
 
 
 @pytest.mark.parametrize(
-    "amount", ("50 ETH", int(50e18), "0x2b5e3af16b1880000", "50000000000000000000")
+    "amount", ["50 ETH", int(50e18), "0x2b5e3af16b1880000", "50000000000000000000"]
 )
 def test_set_balance(connected_provider, owner, convert, amount):
     connected_provider.set_balance(owner.address, amount)
@@ -237,7 +237,7 @@ def test_revert_allow(error_contract, not_owner, contract_instance):
     contract_instance.setNumber.call(5, raise_on_revert=False)
 
 
-@pytest.mark.parametrize("host", ("https://example.com", "example.com"))
+@pytest.mark.parametrize("host", ["https://example.com", "example.com"])
 def test_host(project, networks, host):
     with project.temp_config(hardhat={"host": host}):
         provider = networks.ethereum.local.get_provider("hardhat")
@@ -309,13 +309,15 @@ def test_bin_path(connected_provider, project):
 
 
 def test_remote_host(networks, no_hardhat_bin, project):
-    with project.temp_config(hardhat={"host": "https://example.com"}):
-        with pytest.raises(
+    with (
+        project.temp_config(hardhat={"host": "https://example.com"}),
+        pytest.raises(
             HardhatProviderError,
             match=r"Failed to connect to remote Hardhat node at 'https://example.com'\.",
-        ):
-            with networks.ethereum.local.use_provider("hardhat"):
-                pass
+        ),
+        networks.ethereum.local.use_provider("hardhat"),
+    ):
+        pass
 
 
 def test_hardfork(project, networks):

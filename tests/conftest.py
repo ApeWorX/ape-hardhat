@@ -31,7 +31,7 @@ def pytest_runtest_makereport(item, call):
     tr = orig_pytest_runtest_makereport(item, call)
     if call.excinfo is not None and "too many requests" in str(call.excinfo).lower():
         tr.outcome = "skipped"
-        tr.wasxfail = "reason: Alchemy requests overloaded (likely in CI)"
+        tr.wasxfail = "reason: upstream RPC overloaded (likely in CI)"
 
     return tr
 
@@ -227,10 +227,9 @@ def contract_a(owner, connected_provider, get_contract_type):
     contract_b = owner.deploy(
         ContractContainer(get_contract_type("contract_b")), contract_c.address
     )
-    contract_a = owner.deploy(
+    return owner.deploy(
         ContractContainer(get_contract_type("contract_a")), contract_b.address, contract_c.address
     )
-    return contract_a
 
 
 @pytest.fixture

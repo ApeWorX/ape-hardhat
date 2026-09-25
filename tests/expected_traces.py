@@ -1,7 +1,7 @@
 LOCAL_TRACE = r"""
 Call trace for '0x([A-Fa-f0-9]{64})'
 tx\.origin=0x[a-fA-F0-9]{40}
-ContractA\.methodWithoutArguments\(\) -> 0x00..93bc \[\d+ gas\]
+ContractA\.methodWithoutArguments\(\) -> 0x0000\.\.93bc \[\d+ gas\]
 ├── SYMBOL\.methodB1\(lolol="ice-cream", dynamo=36\)
 │   ├── ContractC\.getSomeList\(\) -> \[
 │   │     3425311345134513461345134534531452345,
