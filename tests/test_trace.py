@@ -42,7 +42,7 @@ def captrace(capsys):
 @pytest.fixture(autouse=True, scope="module")
 def full_contracts_cache(config):
     destination = config.DATA_FOLDER / "ethereum"
-    shutil.copytree(BASE_CONTRACTS_PATH, destination)
+    shutil.copytree(BASE_CONTRACTS_PATH, destination, dirs_exist_ok=True)
 
 
 @pytest.fixture(
