@@ -3,12 +3,26 @@ contracts_folder: tests/data/contracts/ethereum/local
 ethereum:
   local:
     default_provider: hardhat
+  mainnet:
+    default_provider: node
 
 polygon:
   local:
     default_provider: hardhat
   amoy:
-    default_provider: alchemy
+    default_provider: node
+
+node:
+  ethereum:
+    mainnet:
+      uri: https://ethereum.publicnode.com
+    sepolia:
+      uri: https://ethereum-sepolia-rpc.publicnode.com
+    holesky:
+      uri: https://ethereum-holesky-rpc.publicnode.com
+  polygon:
+    amoy:
+      uri: https://polygon-amoy-bor-rpc.publicnode.com
 
 hardhat:
   request_timeout: 29
@@ -18,20 +32,21 @@ hardhat:
   fork:
     ethereum:
       mainnet:
-        upstream_provider: alchemy
+        upstream_provider: https://ethereum.publicnode.com
         block_number: 17040366
         host: 127.0.0.1:7110
       sepolia:
-        upstream_provider: alchemy
+        upstream_provider: https://ethereum-sepolia-rpc.publicnode.com
         block_number: 3091950
         host: 127.0.0.1:7112
       holesky:
-        upstream_provider: alchemy
+        upstream_provider: https://ethereum-holesky-rpc.publicnode.com
         block_number: 100
         host: 127.0.0.1:7116
 
     polygon:
       amoy:
+        upstream_provider: https://polygon-amoy-bor-rpc.publicnode.com
         host: 127.0.0.1:7113
 
 test:
