@@ -25,7 +25,7 @@ node:
       uri: https://ethereum-holesky-rpc.publicnode.com
   polygon:
     amoy:
-      uri: https://polygon-amoy.drpc.org
+      uri: https://polygon-amoy.gateway.tenderly.co
 
 hardhat:
   request_timeout: 29
@@ -50,7 +50,7 @@ hardhat:
     polygon:
       amoy:
         upstream_provider: node
-        block_number: 48486472
+        block_number: 48487130
         host: 127.0.0.1:7113
 
 test:
