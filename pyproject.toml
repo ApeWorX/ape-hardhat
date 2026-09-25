@@ -121,10 +121,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"ape_hardhat/**/*.py" = ["SIM105", "TC002"]
+"ape_hardhat/**/*.py" = ["SIM105", "TC002", "PYI051"]
 "version.py" = ["ALL"]
 "__init__.py" = ["F401"]
-"tests/**/*.py" = ["ARG001", "ARG002", "PT011", "B017", "SIM117"]  # Pytest fixtures may appear unused
+"tests/**/*.py" = ["ARG001", "ARG002", "PT011", "B017", "SIM117", "PYI051", "SIM105"]  # Pytest fixtures may appear unused
 
 [tool.ruff.lint.isort]
 force-wrap-aliases = true
