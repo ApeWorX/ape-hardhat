@@ -1,7 +1,6 @@
 import re
 import shutil
 from pathlib import Path
-from typing import List
 
 import pytest
 from ape.utils import create_tempdir
@@ -43,7 +42,7 @@ def captrace(capsys):
 @pytest.fixture(autouse=True, scope="module")
 def full_contracts_cache(config):
     destination = config.DATA_FOLDER / "ethereum"
-    shutil.copytree(BASE_CONTRACTS_PATH, destination)
+    shutil.copytree(BASE_CONTRACTS_PATH, destination, dirs_exist_ok=True)
 
 
 @pytest.fixture(
@@ -69,7 +68,7 @@ def test_local_transaction_traces(local_receipt, captrace):
             with open(temp_file, "w") as file:
                 local_receipt.show_trace(file=file)
 
-            with open(temp_file, "r") as file:
+            with open(temp_file) as file:
                 lines = captrace.read_trace("Call trace for", file=file)
 
             assert_rich_output(lines, LOCAL_TRACE)
@@ -89,7 +88,7 @@ def test_local_transaction_gas_report(local_receipt, captrace):
             with open(temp_file, "w") as file:
                 local_receipt.show_gas_report(file=file)
 
-            with open(temp_file, "r") as file:
+            with open(temp_file) as file:
                 lines = captrace.read_trace("ContractA Gas", file=file)
 
             assert_rich_output(lines, LOCAL_GAS_REPORT)
@@ -108,7 +107,7 @@ def test_mainnet_transaction_traces(mainnet_receipt, captrace):
         with open(temp_file, "w") as file:
             mainnet_receipt.show_trace(file=file)
 
-        with open(temp_file, "r") as file:
+        with open(temp_file) as file:
             lines = captrace.read_trace("Call trace for", file=file)
 
         expected_beginning, expected_ending = EXPECTED_MAP[mainnet_receipt.txn_hash]
@@ -118,13 +117,13 @@ def test_mainnet_transaction_traces(mainnet_receipt, captrace):
         assert_rich_output(actual_ending, expected_ending)
 
 
-def assert_rich_output(rich_capture: List[str], expected: str):
+def assert_rich_output(rich_capture: list[str], expected: str):
     expected_lines = [x.rstrip() for x in expected.splitlines() if x.rstrip()]
     actual_lines = [x.rstrip() for x in rich_capture if x.rstrip()]
     assert actual_lines, "No output."
     output = "\n".join(actual_lines)
 
-    for actual, expected in zip(actual_lines, expected_lines):
+    for actual, expected in zip(actual_lines, expected_lines, strict=False):
         fail_message = f"""\n
         \tPattern: {expected}\n
         \tLine   : {actual}\n

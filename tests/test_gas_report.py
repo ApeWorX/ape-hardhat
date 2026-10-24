@@ -79,7 +79,7 @@ def run_gas_test(result, expected_report: str = EXPECTED_GAS_REPORT):
         remainder = "\n".join(expected[actual_len:])
         pytest.fail(f"Expected contains more than actual:\n{remainder}")
 
-    for actual_line, expected_line in zip(actual, expected):
+    for actual_line, expected_line in zip(actual, expected, strict=False):
         message = f"'{actual_line}' does not match pattern '{expected_line}'."
         assert re.match(expected_line, actual_line), message
 

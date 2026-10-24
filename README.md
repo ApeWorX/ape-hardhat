@@ -6,7 +6,7 @@ Use this plugin to manage a Hardhat node process or connect to an existing one.
 
 ## Dependencies
 
-- [python3](https://www.python.org/downloads) version 3.9 up to 3.12.
+- [Python 3](https://www.python.org/downloads) version 3.10 or greater.
 - Node.js, NPM, and Hardhat 2.12.0 or greater. See Hardhat's [Installation](https://hardhat.org/getting-started/#installation%3E) documentation for steps.
 
 ## Installation
@@ -26,7 +26,10 @@ You can clone the repository and use [`setuptools`](https://github.com/pypa/setu
 ```bash
 git clone https://github.com/ApeWorX/ape-hardhat.git
 cd ape-hardhat
-python3 setup.py install
+git clone https://github.com/ApeWorX/ape-hardhat.git
+cd ape-hardhat
+uv sync --group dev
+uv run prek install
 ```
 
 ## Quick Usage

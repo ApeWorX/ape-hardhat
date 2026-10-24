@@ -3,12 +3,29 @@ contracts_folder: tests/data/contracts/ethereum/local
 ethereum:
   local:
     default_provider: hardhat
+  mainnet:
+    default_provider: node
 
 polygon:
   local:
     default_provider: hardhat
   amoy:
-    default_provider: alchemy
+    default_provider: node
+
+node:
+  ethereum:
+    mainnet:
+      uri: https://eth.drpc.org
+    sepolia:
+      uri: https://sepolia.gateway.tenderly.co
+    holesky:
+      # Holesky sunset: no free public archive RPC remaining (drpc paid-only;
+      # publicnode/tenderly/1rpc/ankr free endpoints dead or key-gated).
+      # Kept for test_fork_config; do not start holesky forks in CI.
+      uri: https://ethereum-holesky-rpc.publicnode.com
+  polygon:
+    amoy:
+      uri: https://polygon-amoy.gateway.tenderly.co
 
 hardhat:
   request_timeout: 29
@@ -18,20 +35,22 @@ hardhat:
   fork:
     ethereum:
       mainnet:
-        upstream_provider: alchemy
+        upstream_provider: node
         block_number: 17040366
         host: 127.0.0.1:7110
       sepolia:
-        upstream_provider: alchemy
+        upstream_provider: node
         block_number: 3091950
         host: 127.0.0.1:7112
       holesky:
-        upstream_provider: alchemy
+        upstream_provider: node
         block_number: 100
         host: 127.0.0.1:7116
 
     polygon:
       amoy:
+        upstream_provider: node
+        block_number: 48487130
         host: 127.0.0.1:7113
 
 test:
